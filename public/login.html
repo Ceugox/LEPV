@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrar — LEPV SP</title>
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body { background: var(--navy); min-height: 100vh; }
+  .stage {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 32px 16px; position: relative;
+  }
+  .stage::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                       linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 0%, transparent 75%);
+  }
+  .brandblock { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
+  .brandblock img { width: 76px; height: 76px; margin-bottom: 16px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.14); }
+  .brandblock .eyebrow { color: rgba(255,255,255,0.55); margin-bottom: 10px; }
+  .brandblock h1 {
+    color: #fff; font-size: 32px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.02em; line-height: 1; margin: 0;
+  }
+  .brandblock h1 .accent { color: var(--red); }
+  .brandblock .sub { color: rgba(255,255,255,0.6); font-size: 13.5px; margin-top: 10px; letter-spacing: 0.01em; }
+
+  .login-card {
+    position: relative; width: 100%; max-width: 400px;
+    background: var(--white); border-radius: 4px; padding: 24px 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+  }
+  .login-card .eyebrow { margin-bottom: 6px; color: var(--graphite-soft); }
+  .login-card h2 { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 0 0 16px; }
+  form { display: flex; flex-direction: column; gap: 16px; }
+  .error {
+    display: none; font-size: 12.5px; color: #991B1B; background: #FEEBEB;
+    border: 1px solid #F5C6C6; border-radius: 3px; padding: 9px 12px;
+  }
+  .error.show { display: block; }
+  .hint { font-size: 11.5px; color: var(--graphite-soft); margin-top: -6px; }
+  .login-card .btn-primary { width: 100%; margin-top: 4px; }
+
+  .field > label.grouplabel {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft);
+    margin-bottom: 2px;
+  }
+  .member-pick-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px;
+  }
+  .member-pick {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 10px 4px; border-radius: 8px; border: 1px solid #CBD2DC; background: var(--offwhite);
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .member-pick:hover { border-color: var(--navy); }
+  .member-pick.active { border-color: var(--red); background: #FBEAEA; }
+  .member-pick .pick-avatar {
+    width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 800; font-size: 13px; color: #fff; background: var(--navy);
+  }
+  .member-pick .pick-name {
+    font-size: 10.5px; font-weight: 600; color: var(--graphite); text-align: center; line-height: 1.2;
+  }
+  .member-pick.active .pick-name { color: var(--navy); font-weight: 700; }
+
+  @media (min-width: 480px) {
+    .stage { padding: 40px 20px; }
+    .brandblock img { width: 92px; height: 92px; margin-bottom: 18px; }
+    .brandblock h1 { font-size: 40px; }
+    .brandblock .sub { font-size: 14px; }
+    .login-card { padding: 32px 30px; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="brandblock">
+      <img src="/logo.png" alt="LEPV SP">
+      <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
+      <h1>LEPV <span class="accent">SP</span></h1>
+      <p class="sub">Missão Empreendedora · 19–24 de julho de 2026</p>
+    </div>
+
+    <div class="login-card">
+      <p class="eyebrow">Acesso restrito</p>
+      <h2>Entrar</h2>
+      <form id="login-form">
+        <div class="field">
+          <label class="grouplabel">Membro</label>
+          <div class="member-pick-grid" id="member-grid"></div>
+          <input type="hidden" id="order" required>
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input type="password" id="password" inputmode="numeric" placeholder="seu número de inscrição" required>
+          <p class="hint">Sua senha é o seu número na ordem de inscrição.</p>
+        </div>
+        <p class="error" id="error"></p>
+        <button type="submit" class="btn-primary" id="submit-btn">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var grid = document.getElementById("member-grid");
+  var orderInput = document.getElementById("order");
+  var form = document.getElementById("login-form");
+  var errorEl = document.getElementById("error");
+  var submitBtn = document.getElementById("submit-btn");
+
+  fetch("/api/members-public")
+    .then(function (r) { return r.json(); })
+    .then(function (members) {
+      members.forEach(function (m) {
+        var firstName = m.name.trim().split(/\s+/)[0];
+        var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
+        var avatarHtml = m.photo
+          ? '<img class="pick-avatar" src="' + m.photo + '" alt="">'
+          : '<span class="pick-avatar">' + initials + "</span>";
+
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "member-pick";
+        btn.dataset.order = m.order;
+        btn.innerHTML = avatarHtml + '<span class="pick-name">' + firstName + "</span>";
+        btn.addEventListener("click", function () {
+          grid.querySelectorAll(".member-pick").forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          orderInput.value = m.order;
+          document.getElementById("password").focus();
+        });
+        grid.appendChild(btn);
+      });
+    })
+    .catch(function () {});
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    errorEl.classList.remove("show");
+
+    if (!orderInput.value) {
+      errorEl.textContent = "Selecione seu nome na lista.";
+      errorEl.classList.add("show");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Entrando...";
+
+    fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order: orderInput.value, password: document.getElementById("password").value }),
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          window.location.href = "/";
+        } else {
+          errorEl.textContent = res.data.message || "Não foi possível entrar.";
+          errorEl.classList.add("show");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Entrar";
+        }
+      })
+      .catch(function () {
+        errorEl.textContent = "Erro de conexão com o servidor.";
+        errorEl.classList.add("show");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Entrar";
+      });
+  });
+})();
+</script>
+</body>
+</html>

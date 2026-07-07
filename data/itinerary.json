@@ -1,0 +1,70 @@
+{
+  "hotel": {
+    "name": "Iguatemi Stay BT",
+    "addr": "R. Butantã, 324, Pinheiros, São Paulo - SP",
+    "rooms": [
+      {
+        "label": "Quarto 1 · 4 pessoas",
+        "members": ["Ruan Pablo Rodrigues", "Marcell Parra", "Raimundo Costa Filho", "Plácido Tavares Gomes"]
+      },
+      {
+        "label": "Quarto 2 · 7 pessoas",
+        "members": ["Clara Alencar", "Ludmila Ribeiro", "Caroline Alves", "Ana Luisa Rozado", "Fellipe Vieira", "Alexandro Souza Jr.", "Pedro Teixeira"]
+      }
+    ]
+  },
+  "days": [
+    {
+      "id": "dom19", "weekday": "Domingo", "date": "19/07",
+      "note": "Dia de chegada em São Paulo. Sem visitas agendadas.",
+      "stops": [
+        { "time": "—", "company": "Chegada + check-in", "addr": "R. Butantã, 324, Pinheiros, São Paulo - SP", "status": "internal", "arrival": null }
+      ],
+      "returnToHotel": null
+    },
+    {
+      "id": "seg20", "weekday": "Segunda-feira", "date": "20/07",
+      "note": "Visita única em período integral — combine com o anfitrião um horário de almoço dentro da janela.",
+      "stops": [
+        { "time": "10:00–20:00", "company": "NOMAD", "companyKey": "nomad", "addr": "R. Bela Cintra, 1149 — Consolação, São Paulo - SP", "status": "pending", "statusLabel": "confirmar sala/andar", "arrival": { "label": "~20–30 min de carro desde o hotel" } }
+      ],
+      "returnToHotel": { "label": "~20–30 min de carro" }
+    },
+    {
+      "id": "ter21", "weekday": "Terça-feira", "date": "21/07",
+      "note": "Atenção: Mottu termina 13:00 e Insper começa 13:00 — não há folga para deslocamento. Saia da Mottu até 12:35 ou avise o Insper de atraso.",
+      "stops": [
+        { "time": "09:00–13:00", "company": "Mottu", "companyKey": "mottu", "addr": "R. Agostinho Cantu, 209 — Butantã, São Paulo - SP", "status": "pending", "statusLabel": "confirmar unidade (Butantã x sede)", "arrival": { "label": "~10–15 min de carro desde o hotel" } },
+        { "time": "13:00–15:00", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro", "warn": true } },
+        { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro" } }
+      ],
+      "returnToHotel": { "label": "~20–30 min de carro" }
+    },
+    {
+      "id": "qua22", "weekday": "Quarta-feira", "date": "22/07",
+      "note": "Janela de ~2h entre Sharpi e Bain — dá para almoçar com folga na região da Faria Lima antes de seguir.",
+      "stops": [
+        { "time": "09:00–14:00", "company": "Sharpi", "companyKey": "sharpi", "addr": "Av. Brig. Faria Lima, 1811, cj 115 — Jardim Paulistano, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–20 min de carro desde o hotel" } },
+        { "time": "16:00–19:00", "company": "Bain & Company", "companyKey": "bain", "addr": "Av. Pres. Juscelino Kubitschek, 1909, Torre Norte — Vila Nova Conceição, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–30 min de carro (+ almoço no meio)" } }
+      ],
+      "returnToHotel": { "label": "~25–35 min de carro" }
+    },
+    {
+      "id": "qui23", "weekday": "Quinta-feira", "date": "23/07",
+      "note": "Manhã é bloco interno da liga. Janela de ~2h antes da Revolut é suficiente para almoço + deslocamento.",
+      "stops": [
+        { "time": "09:00–12:00", "company": "Medidas administrativas (interno)", "addr": "Sem visita externa", "status": "internal", "arrival": null },
+        { "time": "14:00–19:00", "company": "Revolut", "companyKey": "revolut", "addr": "R. Manuel da Nóbrega, 1280, 10º andar — Paraíso, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro desde o hotel" } }
+      ],
+      "returnToHotel": { "label": "~25–35 min de carro" }
+    },
+    {
+      "id": "sex24", "weekday": "Sexta-feira", "date": "24/07",
+      "note": "Sem visita registrada na planilha — confirmar se é dia livre ou de partida.",
+      "stops": [
+        { "time": "—", "company": "Livre / partida", "addr": "A definir", "status": "pending", "statusLabel": "confirmar horário de check-out e voo/ônibus", "arrival": null }
+      ],
+      "returnToHotel": null
+    }
+  ]
+}

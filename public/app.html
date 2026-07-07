@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEPV SP — Missão Empreendedora</title>
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body { background: var(--offwhite); }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px 96px; }
+
+  header.topbar {
+    background: var(--navy); padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+  }
+  header.topbar img.logo { width: 32px; height: 32px; flex: none; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.18); }
+  header.topbar .brandtext { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+  header.topbar .brandtext .b1 { font-family: var(--font-display); font-weight: 800; font-size: 16px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.topbar .brandtext .b1 .accent { color: var(--red); }
+  header.topbar .brandtext .b2 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.topbar .who { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
+  header.topbar .who .name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); display: none; }
+
+  nav.tabs {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; gap: 2px; overflow-x: auto;
+    padding: 0 16px; background: var(--navy-soft);
+    border-bottom: 1px solid var(--navy-line);
+    scrollbar-width: none;
+  }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs button {
+    flex: none; border: none; border-bottom: 3px solid transparent; background: transparent;
+    color: rgba(255,255,255,0.6); font-family: var(--font-display); font-weight: 700;
+    font-size: 14.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 13px 11px 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+  }
+  nav.tabs button:hover { color: rgba(255,255,255,0.9); }
+  nav.tabs button.active { color: #fff; border-bottom-color: var(--red); }
+
+  main { padding-top: 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--white); border: 1px solid var(--line); border-radius: 4px;
+    padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(8,27,51,0.04);
+  }
+
+  @media (min-width: 700px) {
+    .wrap { padding: 0 24px 96px; }
+    header.topbar { padding: 14px 24px; gap: 12px; }
+    header.topbar img.logo { width: 34px; height: 34px; }
+    header.topbar .brandtext .b1 { font-size: 17px; }
+    header.topbar .brandtext .b2 { font-size: 10.5px; letter-spacing: 0.1em; }
+    header.topbar .who { gap: 14px; }
+    header.topbar .who .name { display: inline; }
+    nav.tabs { padding: 0 24px; gap: 4px; }
+    nav.tabs button { font-size: 15px; padding: 13px 14px 10px; }
+    main { padding-top: 28px; }
+    .card { padding: 22px; margin-bottom: 18px; }
+  }
+  .section-label {
+    font-family: var(--font-body); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--graphite-soft); margin: 0 0 16px; font-weight: 700;
+  }
+
+  /* Resumo */
+  .mission-title {
+    font-family: var(--font-display); font-size: 26px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.01em; color: var(--navy); margin-bottom: 4px; line-height: 1.05;
+  }
+  .mission-rule { width: 48px; height: 3px; background: var(--red); margin: 14px 0 18px; }
+  .mission-summary { font-size: 14.5px; line-height: 1.65; color: var(--graphite); margin-bottom: 18px; max-width: 62ch; }
+  @media (min-width: 700px) {
+    .mission-title { font-size: 34px; }
+    .mission-summary { font-size: 15px; line-height: 1.7; margin-bottom: 20px; }
+  }
+  .objectives { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .objectives li {
+    display: flex; gap: 12px; font-size: 14.5px; line-height: 1.5; color: var(--graphite);
+    padding: 14px 2px; border-top: 1px solid var(--line);
+  }
+  .objectives li:first-child { border-top: none; }
+  .objectives li::before { content: "—"; color: var(--red); font-weight: 700; flex: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .chip {
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 7px 12px; border-radius: 3px; background: var(--offwhite); color: var(--navy); border: 1px solid var(--line);
+  }
+
+  /* Membros */
+  .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .member-card {
+    padding: 14px; border-radius: 4px; background: var(--white);
+    border: 1px solid var(--line); text-align: left;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .member-card .head { display: flex; align-items: center; gap: 10px; }
+  .member-card .avatar {
+    width: 44px; height: 44px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 800; font-size: 14px; color: #fff;
+    background: var(--navy);
+  }
+  .member-card .avatar.photo {
+    object-fit: cover; border: 2px solid var(--offwhite); box-shadow: 0 0 0 1px var(--line);
+  }
+  .member-card .who { min-width: 0; }
+  .member-card .name { font-size: 14px; font-weight: 700; line-height: 1.25; color: var(--navy); }
+  .member-card .order { font-size: 10.5px; color: var(--graphite-soft); margin-top: 2px; letter-spacing: 0.03em; }
+  .member-card .meta { font-size: 12px; color: var(--graphite-soft); border-top: 1px solid var(--line); padding-top: 9px; }
+  .member-card .interests { display: flex; flex-wrap: wrap; gap: 5px; }
+  .member-card .interest-chip {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 3px 7px; border-radius: 3px; background: var(--offwhite); color: var(--navy); border: 1px solid var(--line);
+  }
+  .member-card .name { font-size: 13.5px; font-weight: 700; line-height: 1.3; color: var(--navy); }
+  .member-card .order { font-size: 11px; color: var(--graphite-soft); margin-top: 4px; letter-spacing: 0.03em; }
+
+  /* Hotel */
+  .hotel-card { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+  .hotel-card .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--graphite-soft); margin-bottom: 5px; }
+  .hotel-card .name { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--navy); text-transform: uppercase; }
+  .hotel-card .addr { font-size: 13px; color: var(--graphite-soft); margin-top: 3px; }
+  .hotel-card a { text-decoration: none; white-space: nowrap; width: 100%; text-align: center; }
+  @media (min-width: 560px) {
+    .hotel-card { flex-direction: row; align-items: center; }
+    .hotel-card a { margin-left: auto; width: auto; }
+  }
+
+  /* Agenda */
+  .day-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 12px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .day-head .weekday { font-family: var(--font-display); font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em; color: var(--navy); padding-bottom: 12px; }
+  .day-head .date { font-size: 13px; color: var(--graphite-soft); font-weight: 600; }
+  .day-note {
+    font-size: 12.5px; color: #7C4A0A; background: var(--pending-soft);
+    border-left: 3px solid var(--pending); border-radius: 2px; padding: 10px 12px; margin: 0 0 16px; line-height: 1.4;
+  }
+  .timeline { display: flex; flex-direction: column; }
+  .stop { display: grid; grid-template-columns: 68px 1fr; gap: 8px; position: relative; padding-bottom: 4px; }
+  .stop .time { font-size: 10.5px; font-weight: 700; color: var(--graphite-soft); padding-top: 16px; text-align: right; white-space: nowrap; }
+  .stop .rail { position: relative; }
+  .stop .rail::before { content: ""; position: absolute; left: -5px; top: 0; bottom: 0; width: 2px; background: var(--line); }
+  .stop:first-child .rail::before { top: 21px; }
+  .stop:last-child .rail::before { bottom: calc(100% - 21px); }
+  .stop .dot {
+    position: absolute; left: -10px; top: 18px; width: 11px; height: 11px; border-radius: 2px;
+    background: var(--red); border: 2px solid var(--white); box-shadow: 0 0 0 1px var(--line);
+  }
+  .stopcard { background: var(--offwhite); border: 1px solid var(--line); border-radius: 4px; padding: 12px 13px; margin: 6px 0 10px; }
+  .stopcard .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .stopcard .company { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--navy); text-transform: uppercase; letter-spacing: 0.01em; }
+  @media (min-width: 480px) {
+    .stop { grid-template-columns: 84px 1fr; gap: 12px; }
+    .stop .time { font-size: 11px; }
+    .stop .rail::before { left: -7px; }
+    .stop .dot { left: -12px; }
+    .stopcard { padding: 13px 15px; }
+    .stopcard .company { font-size: 17px; }
+  }
+  .badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 2px; }
+  .badge.ok { background: var(--good-soft); color: var(--good); }
+  .badge.pending { background: var(--pending-soft); color: var(--pending); }
+  .badge.internal { background: var(--internal-soft); color: var(--internal); }
+  .stopcard .addr { font-size: 13px; color: var(--graphite-soft); margin-top: 6px; }
+  .stopcard .foot { display: flex; gap: 12px; margin-top: 9px; align-items: center; }
+  .stopcard a.route { font-size: 12px; font-weight: 700; color: var(--red); text-decoration: none; }
+  .stopcard a.route:hover { text-decoration: underline; }
+  .connector { grid-column: 2; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--graphite-soft); margin: -2px 0 2px; padding-left: 2px; }
+  .connector .line { flex: 1; height: 1px; background: var(--line); }
+  .connector.warn { color: var(--pending); font-weight: 700; }
+  .daypicker { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 18px; scrollbar-width: none; border-bottom: 1px solid var(--line); }
+  .daypicker::-webkit-scrollbar { display: none; }
+  .daypicker button {
+    flex: none; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--graphite-soft);
+    font-family: var(--font-display); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 10px 12px; cursor: pointer;
+  }
+  .daypicker button.active { color: var(--navy); border-bottom-color: var(--red); }
+
+  /* Empresas */
+  .company-picker { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; scrollbar-width: none; padding-bottom: 2px; }
+  .company-picker::-webkit-scrollbar { display: none; }
+  .company-chip {
+    flex: none; display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px 8px 10px; border-radius: 999px; border: 1.5px solid var(--line);
+    background: var(--white); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .company-chip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .company-chip .lbl {
+    font-family: var(--font-display); font-weight: 700; font-size: 12.5px; color: var(--graphite);
+    text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap;
+  }
+  .company-chip.active .lbl { color: var(--navy); }
+
+  .company-detail { position: relative; overflow: hidden; }
+  .company-fade { animation: companyFade 0.28s ease; }
+  @keyframes companyFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) { .company-fade { animation: none; } }
+
+  .company-hero {
+    display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: 6px; margin-bottom: 18px;
+    min-height: 76px;
+  }
+  .company-hero.logoBg-light { background: var(--offwhite); }
+  .company-hero.logoBg-dark { background: var(--navy); }
+  .company-hero img.company-logo { max-width: 130px; max-height: 46px; object-fit: contain; }
+  .company-hero .company-fallback-name {
+    font-family: var(--font-display); font-weight: 800; font-size: 22px; text-transform: uppercase;
+  }
+  .company-hero.logoBg-dark .company-fallback-name { color: #fff; }
+  .company-hero.logoBg-light .company-fallback-name { color: var(--navy); }
+
+  .company-blurb { font-size: 14.5px; line-height: 1.65; color: var(--graphite); margin-bottom: 18px; }
+
+  .company-visit { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 11px; }
+  .company-visit .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13.5px; }
+  .company-visit .row .k { color: var(--graphite-soft); font-weight: 600; flex: none; }
+  .company-visit .row .v { color: var(--graphite); font-weight: 700; text-align: right; }
+  .company-visit .row a.route { color: var(--red); text-decoration: none; font-weight: 700; }
+  .company-visit .row a.route:hover { text-decoration: underline; }
+
+  @media (min-width: 700px) {
+    .company-hero img.company-logo { max-width: 170px; max-height: 56px; }
+  }
+
+  /* Transporte */
+  .calc-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .calc-row .field input, .calc-row .field select { min-width: 96px; }
+  .calc-result {
+    margin-top: 18px; padding: 16px 18px; border-radius: 4px;
+    background: var(--offwhite); border-left: 3px solid var(--red);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .calc-result .big { font-family: var(--font-display); font-size: 32px; font-weight: 800; color: var(--navy); }
+
+  /* Checklist */
+  .checklist ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 2px; border-top: 1px solid var(--line); }
+  .checklist li:first-child { border-top: none; }
+  .checklist input[type="checkbox"] { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--red); flex: none; }
+  .checklist span.txt { font-size: 14.5px; line-height: 1.45; flex: 1; color: var(--graphite); }
+  .checklist li.done span.txt { color: var(--graphite-soft); text-decoration: line-through; }
+  .checklist .who-added { font-size: 11px; color: var(--graphite-soft); display: block; margin-top: 2px; }
+  .checklist .del-btn { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 16px; padding: 0 4px; }
+  .checklist .del-btn:hover { color: var(--red); }
+  .addbar { display: flex; gap: 9px; margin-top: 16px; }
+  .addbar input { flex: 1; }
+
+  .empty-state { font-size: 13px; color: var(--graphite-soft); padding: 20px 0; text-align: center; }
+
+  /* Quartos — widget flutuante */
+  .room-fab {
+    position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom));
+    z-index: 40; display: flex; align-items: center; gap: 8px;
+    background: var(--navy); color: #fff; border: none; border-radius: 999px;
+    padding: 13px 18px 13px 15px; box-shadow: 0 10px 26px rgba(8,27,51,0.4);
+    font-family: var(--font-display); font-weight: 700; font-size: 13.5px;
+    text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
+  }
+  .room-fab svg { display: block; flex: none; }
+  .room-backdrop {
+    position: fixed; inset: 0; background: rgba(8,27,51,0.45); z-index: 39;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  .room-backdrop.open { opacity: 1; pointer-events: auto; }
+  .room-panel {
+    position: fixed; z-index: 41; left: 14px; right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    max-height: 72vh; overflow-y: auto;
+    background: var(--white); border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(8,27,51,0.35);
+    padding: 20px; transform: translateY(130%); transition: transform 0.25s ease;
+  }
+  .room-panel.open { transform: translateY(0); }
+  .room-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .room-close { border: none; background: none; font-size: 22px; line-height: 1; color: var(--graphite-soft); cursor: pointer; padding: 4px; }
+  .room-panel-title {
+    font-family: var(--font-display); font-size: 19px; font-weight: 800; text-transform: uppercase;
+    color: var(--navy); margin: 2px 0 14px;
+  }
+  .room-group { margin-bottom: 14px; }
+  .room-group:last-child { margin-bottom: 0; }
+  .room-group .rlabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--red); margin-bottom: 6px; }
+  .room-group ul { list-style: none; margin: 0; padding: 0; }
+  .room-group li { font-size: 13.5px; padding: 6px 0; border-top: 1px solid var(--line); color: var(--graphite); }
+  .room-group li:first-child { border-top: none; }
+
+  @media (min-width: 1400px) {
+    .room-fab, .room-backdrop { display: none; }
+    .room-panel {
+      left: auto; right: 20px; bottom: auto; top: 96px; width: 220px;
+      max-height: calc(100vh - 130px); transform: none !important;
+      box-shadow: 0 8px 28px rgba(8,27,51,0.14); border: 1px solid var(--line);
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <img class="logo" src="/logo.png" alt="LEPV SP">
+  <div class="brandtext">
+    <span class="b1">LEPV <span class="accent">SP</span></span>
+    <span class="b2">Missão Empreendedora</span>
+  </div>
+  <div class="who">
+    <span class="name" id="who-name"></span>
+    <button class="btn-ghost" id="logout-btn">Sair</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="resumo" class="active">Resumo</button>
+  <button data-tab="membros">Membros</button>
+  <button data-tab="agenda">Agenda</button>
+  <button data-tab="empresas">Empresas</button>
+  <button data-tab="transporte">Transporte</button>
+  <button data-tab="checklist">Checklist</button>
+</nav>
+
+<button id="room-fab" class="room-fab" aria-expanded="false" aria-controls="room-panel">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 10V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M3 10h18v7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M3 17v3M21 17v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M3 14h18" stroke="currentColor" stroke-width="1.8"/>
+  </svg>
+  Quartos
+</button>
+<div id="room-backdrop" class="room-backdrop"></div>
+<aside id="room-panel" class="room-panel">
+  <div class="room-panel-head">
+    <p class="eyebrow" style="color:var(--graphite-soft);margin:0;">Iguatemi Stay BT</p>
+    <button id="room-close" class="room-close" aria-label="Fechar">×</button>
+  </div>
+  <h3 class="room-panel-title">Alocação de quartos</h3>
+  <div id="room-list"><p class="empty-state">Carregando...</p></div>
+</aside>
+
+<div class="wrap">
+  <main>
+
+    <section class="panel active" id="panel-resumo">
+      <div class="card" id="mission-content">
+        <p class="empty-state">Carregando...</p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-membros">
+      <div class="card">
+        <p class="section-label">Quem está na imersão</p>
+        <div class="member-grid" id="member-grid">
+          <p class="empty-state">Carregando...</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-agenda">
+      <div class="card hotel-card" id="hotel-card"></div>
+      <div class="daypicker" id="daypicker"></div>
+      <div id="agenda-days"></div>
+    </section>
+
+    <section class="panel" id="panel-empresas">
+      <div class="company-picker" id="company-picker"></div>
+      <div class="card company-detail" id="company-detail">
+        <p class="empty-state">Carregando...</p>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-transporte">
+      <div class="card">
+        <p class="section-label">Calculadora de transporte</p>
+        <div class="calc-row">
+          <div class="field">
+            <label for="pax">Pessoas no grupo</label>
+            <input type="number" id="pax" min="1" max="80" value="11">
+          </div>
+          <div class="field">
+            <label for="veic">Tipo de carro</label>
+            <select id="veic">
+              <option value="3">UberX / 99 (até 3 por carro)</option>
+              <option value="4">Comfort / Black (até 4 por carro)</option>
+              <option value="6" selected>Van / 6 lugares (até 6 por carro)</option>
+            </select>
+          </div>
+        </div>
+        <div class="calc-result">
+          <span class="big num" id="calc-out">2</span>
+          <span style="font-size:13px;color:var(--graphite-soft);">carros por trajeto — peça todos ao mesmo tempo para o grupo não se dispersar</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel checklist" id="panel-checklist">
+      <div class="card">
+        <p class="section-label">Pendências &amp; combinados</p>
+        <ul id="checklist-items"></ul>
+        <div class="addbar">
+          <input type="text" id="new-item" placeholder="Adicionar pendência...">
+          <button class="btn-primary" id="add-item-btn">Adicionar</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
