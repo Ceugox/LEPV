@@ -28,7 +28,19 @@
       "stops": [
         { "time": "10:00–20:00", "company": "NOMAD", "companyKey": "nomad", "addr": "R. Bela Cintra, 1149 — Consolação, São Paulo - SP", "status": "pending", "statusLabel": "confirmar sala/andar", "arrival": { "label": "~20–30 min de carro desde o hotel" } }
       ],
-      "returnToHotel": { "label": "~20–30 min de carro" }
+      "returnToHotel": { "label": "~20–30 min de carro" },
+      "lunch": {
+        "note": "NOMAD é dia inteiro sem pausa marcada — combine com o anfitrião um horário de almoço, de preferência entre 12h e 13h30.",
+        "groups": [
+          {
+            "window": "~12:00–13:30 (a combinar)",
+            "options": [
+              { "name": "Kilove Grill", "note": "self-service a quilo, grelhados e saladas · a ~700m da Nomad", "price": "R$ 40–55" },
+              { "name": "Divino Fogão (Av. Paulista)", "note": "self-service brasileiro, giro rápido", "price": "R$ 30–45" }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "ter21", "weekday": "Terça-feira", "date": "21/07",
@@ -38,7 +50,26 @@
         { "time": "13:00–15:00", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro", "warn": true } },
         { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro" } }
       ],
-      "returnToHotel": { "label": "~20–30 min de carro" }
+      "returnToHotel": { "label": "~20–30 min de carro" },
+      "lunch": {
+        "note": "Mottu termina 13h e Insper começa 13h — sem tempo de parar. Compre algo pra comer no trajeto e deixe a refeição mais completa para depois do Insper.",
+        "groups": [
+          {
+            "window": "No trajeto Mottu → Insper (comida pra viagem)",
+            "options": [
+              { "name": "Vila Butantã (food park)", "note": "sanduíches e food trucks, na mesma rua da Mottu", "price": "R$ 25–40" },
+              { "name": "Dona Marmita", "note": "marmitas prontas para retirar no caminho", "price": "R$ 25–35" }
+            ]
+          },
+          {
+            "window": "15:00–16:30, entre Insper e Mirow & Co.",
+            "options": [
+              { "name": "Divino Fogão (Vila Olímpia)", "note": "a quilo, perto do Insper, giro rápido", "price": "R$ 45–60" },
+              { "name": "Santa Hora", "note": "comida caseira a quilo, Vila Olímpia/Itaim", "price": "R$ 60–90" }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "qua22", "weekday": "Quarta-feira", "date": "22/07",
@@ -47,7 +78,19 @@
         { "time": "09:00–14:00", "company": "Sharpi", "companyKey": "sharpi", "addr": "Av. Brig. Faria Lima, 1811, cj 115 — Jardim Paulistano, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–20 min de carro desde o hotel" } },
         { "time": "16:00–19:00", "company": "Bain & Company", "companyKey": "bain", "addr": "Av. Pres. Juscelino Kubitschek, 1909, Torre Norte — Vila Nova Conceição, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–30 min de carro (+ almoço no meio)" } }
       ],
-      "returnToHotel": { "label": "~25–35 min de carro" }
+      "returnToHotel": { "label": "~25–35 min de carro" },
+      "lunch": {
+        "note": "Janela de ~2h entre Sharpi e Bain — dá pra sentar com calma na região da Faria Lima/Itaim.",
+        "groups": [
+          {
+            "window": "14:00–16:00",
+            "options": [
+              { "name": "Barakah Cozinha Árabe", "note": "buffet self-service, Itaim Bibi", "price": "R$ 50–70" },
+              { "name": "Praça São Lourenço", "note": "menu fixo de almoço, Vila Olímpia", "price": "R$ 68 (fechado)" }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "qui23", "weekday": "Quinta-feira", "date": "23/07",
@@ -56,7 +99,19 @@
         { "time": "09:00–12:00", "company": "Medidas administrativas (interno)", "addr": "Sem visita externa", "status": "internal", "arrival": null },
         { "time": "14:00–19:00", "company": "Revolut", "companyKey": "revolut", "addr": "R. Manuel da Nóbrega, 1280, 10º andar — Paraíso, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro desde o hotel" } }
       ],
-      "returnToHotel": { "label": "~25–35 min de carro" }
+      "returnToHotel": { "label": "~25–35 min de carro" },
+      "lunch": {
+        "note": "~2h antes da Revolut — melhor já almoçar perto da região do Paraíso/Vila Mariana.",
+        "groups": [
+          {
+            "window": "12:00–14:00",
+            "options": [
+              { "name": "Restaurante Colibri", "note": "a quilo, Vila Clementino, giro rápido", "price": "R$ 20–40" },
+              { "name": "Pizzaria Vero Paraíso", "note": "rodízio de pizza, preço fechado", "price": "R$ 59,90" }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "sex24", "weekday": "Sexta-feira", "date": "24/07",

@@ -8,11 +8,28 @@ const bcrypt = require("bcryptjs");
 const DATA_DIR = path.join(__dirname, "data");
 const PUBLIC_DIR = path.join(__dirname, "public");
 
+// Em produção (Railway), STORAGE_DIR aponta para um volume persistente —
+// os demais arquivos em data/ são só leitura e podem ser reconstruídos a
+// cada deploy, mas o checklist é editado em runtime e precisa sobreviver.
+const STORAGE_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || DATA_DIR;
+const CHECKLIST_PATH = path.join(STORAGE_DIR, "checklist.json");
+
 function readJson(name) {
   return JSON.parse(fs.readFileSync(path.join(DATA_DIR, name), "utf8"));
 }
 function writeJson(name, value) {
   fs.writeFileSync(path.join(DATA_DIR, name), JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+
+function readChecklist() {
+  return JSON.parse(fs.readFileSync(CHECKLIST_PATH, "utf8"));
+}
+function writeChecklist(value) {
+  fs.writeFileSync(CHECKLIST_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(CHECKLIST_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeChecklist(readJson("checklist.json"));
 }
 
 if (!fs.existsSync(path.join(DATA_DIR, "credentials.json"))) {
@@ -120,33 +137,33 @@ app.get("/api/companies", requireAuthApi, (req, res) => {
 });
 
 app.get("/api/checklist", requireAuthApi, (req, res) => {
-  res.json(readJson("checklist.json"));
+  res.json(readChecklist());
 });
 
 app.post("/api/checklist", requireAuthApi, (req, res) => {
   const text = String(req.body.text || "").trim();
   if (!text) return res.status(400).json({ error: "empty_text" });
-  const items = readJson("checklist.json");
+  const items = readChecklist();
   const nextId = items.reduce((max, i) => Math.max(max, i.id), 0) + 1;
   items.push({ id: nextId, text, done: false, addedBy: req.session.user.name });
-  writeJson("checklist.json", items);
+  writeChecklist(items);
   res.json(items);
 });
 
 app.patch("/api/checklist/:id", requireAuthApi, (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const items = readJson("checklist.json");
+  const items = readChecklist();
   const item = items.find((i) => i.id === id);
   if (!item) return res.status(404).json({ error: "not_found" });
   item.done = Boolean(req.body.done);
-  writeJson("checklist.json", items);
+  writeChecklist(items);
   res.json(items);
 });
 
 app.delete("/api/checklist/:id", requireAuthApi, (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const items = readJson("checklist.json").filter((i) => i.id !== id);
-  writeJson("checklist.json", items);
+  const items = readChecklist().filter((i) => i.id !== id);
+  writeChecklist(items);
   res.json(items);
 });
 

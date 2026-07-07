@@ -66,7 +66,15 @@
 
   function activateTab(name) {
     tabButtons.forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
-    panels.forEach(function (p) { p.classList.toggle("active", p.id === "panel-" + name); });
+    panels.forEach(function (p) {
+      var isActive = p.id === "panel-" + name;
+      p.classList.toggle("active", isActive);
+      if (isActive) {
+        p.classList.remove("fade-in");
+        void p.offsetWidth;
+        p.classList.add("fade-in");
+      }
+    });
     if (!loaded[name]) {
       loaded[name] = true;
       loaders[name] && loaders[name]();
@@ -168,7 +176,35 @@
         '<div class="day-head"><span class="weekday">' + day.weekday + '</span><span class="date num">' + day.date + '/2026</span></div>' +
         (day.note ? '<p class="day-note">' + day.note + "</p>" : "") +
         '<div class="timeline">' + stopsHtml + "</div>" +
-      "</div>";
+      "</div>" +
+      renderLunch(day.lunch);
+  }
+
+  function renderLunch(lunch) {
+    if (!lunch) return "";
+    var groupsHtml = lunch.groups
+      .map(function (g) {
+        var optionsHtml = g.options
+          .map(function (o) {
+            return (
+              '<div class="lunch-option">' +
+                '<div class="lo-main"><span class="lo-name">' + o.name + '</span><span class="lo-note">' + o.note + "</span></div>" +
+                '<span class="lo-price num">' + o.price + "</span>" +
+              "</div>"
+            );
+          })
+          .join("");
+        return '<div class="lunch-window">' + g.window + "</div>" + optionsHtml;
+      })
+      .join('<hr class="hair" style="margin:10px 0;">');
+
+    return (
+      '<div class="card lunch-card">' +
+        '<p class="section-label" style="color:var(--lunch-dark);">Sugestão de almoço</p>' +
+        '<p style="font-size:13px;color:var(--graphite-soft);line-height:1.5;margin:0 0 12px;">' + lunch.note + "</p>" +
+        '<div class="lunch-options">' + groupsHtml + "</div>" +
+      "</div>"
+    );
   }
 
   function loadAgenda() {
