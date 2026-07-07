@@ -86,14 +86,60 @@
 
   // ---- Resumo ----
   function loadMission() {
-    api("/api/mission").then(function (m) {
+    Promise.all([api("/api/mission"), api("/api/companies")]).then(function (results) {
+      var m = results[0];
+      var companiesByKey = {};
+      results[1].forEach(function (c) { companiesByKey[c.key] = c; });
+
       var objectivesHtml = m.objectives.map(function (o) { return "<li>" + o + "</li>"; }).join("");
       var chipsHtml = m.companies.map(function (c) { return '<span class="chip">' + c + "</span>"; }).join("");
-      document.getElementById("mission-content").innerHTML =
-        '<h2 class="mission-title">' + m.title + "</h2>" +
-        '<p class="mission-summary">' + m.summary + "</p>" +
-        '<ul class="objectives">' + objectivesHtml + "</ul>" +
-        '<div class="chips">' + chipsHtml + "</div>";
+
+      var heroHtml =
+        '<div class="card">' +
+          '<h2 class="mission-title">' + m.title + "</h2>" +
+          '<p class="mission-summary">' + m.summary + "</p>" +
+          '<ul class="objectives">' + objectivesHtml + "</ul>" +
+          '<div class="chips">' + chipsHtml + "</div>" +
+        "</div>";
+
+      var pioneerHtml = m.pioneering.length
+        ? '<div class="card">' +
+            '<p class="section-label">O que torna essa jornada pioneira</p>' +
+            '<div class="pioneer-list">' +
+              m.pioneering.map(function (p) {
+                return '<div class="pioneer-item"><h3>' + p.title + "</h3><p>" + p.text + "</p></div>";
+              }).join("") +
+            "</div>" +
+          "</div>"
+        : "";
+
+      var prepareHtml = m.prepare.length
+        ? '<div class="card">' +
+            '<p class="section-label">Prepare-se: o que estudar antes de cada visita</p>' +
+            '<div class="prepare-grid">' +
+              m.prepare.map(function (p, i) {
+                var c = companiesByKey[p.companyKey];
+                if (!c) return "";
+                var pointsHtml = p.points.map(function (pt) { return "<li>" + pt + "</li>"; }).join("");
+                return (
+                  '<div class="prepare-card stagger-in" style="animation-delay:' + (i * 60) + 'ms">' +
+                    '<div class="prepare-head"><span class="prepare-dot" style="background:' + c.color + '"></span><span class="prepare-name">' + c.name + "</span></div>" +
+                    "<ul>" + pointsHtml + "</ul>" +
+                  "</div>"
+                );
+              }).join("") +
+            "</div>" +
+          "</div>"
+        : "";
+
+      var expectHtml = m.expectations.length
+        ? '<div class="card">' +
+            '<p class="section-label">O que esperar das visitas</p>' +
+            '<ul class="objectives">' + m.expectations.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>" +
+          "</div>"
+        : "";
+
+      document.getElementById("mission-content").innerHTML = heroHtml + pioneerHtml + prepareHtml + expectHtml;
     });
   }
 
@@ -102,7 +148,7 @@
     api("/api/members").then(function (members) {
       var grid = document.getElementById("member-grid");
       grid.innerHTML = members
-        .map(function (m) {
+        .map(function (m, i) {
           var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
           var avatarHtml = m.photo
             ? '<img class="avatar photo" src="' + m.photo + '" alt="' + m.name + '">'
@@ -115,7 +161,7 @@
             : "";
 
           return (
-            '<div class="member-card">' +
+            '<div class="member-card stagger-in" style="animation-delay:' + (i * 45) + 'ms">' +
               '<div class="head">' +
                 avatarHtml +
                 '<div class="who"><div class="name">' + m.name + '</div><div class="order">Inscrição nº ' + m.order + "</div></div>" +
@@ -152,7 +198,7 @@
           ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
           : "";
       stopsHtml +=
-        '<div class="stop">' +
+        '<div class="stop stagger-in" style="animation-delay:' + (i * 70) + 'ms">' +
           '<div class="time num">' + stop.time + "</div>" +
           '<div class="rail"><span class="dot"></span>' +
             '<div class="stopcard">' +
@@ -319,9 +365,9 @@
 
       var picker = document.getElementById("company-picker");
       picker.innerHTML = companiesData
-        .map(function (c) {
+        .map(function (c, i) {
           return (
-            '<button class="company-chip" data-key="' + c.key + '">' +
+            '<button class="company-chip stagger-in" data-key="' + c.key + '" style="animation-delay:' + (i * 55) + 'ms">' +
               '<span class="dot" style="background:' + c.color + '"></span>' +
               '<span class="lbl">' + c.name + "</span>" +
             "</button>"
@@ -353,18 +399,94 @@
     });
   }
 
-  // ---- Transporte ----
-  var paxInput = document.getElementById("pax");
-  var veicSelect = document.getElementById("veic");
-  var calcOut = document.getElementById("calc-out");
-  function updateCalc() {
-    var pax = Math.max(1, parseInt(paxInput.value, 10) || 1);
-    var perCar = parseInt(veicSelect.value, 10);
-    calcOut.textContent = Math.ceil(pax / perCar);
+  // ---- Trajetos (mapas reais entre hotel e cada visita) ----
+  var routeItinerary = null;
+  var activeRouteDayId = null;
+
+  function mapsEmbedUrl(origin, destination) {
+    return "https://maps.google.com/maps?saddr=" + encodeURIComponent(origin) + "&daddr=" + encodeURIComponent(destination) + "&output=embed";
   }
-  paxInput.addEventListener("input", updateCalc);
-  veicSelect.addEventListener("change", updateCalc);
-  updateCalc();
+
+  function computeLegs(day, hotelAddr) {
+    var legs = [];
+    var prevAddr = hotelAddr;
+    var prevLabel = "Hotel";
+    day.stops.forEach(function (stop) {
+      if (stop.arrival) {
+        legs.push({ from: prevLabel, to: stop.company, fromAddr: prevAddr, toAddr: stop.addr, time: stop.arrival.label, warn: stop.arrival.warn });
+      }
+      prevAddr = stop.addr;
+      prevLabel = stop.company;
+    });
+    if (day.returnToHotel) {
+      legs.push({ from: prevLabel, to: "Hotel", fromAddr: prevAddr, toAddr: "Iguatemi Stay BT", time: day.returnToHotel.label, warn: false });
+    }
+    return legs;
+  }
+
+  function isRealAddr(addr) {
+    return addr && addr !== "A definir" && addr !== "Sem visita externa";
+  }
+
+  function renderRouteDay(day) {
+    var container = document.getElementById("route-legs");
+    var legs = computeLegs(day, routeItinerary.hotel.addr);
+
+    if (!legs.length) {
+      container.innerHTML = '<div class="card fade-in"><p class="empty-state">Sem deslocamentos registrados neste dia.</p></div>';
+      return;
+    }
+
+    var html = legs
+      .map(function (leg, i) {
+        var mapHtml = (isRealAddr(leg.fromAddr) && isRealAddr(leg.toAddr))
+          ? '<div class="route-map-tilt"><iframe src="' + mapsEmbedUrl(leg.fromAddr, leg.toAddr) + '" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Rota de ' + leg.from + ' até ' + leg.to + '"></iframe></div>'
+          : '<div class="route-placeholder">Endereço ainda a confirmar para calcular a rota</div>';
+
+        return (
+          '<div class="card route-card" style="animation-delay:' + (i * 90) + 'ms">' +
+            '<div class="route-head">' +
+              '<div class="route-path"><span>' + leg.from + '</span><span class="rp-arrow">→</span><span>' + leg.to + "</span></div>" +
+              '<span class="route-time num' + (leg.warn ? " warn" : "") + '">' + leg.time + "</span>" +
+            "</div>" +
+            mapHtml +
+          "</div>"
+        );
+      })
+      .join("");
+
+    container.innerHTML = html;
+    container.querySelectorAll(".route-card").forEach(function (el) { el.classList.add("stagger-in"); });
+  }
+
+  function loadRoutes() {
+    api("/api/itinerary").then(function (data) {
+      routeItinerary = data;
+      var picker = document.getElementById("route-daypicker");
+      picker.innerHTML = data.days
+        .map(function (d) { return '<button data-day="' + d.id + '">' + d.weekday.slice(0, 3) + " " + d.date + "</button>"; })
+        .join("");
+      picker.querySelectorAll("button").forEach(function (btn) {
+        btn.addEventListener("click", function () { selectRouteDay(btn.dataset.day); });
+      });
+
+      var today = new Date();
+      var todayStr = today.getFullYear() === 2026
+        ? String(today.getDate()).padStart(2, "0") + "/" + String(today.getMonth() + 1).padStart(2, "0")
+        : null;
+      var initial = data.days.find(function (d) { return d.date === todayStr; }) || data.days[0];
+      selectRouteDay(initial.id);
+    });
+  }
+
+  function selectRouteDay(id) {
+    activeRouteDayId = id;
+    document.querySelectorAll("#route-daypicker button").forEach(function (b) {
+      b.classList.toggle("active", b.dataset.day === id);
+    });
+    var day = routeItinerary.days.find(function (d) { return d.id === id; });
+    if (day) renderRouteDay(day);
+  }
 
   // ---- Checklist (server-persisted, compartilhado entre todos os membros) ----
   function renderChecklist(items) {
@@ -421,7 +543,7 @@
     membros: loadMembers,
     agenda: loadAgenda,
     empresas: loadCompanies,
-    transporte: function () {},
+    trajetos: loadRoutes,
     checklist: loadChecklist,
   };
 

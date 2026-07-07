@@ -38,11 +38,6 @@
 html, body { margin: 0; padding: 0; min-height: 100%; }
 body {
   background-color: var(--offwhite);
-  background-image:
-    radial-gradient(ellipse 60% 40% at 8% 0%,   rgba(8,27,51,0.07) 0%, transparent 55%),
-    radial-gradient(ellipse 50% 35% at 100% 15%, rgba(211,30,36,0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 45% 35% at 15% 100%, rgba(8,27,51,0.05) 0%, transparent 55%);
-  background-attachment: fixed;
   color: var(--graphite);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -78,14 +73,13 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
 
 .btn-primary {
   font-size: 13.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 12px 22px; border-radius: var(--radius-md); border: none; color: #fff; cursor: pointer;
-  background: var(--gradient-primary); background-size: 140% 140%; background-position: 0% 50%;
-  box-shadow: 0 6px 18px -4px var(--navy-glow);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, background-position 0.4s ease;
+  padding: 12px 22px; border-radius: var(--radius-sm); border: none; color: #fff; cursor: pointer;
+  background: var(--red);
+  transition: background 0.15s ease, transform 0.1s ease;
 }
-.btn-primary:hover { box-shadow: 0 10px 26px -6px var(--red-glow); transform: translateY(-1px); background-position: 100% 50%; }
-.btn-primary:active { transform: translateY(0); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-primary:hover { background: var(--red-hover); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .btn-ghost {
   font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
@@ -118,6 +112,11 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
 @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 .fade-in { animation: fadeSlideIn 0.32s cubic-bezier(0.16, 1, 0.3, 1); }
 @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
+/* Mesma linguagem de "montagem" da tela de login, reaproveitada onde listas carregam */
+@keyframes staggerIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+.stagger-in { animation: staggerIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) { .stagger-in { animation: none; } }
 
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {

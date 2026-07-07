@@ -44,25 +44,18 @@
     },
     {
       "id": "ter21", "weekday": "Terça-feira", "date": "21/07",
-      "note": "Atenção: Mottu termina 13:00 e Insper começa 13:00 — não há folga para deslocamento. Saia da Mottu até 12:35 ou avise o Insper de atraso.",
+      "note": "Mottu termina 11h30 e Insper só começa 13h — dá pra almoçar com uma folga curta (~45 min) na região da Vila Olímpia antes de seguir.",
       "stops": [
-        { "time": "09:00–13:00", "company": "Mottu", "companyKey": "mottu", "addr": "R. Agostinho Cantu, 209 — Butantã, São Paulo - SP", "status": "pending", "statusLabel": "confirmar unidade (Butantã x sede)", "arrival": { "label": "~10–15 min de carro desde o hotel" } },
-        { "time": "13:00–15:00", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro", "warn": true } },
+        { "time": "09:00–11:30", "company": "Mottu", "companyKey": "mottu", "addr": "R. Agostinho Cantu, 209 — Butantã, São Paulo - SP", "status": "pending", "statusLabel": "confirmar unidade (Butantã x sede)", "arrival": { "label": "~10–15 min de carro desde o hotel" } },
+        { "time": "13:00–15:00", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro" } },
         { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro" } }
       ],
       "returnToHotel": { "label": "~20–30 min de carro" },
       "lunch": {
-        "note": "Mottu termina 13h e Insper começa 13h — sem tempo de parar. Compre algo pra comer no trajeto e deixe a refeição mais completa para depois do Insper.",
+        "note": "Janela curta (~45 min) entre Mottu e Insper — prefira algo de giro rápido perto da Vila Olímpia.",
         "groups": [
           {
-            "window": "No trajeto Mottu → Insper (comida pra viagem)",
-            "options": [
-              { "name": "Vila Butantã (food park)", "note": "sanduíches e food trucks, na mesma rua da Mottu", "price": "R$ 25–40" },
-              { "name": "Dona Marmita", "note": "marmitas prontas para retirar no caminho", "price": "R$ 25–35" }
-            ]
-          },
-          {
-            "window": "15:00–16:30, entre Insper e Mirow & Co.",
+            "window": "12:00–12:45, entre Mottu e Insper",
             "options": [
               { "name": "Divino Fogão (Vila Olímpia)", "note": "a quilo, perto do Insper, giro rápido", "price": "R$ 45–60" },
               { "name": "Santa Hora", "note": "comida caseira a quilo, Vila Olímpia/Itaim", "price": "R$ 60–90" }

@@ -40,10 +40,10 @@
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent;
     color: rgba(255,255,255,0.6); font-family: var(--font-display); font-weight: 700;
     font-size: 14.5px; text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 13px 11px 10px; cursor: pointer; transition: color 0.18s, border-color 0.18s, text-shadow 0.18s;
+    padding: 13px 11px 10px; cursor: pointer; transition: color 0.18s, border-color 0.18s;
   }
   nav.tabs button:hover { color: rgba(255,255,255,0.9); }
-  nav.tabs button.active { color: #fff; border-bottom-color: var(--red); text-shadow: 0 0 16px rgba(211,30,36,0.6); }
+  nav.tabs button.active { color: #fff; border-bottom-color: var(--red); }
 
   main { padding-top: 20px; }
   .panel { display: none; }
@@ -95,15 +95,31 @@
     padding: 7px 12px; border-radius: 3px; background: var(--offwhite); color: var(--navy); border: 1px solid var(--line);
   }
 
+  .pioneer-list { display: flex; flex-direction: column; }
+  .pioneer-item { padding: 14px 2px; border-top: 1px solid var(--line); }
+  .pioneer-item:first-child { border-top: none; padding-top: 0; }
+  .pioneer-item h3 {
+    font-family: var(--font-display); font-size: 15.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.01em; color: var(--navy); margin: 0 0 6px;
+  }
+  .pioneer-item p { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0; }
+
+  .prepare-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .prepare-card { background: var(--offwhite); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
+  .prepare-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .prepare-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .prepare-name { font-family: var(--font-display); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.01em; color: var(--navy); }
+  .prepare-card ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .prepare-card li { font-size: 12.5px; line-height: 1.5; color: var(--graphite); padding-left: 14px; position: relative; }
+  .prepare-card li::before { content: "•"; color: var(--red); position: absolute; left: 0; font-weight: 700; }
+
   /* Membros */
   .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .member-card {
-    padding: 14px; border-radius: var(--radius-md); background: var(--white);
+    padding: 14px; border-radius: var(--radius-sm); background: var(--white);
     border: 1px solid var(--line); text-align: left;
     display: flex; flex-direction: column; gap: 10px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   }
-  .member-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); border-color: transparent; }
   .member-card .head { display: flex; align-items: center; gap: 10px; }
   .member-card .avatar {
     width: 44px; height: 44px; border-radius: 50%; flex: none;
@@ -157,10 +173,9 @@
     background: var(--red); border: 2px solid var(--white); box-shadow: 0 0 0 1px var(--line);
   }
   .stopcard {
-    background: var(--offwhite); border: 1px solid var(--line); border-radius: var(--radius-md);
-    padding: 12px 13px; margin: 6px 0 10px; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    background: var(--offwhite); border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 12px 13px; margin: 6px 0 10px;
   }
-  .stopcard:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); border-color: transparent; }
   .stopcard .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .stopcard .company { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--navy); text-transform: uppercase; letter-spacing: 0.01em; }
   @media (min-width: 480px) {
@@ -249,15 +264,34 @@
     .company-hero img.company-logo { max-width: 170px; max-height: 56px; }
   }
 
-  /* Transporte */
-  .calc-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
-  .calc-row .field input, .calc-row .field select { min-width: 96px; }
-  .calc-result {
-    margin-top: 18px; padding: 16px 18px; border-radius: var(--radius-md);
-    background: var(--gradient-primary-15); border-left: 3px solid var(--red);
-    display: flex; align-items: baseline; gap: 12px;
+  /* Trajetos */
+  .route-card { padding: 16px; }
+  .route-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .route-path { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--navy); text-transform: uppercase; letter-spacing: 0.01em; }
+  .route-path .rp-arrow { color: var(--red); font-weight: 400; }
+  .route-time { font-size: 12px; font-weight: 800; color: var(--lunch-dark); background: var(--lunch-soft); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .route-time.warn { color: var(--pending); background: var(--pending-soft); }
+  .route-map-tilt { perspective: 900px; }
+  .route-map-tilt iframe {
+    display: block; width: 100%; height: 210px; border: 0; border-radius: var(--radius-md);
+    transform: perspective(900px) rotateX(7deg) scale(0.97); transform-origin: center top;
+    box-shadow: 0 34px 44px -22px rgba(8,27,51,0.4), 0 2px 10px rgba(8,27,51,0.12);
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
   }
-  .calc-result .big { font-family: var(--font-display); font-size: 32px; font-weight: 800; color: var(--navy); }
+  .route-map-tilt:hover iframe, .route-map-tilt:focus-within iframe {
+    transform: perspective(900px) rotateX(0deg) scale(1);
+    box-shadow: 0 12px 26px -10px rgba(8,27,51,0.28);
+  }
+  .route-placeholder {
+    height: 120px; border-radius: var(--radius-md); background: var(--offwhite); border: 1px dashed var(--line);
+    display: flex; align-items: center; justify-content: center; font-size: 12.5px; color: var(--graphite-soft); text-align: center; padding: 12px;
+  }
+  @media (min-width: 700px) {
+    .route-map-tilt iframe { height: 280px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .route-map-tilt iframe, .route-map-tilt:hover iframe { transform: none; transition: none; }
+  }
 
   /* Checklist */
   .checklist ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -282,13 +316,13 @@
   .room-fab {
     position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom));
     z-index: 40; display: flex; align-items: center; gap: 8px;
-    background: var(--gradient-primary); color: #fff; border: none; border-radius: 999px;
-    padding: 13px 18px 13px 15px; box-shadow: 0 10px 26px -4px var(--navy-glow);
+    background: var(--navy); color: #fff; border: none; border-radius: 999px;
+    padding: 13px 18px 13px 15px; box-shadow: 0 8px 20px -6px rgba(8,27,51,0.5);
     font-family: var(--font-display); font-weight: 700; font-size: 13.5px;
     text-transform: uppercase; letter-spacing: 0.04em; cursor: pointer;
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
   }
-  .room-fab:hover { box-shadow: 0 14px 32px -4px var(--red-glow); transform: translateY(-2px); }
+  .room-fab:hover { background: var(--navy-2); transform: translateY(-1px); }
   .room-fab svg { display: block; flex: none; }
   .room-backdrop {
     position: fixed; inset: 0; background: rgba(8,27,51,0.45); z-index: 39;
@@ -346,7 +380,7 @@
   <button data-tab="membros">Membros</button>
   <button data-tab="agenda">Agenda</button>
   <button data-tab="empresas">Empresas</button>
-  <button data-tab="transporte">Transporte</button>
+  <button data-tab="trajetos">Trajetos</button>
   <button data-tab="checklist">Checklist</button>
 </nav>
 
@@ -373,8 +407,8 @@
   <main>
 
     <section class="panel active" id="panel-resumo">
-      <div class="card" id="mission-content">
-        <p class="empty-state">Carregando...</p>
+      <div id="mission-content">
+        <div class="card"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
@@ -400,28 +434,9 @@
       </div>
     </section>
 
-    <section class="panel" id="panel-transporte">
-      <div class="card">
-        <p class="section-label">Calculadora de transporte</p>
-        <div class="calc-row">
-          <div class="field">
-            <label for="pax">Pessoas no grupo</label>
-            <input type="number" id="pax" min="1" max="80" value="11">
-          </div>
-          <div class="field">
-            <label for="veic">Tipo de carro</label>
-            <select id="veic">
-              <option value="3">UberX / 99 (até 3 por carro)</option>
-              <option value="4">Comfort / Black (até 4 por carro)</option>
-              <option value="6" selected>Van / 6 lugares (até 6 por carro)</option>
-            </select>
-          </div>
-        </div>
-        <div class="calc-result">
-          <span class="big num" id="calc-out">2</span>
-          <span style="font-size:13px;color:var(--graphite-soft);">carros por trajeto — peça todos ao mesmo tempo para o grupo não se dispersar</span>
-        </div>
-      </div>
+    <section class="panel" id="panel-trajetos">
+      <div class="daypicker" id="route-daypicker"></div>
+      <div id="route-legs"></div>
     </section>
 
     <section class="panel checklist" id="panel-checklist">

@@ -12,10 +12,6 @@
 <style>
   body {
     background-color: var(--navy);
-    background-image:
-      radial-gradient(ellipse 65% 50% at 15% 10%, rgba(211,30,36,0.20) 0%, transparent 55%),
-      radial-gradient(ellipse 55% 45% at 90% 20%, rgba(18,50,89,0.9) 0%, transparent 60%),
-      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(211,30,36,0.12) 0%, transparent 55%);
     min-height: 100vh;
   }
   .stage {
@@ -24,22 +20,16 @@
   }
   .stage::before {
     content: ""; position: absolute; inset: 0; pointer-events: none;
-    background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                       linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+                       linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
     background-size: 48px 48px;
     mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 0%, transparent 75%);
   }
   .brandblock { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
   .brandblock img {
     width: 76px; height: 76px; margin-bottom: 16px; border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 40px rgba(211,30,36,0.35);
-    animation: logoGlow 3.5s ease-in-out infinite;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px rgba(211,30,36,0.25);
   }
-  @keyframes logoGlow {
-    0%, 100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 30px rgba(211,30,36,0.28); }
-    50% { box-shadow: 0 0 0 1px rgba(255,255,255,0.22), 0 0 46px rgba(211,30,36,0.45); }
-  }
-  @media (prefers-reduced-motion: reduce) { .brandblock img { animation: none; } }
   .brandblock .eyebrow { color: rgba(255,255,255,0.55); margin-bottom: 10px; }
   .brandblock h1 {
     color: #fff; font-size: 32px; font-weight: 800; text-transform: uppercase;
@@ -49,12 +39,13 @@
   .brandblock .sub { color: rgba(255,255,255,0.6); font-size: 13.5px; margin-top: 10px; letter-spacing: 0.01em; }
 
   .login-card {
-    position: relative; width: 100%; max-width: 400px;
-    border-radius: var(--radius-lg); padding: 24px 20px;
+    position: relative; width: 100%; max-width: 420px; background: var(--white);
+    border-radius: var(--radius-lg); padding: 28px 22px;
     box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+    overflow: hidden;
   }
   .login-card .eyebrow { margin-bottom: 6px; color: var(--graphite-soft); }
-  .login-card h2 { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 0 0 16px; }
+  .login-card h2 { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 0 0 10px; }
   form { display: flex; flex-direction: column; gap: 16px; }
   .error {
     display: none; font-size: 12.5px; color: #991B1B; background: #FEEBEB;
@@ -63,6 +54,20 @@
   .error.show { display: block; }
   .hint { font-size: 11.5px; color: var(--graphite-soft); margin-top: -6px; }
   .login-card .btn-primary { width: 100%; margin-top: 4px; }
+
+  /* Etapa 1 — intro */
+  .intro-stage { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 6px 0 4px; }
+  .intro-stage.hidden { display: none; }
+  .intro-copy { font-size: 13.5px; color: var(--graphite-soft); margin: 0; line-height: 1.5; max-width: 30ch; }
+  .intro-stage .btn-primary { width: auto; padding: 13px 28px; }
+
+  /* Etapa 2 — montagem da equipe */
+  .login-stage.hidden { display: none; }
+  .factory-rail { position: relative; height: 3px; background: var(--line); border-radius: 2px; margin: 2px 0 18px; overflow: hidden; }
+  .factory-rail-fill {
+    position: absolute; inset: 0 auto 0 0; width: 0%; background: var(--gradient-primary); border-radius: 2px;
+    transition: width 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+  }
 
   .field > label.grouplabel {
     font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft);
@@ -75,6 +80,15 @@
     display: flex; flex-direction: column; align-items: center; gap: 6px;
     padding: 10px 4px; border-radius: var(--radius-md); border: 1.5px solid #CBD2DC; background: var(--offwhite);
     cursor: pointer; transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
+    opacity: 0; transform: translateX(-60%) rotate(-4deg) scale(0.8);
+  }
+  .member-pick.assembled {
+    animation: assembleIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes assembleIn {
+    0%   { opacity: 0; transform: translateX(-60%) rotate(-4deg) scale(0.8); }
+    70%  { opacity: 1; transform: translateX(4%) rotate(1deg) scale(1.03); }
+    100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
   }
   .member-pick:hover { border-color: var(--navy); transform: translateY(-2px); box-shadow: var(--shadow-soft); }
   .member-pick.active {
@@ -90,6 +104,19 @@
     font-size: 10.5px; font-weight: 600; color: var(--graphite); text-align: center; line-height: 1.2;
   }
   .member-pick.active .pick-name { color: var(--navy); font-weight: 700; }
+
+  .reveal-after {
+    opacity: 0; transform: translateY(10px); pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+  .reveal-after.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .member-pick { opacity: 1; transform: none; }
+    .member-pick.assembled { animation: none; }
+    .factory-rail-fill { transition: none; }
+    .reveal-after { transition: none; }
+  }
 
   @media (min-width: 480px) {
     .stage { padding: 40px 20px; }
@@ -110,36 +137,56 @@
     </div>
 
     <div class="login-card">
-      <p class="eyebrow">Acesso restrito</p>
-      <h2>Entrar</h2>
-      <form id="login-form">
-        <div class="field">
-          <label class="grouplabel">Membro</label>
-          <div class="member-pick-grid" id="member-grid"></div>
-          <input type="hidden" id="order" required>
-        </div>
-        <div class="field">
-          <label for="password">Senha</label>
-          <input type="password" id="password" inputmode="numeric" placeholder="seu número de inscrição" required>
-          <p class="hint">Sua senha é o seu número na ordem de inscrição.</p>
-        </div>
-        <p class="error" id="error"></p>
-        <button type="submit" class="btn-primary" id="submit-btn">Entrar</button>
-      </form>
+
+      <div class="intro-stage" id="intro-stage">
+        <p class="eyebrow">Acesso restrito</p>
+        <h2>Bem-vindo(a)</h2>
+        <p class="intro-copy">11 membros, 7 empresas, 1 missão em São Paulo. Toque abaixo para montar a equipe.</p>
+        <button type="button" class="btn-primary" id="assemble-btn">Montar equipe</button>
+      </div>
+
+      <div class="login-stage hidden" id="login-stage">
+        <p class="eyebrow">Acesso restrito</p>
+        <h2>Quem é você?</h2>
+        <div class="factory-rail"><span class="factory-rail-fill" id="factory-rail-fill"></span></div>
+        <form id="login-form">
+          <div class="field">
+            <div class="member-pick-grid" id="member-grid"></div>
+            <input type="hidden" id="order" required>
+          </div>
+          <div class="field reveal-after" id="password-field">
+            <label for="password">Senha</label>
+            <input type="password" id="password" inputmode="numeric" placeholder="seu número de inscrição" required>
+            <p class="hint">Sua senha é o seu número na ordem de inscrição.</p>
+          </div>
+          <p class="error" id="error"></p>
+          <button type="submit" class="btn-primary reveal-after" id="submit-btn">Entrar</button>
+        </form>
+      </div>
+
     </div>
   </div>
 
 <script>
 (function () {
+  var introStage = document.getElementById("intro-stage");
+  var loginStage = document.getElementById("login-stage");
+  var assembleBtn = document.getElementById("assemble-btn");
+  var railFill = document.getElementById("factory-rail-fill");
   var grid = document.getElementById("member-grid");
   var orderInput = document.getElementById("order");
   var form = document.getElementById("login-form");
   var errorEl = document.getElementById("error");
   var submitBtn = document.getElementById("submit-btn");
+  var passwordField = document.getElementById("password-field");
+
+  var STAGGER_MS = 90;
+  var members = [];
 
   fetch("/api/members-public")
     .then(function (r) { return r.json(); })
-    .then(function (members) {
+    .then(function (data) {
+      members = data;
       members.forEach(function (m) {
         var firstName = m.name.trim().split(/\s+/)[0];
         var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
@@ -156,12 +203,31 @@
           grid.querySelectorAll(".member-pick").forEach(function (b) { b.classList.remove("active"); });
           btn.classList.add("active");
           orderInput.value = m.order;
+          passwordField.classList.add("show");
+          submitBtn.classList.add("show");
           document.getElementById("password").focus();
         });
         grid.appendChild(btn);
       });
     })
     .catch(function () {});
+
+  assembleBtn.addEventListener("click", function () {
+    introStage.classList.add("hidden");
+    loginStage.classList.remove("hidden");
+
+    var tiles = grid.querySelectorAll(".member-pick");
+    var totalMs = tiles.length * STAGGER_MS + 650;
+    railFill.style.transitionDuration = totalMs + "ms";
+
+    requestAnimationFrame(function () {
+      railFill.style.width = "100%";
+      tiles.forEach(function (tile, i) {
+        tile.style.animationDelay = (i * STAGGER_MS) + "ms";
+        tile.classList.add("assembled");
+      });
+    });
+  });
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();

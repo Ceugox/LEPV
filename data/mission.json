@@ -1,11 +1,89 @@
 {
   "title": "Missão da imersão",
-  "summary": "De 19 a 24/07/2026, a LEPV leva 11 membros a São Paulo para uma imersão em empresas de tecnologia, mobilidade e consultoria. O objetivo é entender de perto como fintechs, startups e grandes consultorias operam no dia a dia — cultura, processos e decisões — trazendo esse repertório de volta para a liga.",
+  "summary": "De 19 a 24/07/2026, a LEPV leva 11 membros a São Paulo para uma imersão em empresas de tecnologia, mobilidade, educação e consultoria. O objetivo é entender de perto como fintechs, startups e grandes consultorias operam no dia a dia — cultura, processos e decisões — trazendo esse repertório de volta para a liga.",
   "objectives": [
     "Visitar 7 empresas em 4 dias com agenda cheia (NOMAD, Mottu, Insper, Mirow & Co., Sharpi, Bain & Company, Revolut)",
     "Construir repertório prático sobre operação, cultura e crescimento em empresas de estágios muito diferentes",
     "Fortalecer a rede de contatos da liga em São Paulo",
     "Trazer aprendizados concretos para os projetos internos da LEPV"
   ],
-  "companies": ["NOMAD", "Mottu", "Insper", "Mirow & Co.", "Sharpi", "Bain & Company", "Revolut"]
+  "companies": ["NOMAD", "Mottu", "Insper", "Mirow & Co.", "Sharpi", "Bain & Company", "Revolut"],
+  "pioneering": [
+    {
+      "title": "Um espectro raro de estágios de empresa numa única semana",
+      "text": "Na mesma semana, o grupo passa por uma startup em fase de vendas iniciais (Sharpi), scale-ups late-stage (Mottu, NOMAD), uma fintech global multinacional (Revolut), uma consultoria boutique (Mirow & Co.), uma das maiores consultorias do mundo (Bain & Company) e uma instituição de ensino de referência (Insper). Poucas imersões estudantis conseguem comparar modelos de negócio tão diferentes lado a lado, na mesma cidade, em poucos dias."
+    },
+    {
+      "title": "Acesso direto a quem já passou pela liga",
+      "text": "A visita à Mirow & Co. é conduzida por um ex-membro da própria LEPV, o que dá ao grupo um canal direto e sem filtro para perguntar como a experiência na liga se conecta (ou não) com o mercado de consultoria — algo que dificilmente se consegue numa visita institucional comum."
+    },
+    {
+      "title": "Comparação em vez de estudo de caso isolado",
+      "text": "O valor da semana não está em nenhuma visita isolada, mas em poder comparar: como um neobank global (Revolut) trata risco e compliance versus uma fintech brasileira (NOMAD); como a Bain estrutura um problema versus uma boutique como a Mirow; como a Mottu precifica um ativo físico (moto) versus como a Sharpi vende software. Essa lente comparativa é o que os membros devem levar de volta para os projetos da liga."
+    }
+  ],
+  "prepare": [
+    {
+      "companyKey": "nomad",
+      "points": [
+        "Entenda o básico de remessas internacionais e spread cambial — é a principal fonte de receita de contas em dólar como a da Nomad",
+        "Revise a regulação do Banco Central para arranjos de pagamento e instituições de pagamento no Brasil",
+        "Pense em perguntas sobre como a Nomad compete com bancos tradicionais e outras fintechs de câmbio"
+      ]
+    },
+    {
+      "companyKey": "mottu",
+      "points": [
+        "Estude o modelo de \"vehicle-as-a-service\" (assinatura de veículo) e como ele difere de aluguel tradicional ou financiamento",
+        "Pesquise unit economics de frota: CAC, LTV, depreciação e manutenção de um ativo físico em escala",
+        "Entenda o perfil do cliente final (entregadores de app) e como isso molda o produto"
+      ]
+    },
+    {
+      "companyKey": "insper",
+      "points": [
+        "Pesquise o posicionamento do Insper entre as escolas de negócio do Brasil e sua relação com o mercado financeiro",
+        "Pense em como a ponte entre pesquisa acadêmica e prática de mercado aparece no currículo",
+        "Prepare perguntas sobre o que a instituição espera de parcerias com ligas e centros acadêmicos"
+      ]
+    },
+    {
+      "companyKey": "mirow",
+      "points": [
+        "Revise frameworks básicos de estratégia (5 forças de Porter, cadeia de valor, SWOT) — linguagem comum em qualquer consultoria",
+        "Entenda a diferença entre consultorias boutique e as grandes (Big 3/Big 4): foco de nicho vs. escala",
+        "Pergunte sobre a trajetória de quem já esteve na LEPV e foi para consultoria — é uma oportunidade rara de mentoria direta"
+      ]
+    },
+    {
+      "companyKey": "sharpi",
+      "points": [
+        "Entenda o conceito de IA aplicada a vendas B2B (automação de pedidos via WhatsApp, texto/áudio/foto)",
+        "Pesquise os desafios de adoção de tecnologia em indústrias e distribuidores tradicionais",
+        "Pense em como uma startup early-stage prioriza features com recursos limitados"
+      ]
+    },
+    {
+      "companyKey": "bain",
+      "points": [
+        "Revise a estrutura clássica de resolução de casos de consultoria (hipótese, estimativas, MECE)",
+        "Estude os tipos de projeto que a Bain toca: estratégia corporativa, due diligence de private equity, transformação",
+        "Compare mentalmente com a Mirow & Co. — mesma profissão, escalas muito diferentes"
+      ]
+    },
+    {
+      "companyKey": "revolut",
+      "points": [
+        "Pesquise o modelo de \"superapp financeiro\" e como a Revolut expandiu de câmbio para banking completo",
+        "Compare com concorrentes como Nubank, N26 e Wise — o que muda de mercado para mercado",
+        "Pense nos desafios regulatórios de operar como neobank em dezenas de países ao mesmo tempo"
+      ]
+    }
+  ],
+  "expectations": [
+    "Cada visita costuma ter um formato parecido: apresentação institucional, conversa com liderança ou fundadores e um momento de perguntas e respostas — mas o formato exato varia por empresa e alguns detalhes ainda estão em confirmação (ver aba Agenda)",
+    "Nem toda empresa vai mostrar números internos ou informações confidenciais — leve perguntas sobre trajetória, decisões e cultura, que costumam render respostas mais abertas",
+    "O tempo de conversa é curto perto do tanto que cada empresa poderia contar — prepare 2 ou 3 perguntas específicas por visita em vez de perguntas genéricas",
+    "Empresas em estágios diferentes recebem grupos de forma diferente: startups menores (Sharpi) tendem a ser mais informais; a Bain e a Revolut devem seguir um roteiro institucional mais estruturado"
+  ]
 }
