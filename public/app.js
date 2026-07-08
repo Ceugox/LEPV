@@ -14,8 +14,11 @@
   }
 
   // ---- Auth / topbar ----
-  api("/api/me").then(function (me) {
+  var currentUser = null;
+  var meReady = api("/api/me").then(function (me) {
+    currentUser = me;
     document.getElementById("who-name").textContent = me.name;
+    return me;
   });
   document.getElementById("logout-btn").addEventListener("click", function () {
     api("/api/logout", { method: "POST" }).then(function () {
@@ -97,7 +100,11 @@
         p.classList.add("fade-in");
       }
     });
-    if (!loaded[name]) {
+    if (name === "selos") {
+      // Presença pode mudar a qualquer momento (o admin marca durante a viagem);
+      // sempre recarrega, diferente das outras abas (mais estáticas).
+      loaders.selos();
+    } else if (!loaded[name]) {
       loaded[name] = true;
       loaders[name] && loaders[name]();
     }
@@ -362,7 +369,7 @@
         visit.status === "ok" ? '<span class="badge ok">confirmado</span>' :
         visit.status === "pending" ? '<span class="badge pending">' + (visit.statusLabel || "a confirmar") + "</span>" :
         '<span class="badge internal">interno</span>';
-      var routeHtml = visit.addr
+      var routeHtml = isRealAddr(visit.addr)
         ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(visit.addr) + '">Ver no mapa →</a>'
         : "";
       visitHtml =
@@ -392,6 +399,68 @@
     syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
     if (company) renderCompanyDetail(company);
+    renderAttendancePanel(key);
+  }
+
+  // ---- Presença (admin) ----
+  var attendanceCache = null;
+  var membersCache = null;
+
+  function renderAttendanceList(companyKey) {
+    var present = attendanceCache[companyKey] || [];
+    return membersCache
+      .map(function (m) {
+        var checked = present.indexOf(m.order) !== -1;
+        var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
+        var avatarHtml = m.photo
+          ? '<img class="av" src="' + m.photo + '" alt="">'
+          : '<span class="av">' + initials + "</span>";
+        return (
+          '<label class="attendance-row">' +
+            '<input type="checkbox" data-order="' + m.order + '" ' + (checked ? "checked" : "") + ">" +
+            avatarHtml +
+            '<span class="rn">' + m.name + "</span>" +
+          "</label>"
+        );
+      })
+      .join("");
+  }
+
+  function renderAttendancePanel(companyKey) {
+    var panel = document.getElementById("attendance-panel");
+    meReady.then(function (me) {
+      if (!me.admin) { panel.innerHTML = ""; return; }
+
+      var ready = Promise.all([
+        attendanceCache ? Promise.resolve(attendanceCache) : api("/api/attendance"),
+        membersCache ? Promise.resolve(membersCache) : api("/api/members"),
+      ]);
+      panel.innerHTML = '<div class="card attendance-panel"><p class="section-label">Presença confirmada (admin)</p><p class="empty-state">Carregando...</p></div>';
+      ready.then(function (results) {
+      attendanceCache = results[0];
+      membersCache = results[1];
+      panel.innerHTML =
+        '<div class="card attendance-panel">' +
+          '<p class="section-label">Presença confirmada (admin)</p>' +
+          '<div class="attendance-list" id="attendance-list">' + renderAttendanceList(companyKey) + "</div>" +
+        "</div>";
+      panel.querySelectorAll('input[type="checkbox"]').forEach(function (box) {
+        box.addEventListener("change", function () {
+          var order = parseInt(box.dataset.order, 10);
+          box.disabled = true;
+          api("/api/attendance", { method: "POST", body: JSON.stringify({ companyKey: companyKey, order: order, attended: box.checked }) })
+            .then(function (res) {
+              attendanceCache[companyKey] = res.members;
+              box.disabled = false;
+            })
+            .catch(function () {
+              box.checked = !box.checked;
+              box.disabled = false;
+            });
+        });
+      });
+      });
+    });
   }
 
   function loadCompanies() {
@@ -528,6 +597,160 @@
     if (day) renderRouteDay(day);
   }
 
+  // ---- Selos (presença por empresa, gamificação individualizada) ----
+  var NAVY = "#081B33";
+  var RED = "#D31E24";
+
+  function hexToRgb(hex) {
+    var h = hex.replace("#", "");
+    return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) };
+  }
+  function relLum(hex) {
+    var rgb = hexToRgb(hex);
+    var chans = ["r", "g", "b"].map(function (c) {
+      var v = rgb[c] / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2];
+  }
+  function contrastRatio(hexA, hexB) {
+    var a = relLum(hexA) + 0.05, b = relLum(hexB) + 0.05;
+    return Math.max(a, b) / Math.min(a, b);
+  }
+  function nameColorFor(company) {
+    return contrastRatio(company.color, "#FFFFFF") >= 4.5 ? company.color : NAVY;
+  }
+  function ribbonTextFor(company) {
+    return contrastRatio(company.color, "#FFFFFF") >= contrastRatio(company.color, NAVY) ? "#FFFFFF" : NAVY;
+  }
+
+  function fitBox(ratio, maxW, maxH) {
+    var w = maxW, h = maxW / ratio;
+    if (h > maxH) { h = maxH; w = maxH * ratio; }
+    return { w: w, h: h };
+  }
+
+  // Hexágono alongado; entre y=46 e y=146 a largura é constante (132px,
+  // x=34-166) — todo conteúdo fica nessa faixa, então não estoura o contorno.
+  var HEX_POINTS = "100,10 166,46 166,146 100,192 34,146 34,46";
+  var SAFE_W = 122;
+
+  function badgeSVG(company, unlocked) {
+    var cx = 100;
+    var faceFill = unlocked ? "#FFFFFF" : "#DDE1E8";
+    var borderColor = unlocked ? NAVY : "#9AA3B2";
+    var opacity = unlocked ? 1 : 0.62;
+    var filterAttr = unlocked ? "" : ' filter="grayscale(1)"';
+
+    var logoCy = company.hasWordmark ? 78 : 72;
+    var plateH = company.hasWordmark ? 52 : 38;
+    var box = fitBox(company.logoRatio, SAFE_W - 18, plateH - 14);
+    var imgX = cx - box.w / 2, imgY = logoCy - box.h / 2;
+    var imgFilter = company.logoBg === "dark" ? ' style="filter:brightness(0)"' : "";
+    var logoMarkup = company.logo
+      ? '<image x="' + imgX + '" y="' + imgY + '" width="' + box.w + '" height="' + box.h + '" href="' + company.logo + '" preserveAspectRatio="xMidYMid meet"' + imgFilter + "/>"
+      : ""; // sem arte ainda (ex: empresa recém-adicionada) — some, o nome abaixo já identifica
+
+    var nameColor = unlocked ? nameColorFor(company) : "#8C94A0";
+    var fs = (company.name.length <= 6 ? 24 : company.name.length <= 9 ? 20 : company.name.length <= 13 ? 16 : 13) * 0.8;
+    var nameMarkup = (!company.hasWordmark || !company.logo)
+      ? '<text x="100" y="104" font-family="Arial Narrow, sans-serif" font-size="' + fs + '" font-weight="800" fill="' + nameColor + '" text-anchor="middle" letter-spacing="0.3" style="text-transform:uppercase">' + company.name + "</text>"
+      : "";
+
+    var ribbonW = SAFE_W, ribbonH = 24, ribbonY = 112;
+    var ribbonFill = unlocked ? company.color : "#9AA3B2";
+    var ribbonTextColor = unlocked ? ribbonTextFor(company) : "#FFFFFF";
+    var statusText = unlocked ? "SELO CONFIRMADO" : "A CONQUISTAR";
+
+    return (
+      '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">' +
+        '<g opacity="' + opacity + '"' + filterAttr + '>' +
+          '<polygon points="' + HEX_POINTS + '" fill="' + faceFill + '" stroke="' + borderColor + '" stroke-width="6" stroke-linejoin="round"/>' +
+          logoMarkup +
+          nameMarkup +
+          '<rect x="' + (cx - ribbonW / 2) + '" y="' + ribbonY + '" width="' + ribbonW + '" height="' + ribbonH + '" rx="4" fill="' + ribbonFill + '"/>' +
+          '<text x="100" y="' + (ribbonY + ribbonH / 2 + 3) + '" font-family="Inter, sans-serif" font-size="7.6" font-weight="700" fill="' + ribbonTextColor + '" text-anchor="middle" letter-spacing="1">' + statusText + "</text>" +
+        "</g>" +
+      "</svg>"
+    );
+  }
+
+  function editionBadgeSVG(order) {
+    var num = String(order).padStart(2, "0");
+    return (
+      '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+        '<circle cx="50" cy="50" r="47" fill="' + RED + '"/>' +
+        '<circle cx="50" cy="50" r="43" fill="' + NAVY + '"/>' +
+        '<circle cx="50" cy="50" r="38" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="1.2 3.4"/>' +
+        '<text x="50" y="38" font-family="Inter, sans-serif" font-size="6.5" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="1.2">LEPV SP</text>' +
+        '<text x="50" y="63" font-family="Arial Narrow, sans-serif" font-size="26" font-weight="800" fill="#fff" text-anchor="middle">' + num + "</text>" +
+        '<text x="50" y="76" font-family="Inter, sans-serif" font-size="7" font-weight="700" fill="rgba(255,255,255,0.65)" text-anchor="middle" letter-spacing="1">DE 11</text>' +
+      "</svg>"
+    );
+  }
+
+  function loadBadges() {
+    Promise.all([meReady, api("/api/badges"), api("/api/companies")]).then(function (results) {
+      var me = results[0], badges = results[1], companies = results[2];
+      var container = document.getElementById("badges-content");
+      var pct = Math.round((badges.earned.length / badges.totalCompanies) * 100);
+      var groupPct = Math.round((badges.group.confirmed / badges.group.possible) * 100);
+
+      var headerHtml =
+        '<div class="card">' +
+          '<div class="badges-header">' +
+            '<div class="edition-badge">' + editionBadgeSVG(me.order) + "</div>" +
+            '<div class="badges-summary">' +
+              '<span class="name">' + me.name.split(" ")[0] + "</span>" +
+              '<div class="progress-row">' +
+                '<div class="plabel"><span>Seus selos</span><span class="num">' + badges.earned.length + "/" + badges.totalCompanies + "</span></div>" +
+                '<div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div>' +
+              "</div>" +
+              '<div class="progress-row">' +
+                '<div class="plabel"><span>Grupo (todo mundo, todas as visitas)</span><span class="num">' + badges.group.confirmed + "/" + badges.group.possible + "</span></div>" +
+                '<div class="progress-track"><div class="progress-fill group" style="width:' + groupPct + '%"></div></div>' +
+              "</div>" +
+            "</div>" +
+          "</div>" +
+        "</div>";
+
+      var seenKey = "lepv-badges-seen-" + me.order;
+      var previouslySeen = [];
+      try { previouslySeen = JSON.parse(localStorage.getItem(seenKey) || "[]"); } catch (e) {}
+      var newlyUnlocked = badges.earned.filter(function (k) { return previouslySeen.indexOf(k) === -1; });
+
+      var gridHtml = companies
+        .map(function (c) {
+          var unlocked = badges.earned.indexOf(c.key) !== -1;
+          var isNew = newlyUnlocked.indexOf(c.key) !== -1;
+          return (
+            '<div class="badge-tile' + (isNew ? " reveal" : "") + '">' +
+              badgeSVG(c, unlocked) +
+              '<span class="blabel">' + c.name + "</span>" +
+            "</div>"
+          );
+        })
+        .join("");
+
+      container.innerHTML = headerHtml + '<div class="badges-grid">' + gridHtml + "</div>";
+
+      try { localStorage.setItem(seenKey, JSON.stringify(badges.earned)); } catch (e) {}
+
+      if (newlyUnlocked.length) {
+        var names = newlyUnlocked.map(function (k) { return (companies.find(function (c) { return c.key === k; }) || {}).name; }).join(", ");
+        var toast = document.createElement("div");
+        toast.className = "unlock-toast";
+        toast.textContent = (newlyUnlocked.length === 1 ? "Novo selo desbloqueado: " : "Novos selos desbloqueados: ") + names + "!";
+        document.body.appendChild(toast);
+        requestAnimationFrame(function () { toast.classList.add("show"); });
+        setTimeout(function () {
+          toast.classList.remove("show");
+          setTimeout(function () { toast.remove(); }, 400);
+        }, 3800);
+      }
+    });
+  }
+
   // ---- Checklist (server-persisted, compartilhado entre todos os membros) ----
   function renderChecklist(items) {
     var listEl = document.getElementById("checklist-items");
@@ -584,6 +807,7 @@
     agenda: loadAgenda,
     empresas: loadCompanies,
     trajetos: loadRoutes,
+    selos: loadBadges,
     checklist: loadChecklist,
   };
 

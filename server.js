@@ -32,6 +32,20 @@ if (!fs.existsSync(CHECKLIST_PATH)) {
   writeChecklist(readJson("checklist.json"));
 }
 
+// Presença por empresa (quem já visitou) — editada em runtime pelo admin,
+// então segue o mesmo padrão do checklist: persiste no volume, não em data/.
+const ATTENDANCE_PATH = path.join(STORAGE_DIR, "attendance.json");
+function readAttendance() {
+  return JSON.parse(fs.readFileSync(ATTENDANCE_PATH, "utf8"));
+}
+function writeAttendance(value) {
+  fs.writeFileSync(ATTENDANCE_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(ATTENDANCE_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeAttendance(readJson("attendance.json"));
+}
+
 if (!fs.existsSync(path.join(DATA_DIR, "credentials.json"))) {
   console.error("credentials.json não encontrado. Rode: npm run seed");
   process.exit(1);
@@ -79,6 +93,10 @@ function requireAuthApi(req, res, next) {
   if (req.session.user) return next();
   return res.status(401).json({ error: "not_authenticated" });
 }
+function requireAdminApi(req, res, next) {
+  if (req.session.user && req.session.user.admin) return next();
+  return res.status(403).json({ error: "not_admin" });
+}
 
 app.get("/", requireAuthPage, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "app.html"));
@@ -108,8 +126,8 @@ app.post("/api/login", (req, res) => {
   }
 
   clearFailures(key);
-  req.session.user = { order: member.order, name: member.name };
-  res.json({ ok: true, name: member.name, order: member.order });
+  req.session.user = { order: member.order, name: member.name, admin: member.admin === true };
+  res.json({ ok: true, name: member.name, order: member.order, admin: member.admin === true });
 });
 
 app.post("/api/logout", (req, res) => {
@@ -165,6 +183,48 @@ app.delete("/api/checklist/:id", requireAuthApi, (req, res) => {
   const items = readChecklist().filter((i) => i.id !== id);
   writeChecklist(items);
   res.json(items);
+});
+
+// ---- Selos (presença por empresa → gamificação individualizada) ----
+
+// Visão de cada membro: quais empresas ele já tem selo, mais o progresso
+// coletivo do grupo (sem expor quem exatamente compareceu a cada uma —
+// isso só o admin vê no painel de presença).
+app.get("/api/badges", requireAuthApi, (req, res) => {
+  const attendance = readAttendance();
+  const companies = readJson("companies.json");
+  const order = req.session.user.order;
+  const earned = companies.map((c) => c.key).filter((key) => (attendance[key] || []).includes(order));
+  const totalConfirmed = companies.reduce((sum, c) => sum + (attendance[c.key] || []).length, 0);
+  res.json({
+    earned,
+    totalCompanies: companies.length,
+    group: { confirmed: totalConfirmed, possible: companies.length * members.length },
+  });
+});
+
+// Matriz completa (empresa → membros presentes) — só o admin, pra marcar presença.
+app.get("/api/attendance", requireAdminApi, (req, res) => {
+  res.json(readAttendance());
+});
+
+app.post("/api/attendance", requireAdminApi, (req, res) => {
+  const companyKey = String(req.body.companyKey || "");
+  const order = parseInt(req.body.order, 10);
+  const attended = Boolean(req.body.attended);
+  const attendance = readAttendance();
+  const validCompany = readJson("companies.json").some((c) => c.key === companyKey);
+  if (!validCompany || !membersByOrder.has(order)) {
+    return res.status(400).json({ error: "invalid_company_or_member" });
+  }
+  // Empresa nova adicionada depois do primeiro deploy pode não existir ainda
+  // no attendance.json do volume — inicializa em vez de rejeitar.
+  if (!(companyKey in attendance)) attendance[companyKey] = [];
+  const set = new Set(attendance[companyKey]);
+  attended ? set.add(order) : set.delete(order);
+  attendance[companyKey] = Array.from(set).sort((a, b) => a - b);
+  writeAttendance(attendance);
+  res.json({ companyKey, members: attendance[companyKey] });
 });
 
 app.use(express.static(PUBLIC_DIR, { index: false }));

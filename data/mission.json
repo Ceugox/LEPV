@@ -2,12 +2,12 @@
   "title": "Missão da imersão",
   "summary": "De 19 a 24/07/2026, a LEPV leva 11 membros a São Paulo para uma imersão em empresas de tecnologia, mobilidade, educação e consultoria. O objetivo é entender de perto como fintechs, startups e grandes consultorias operam no dia a dia — cultura, processos e decisões — trazendo esse repertório de volta para a liga.",
   "objectives": [
-    "Visitar 7 empresas em 4 dias com agenda cheia (NOMAD, Mottu, Insper, Mirow & Co., Sharpi, Bain & Company, Revolut)",
+    "Visitar 8 empresas em 4 dias com agenda cheia (NOMAD, Mottu, Insper, Mirow & Co., Sharpi, Bain & Company, Revolut, Segura)",
     "Construir repertório prático sobre operação, cultura e crescimento em empresas de estágios muito diferentes",
     "Fortalecer a rede de contatos da liga em São Paulo",
     "Trazer aprendizados concretos para os projetos internos da LEPV"
   ],
-  "companies": ["NOMAD", "Mottu", "Insper", "Mirow & Co.", "Sharpi", "Bain & Company", "Revolut"],
+  "companies": ["NOMAD", "Mottu", "Insper", "Mirow & Co.", "Sharpi", "Bain & Company", "Revolut", "Segura"],
   "pioneering": [
     {
       "title": "Um espectro raro de estágios de empresa numa única semana",
@@ -77,6 +77,13 @@
         "Pesquise o modelo de \"superapp financeiro\" e como a Revolut expandiu de câmbio para banking completo",
         "Compare com concorrentes como Nubank, N26 e Wise — o que muda de mercado para mercado",
         "Pense nos desafios regulatórios de operar como neobank em dezenas de países ao mesmo tempo"
+      ]
+    },
+    {
+      "companyKey": "segura",
+      "points": [
+        "Entenda o papel do corretor de seguros no Brasil e onde a IA entra pra tornar cotação, apólice e renovação menos manuais",
+        "Pense em como uma insurtech B2B (vende pra corretor, não direto pro segurado) monetiza diferente de uma insurtech B2C"
       ]
     }
   ],

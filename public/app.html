@@ -275,6 +275,53 @@
     .company-hero img.company-logo { max-width: 170px; max-height: 56px; }
   }
 
+  /* Selos */
+  .badges-header { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 20px; }
+  .edition-badge { flex: none; width: 76px; height: 76px; }
+  .badges-summary { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 12px; }
+  .badges-summary .name { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--navy); text-transform: uppercase; }
+  .progress-row { display: flex; flex-direction: column; gap: 4px; }
+  .progress-row .plabel { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--graphite-soft); font-weight: 700; }
+  .progress-track { height: 8px; border-radius: 999px; background: var(--offwhite); overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 999px; background: var(--red); transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+  .progress-fill.group { background: var(--navy); }
+  .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+  .badge-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .badge-tile svg { width: 128px; height: 128px; }
+  .badge-tile .blabel { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--graphite-soft); }
+  @keyframes badgeReveal {
+    0% { opacity: 0; transform: scale(0.72) rotate(-6deg); }
+    70% { opacity: 1; transform: scale(1.06) rotate(1deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0); }
+  }
+  .badge-tile.reveal svg { animation: badgeReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  @media (prefers-reduced-motion: reduce) { .badge-tile.reveal svg { animation: none; } }
+  .unlock-toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(120%);
+    background: var(--navy); color: #fff; padding: 12px 20px; border-radius: var(--radius-md);
+    font-size: 13.5px; font-weight: 700; box-shadow: 0 16px 36px -10px rgba(8,27,51,0.4);
+    z-index: 50; transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1); text-align: center;
+  }
+  .unlock-toast.show { transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .unlock-toast { transition: none; } }
+
+  /* Presença (admin, dentro de Empresas) */
+  .attendance-panel { margin-top: 16px; }
+  .attendance-panel .section-label { color: var(--red); }
+  .attendance-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px; }
+  .attendance-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--radius-sm);
+    cursor: pointer; transition: background 0.15s ease; min-height: 44px;
+  }
+  .attendance-row:hover { background: var(--offwhite); }
+  .attendance-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--good); flex: none; }
+  .attendance-row .av {
+    width: 28px; height: 28px; border-radius: 50%; flex: none; object-fit: cover;
+    display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800;
+    color: #fff; background: var(--navy);
+  }
+  .attendance-row .rn { font-size: 13px; color: var(--graphite); }
+
   /* Trajetos */
   .route-card { padding: 16px; }
   .route-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -395,6 +442,7 @@
   <button data-tab="agenda" role="tab" id="tab-agenda" aria-controls="panel-agenda" aria-selected="false" tabindex="-1">Agenda</button>
   <button data-tab="empresas" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
   <button data-tab="trajetos" role="tab" id="tab-trajetos" aria-controls="panel-trajetos" aria-selected="false" tabindex="-1">Trajetos</button>
+  <button data-tab="selos" role="tab" id="tab-selos" aria-controls="panel-selos" aria-selected="false" tabindex="-1">Selos</button>
   <button data-tab="checklist" role="tab" id="tab-checklist" aria-controls="panel-checklist" aria-selected="false" tabindex="-1">Checklist</button>
 </nav>
 
@@ -446,11 +494,18 @@
       <div class="card company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
       </div>
+      <div id="attendance-panel"></div>
     </section>
 
     <section class="panel" id="panel-trajetos" role="tabpanel" aria-labelledby="tab-trajetos" tabindex="0">
       <div class="daypicker" id="route-daypicker" role="tablist" aria-label="Dias dos trajetos"></div>
       <div id="route-legs" role="region" aria-live="polite" aria-label="Trajetos do dia"></div>
+    </section>
+
+    <section class="panel" id="panel-selos" role="tabpanel" aria-labelledby="tab-selos" tabindex="0">
+      <div id="badges-content">
+        <div class="card"><p class="empty-state">Carregando...</p></div>
+      </div>
     </section>
 
     <section class="panel checklist" id="panel-checklist" role="tabpanel" aria-labelledby="tab-checklist" tabindex="0">
