@@ -59,13 +59,35 @@
       .join("");
   }).catch(function () {});
 
-  // ---- Tabs ----
+  // ---- Tabs (compartilhado por nav principal, seletores de dia e de empresa) ----
+  function syncTabState(container) {
+    container.querySelectorAll('[role="tab"]').forEach(function (b) {
+      var selected = b.classList.contains("active");
+      b.setAttribute("aria-selected", selected ? "true" : "false");
+      b.setAttribute("tabindex", selected ? "0" : "-1");
+    });
+  }
+  function wireTablist(container) {
+    container.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var tabs = Array.prototype.slice.call(container.querySelectorAll('[role="tab"]'));
+      var idx = tabs.indexOf(document.activeElement);
+      if (idx === -1) return;
+      e.preventDefault();
+      var next = e.key === "ArrowRight" ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+      tabs[next].focus();
+      tabs[next].click();
+    });
+  }
+
   var tabButtons = document.querySelectorAll("nav.tabs button");
   var panels = document.querySelectorAll(".panel");
   var loaded = {};
+  wireTablist(document.getElementById("tabs"));
 
   function activateTab(name) {
     tabButtons.forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
+    syncTabState(document.getElementById("tabs"));
     panels.forEach(function (p) {
       var isActive = p.id === "panel-" + name;
       p.classList.toggle("active", isActive);
@@ -178,6 +200,7 @@
   // ---- Agenda ----
   var itineraryData = null;
   var activeDayId = null;
+  var agendaCompaniesByKey = {};
 
   function renderDay(day) {
     var container = document.getElementById("agenda-days");
@@ -197,12 +220,16 @@
         stop.addr && stop.addr !== "A definir" && stop.addr !== "Sem visita externa"
           ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
           : "";
+      var company = stop.companyKey ? agendaCompaniesByKey[stop.companyKey] : null;
+      var logoHtml = company
+        ? '<span class="stop-logo logoBg-' + (company.logoBg || "light") + '"><img src="' + company.logo + '" alt="' + company.name + '"></span>'
+        : "";
       stopsHtml +=
         '<div class="stop stagger-in" style="animation-delay:' + (i * 70) + 'ms">' +
           '<div class="time num">' + stop.time + "</div>" +
           '<div class="rail"><span class="dot"></span>' +
             '<div class="stopcard">' +
-              '<div class="top"><span class="company">' + stop.company + "</span>" + badgeHtml + "</div>" +
+              '<div class="top">' + logoHtml + '<span class="company">' + stop.company + "</span>" + badgeHtml + "</div>" +
               '<div class="addr">' + stop.addr + "</div>" +
               '<div class="foot">' + routeHtml + "</div>" +
             "</div>" +
@@ -254,7 +281,9 @@
   }
 
   function loadAgenda() {
-    api("/api/itinerary").then(function (data) {
+    Promise.all([api("/api/itinerary"), api("/api/companies")]).then(function (results) {
+      var data = results[0];
+      results[1].forEach(function (c) { agendaCompaniesByKey[c.key] = c; });
       itineraryData = data;
       document.getElementById("hotel-card").innerHTML =
         '<div>' +
@@ -266,8 +295,11 @@
 
       var picker = document.getElementById("daypicker");
       picker.innerHTML = data.days
-        .map(function (d) { return '<button data-day="' + d.id + '">' + d.weekday.slice(0, 3) + " " + d.date + "</button>"; })
+        .map(function (d, i) {
+          return '<button role="tab" aria-controls="agenda-days" data-day="' + d.id + '">' + d.weekday.slice(0, 3) + " " + d.date + "</button>";
+        })
         .join("");
+      wireTablist(picker);
       picker.querySelectorAll("button").forEach(function (btn) {
         btn.addEventListener("click", function () { selectDay(btn.dataset.day); });
       });
@@ -283,9 +315,11 @@
 
   function selectDay(id) {
     activeDayId = id;
-    document.querySelectorAll("#daypicker button").forEach(function (b) {
+    var picker = document.getElementById("daypicker");
+    picker.querySelectorAll("button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.day === id);
     });
+    syncTabState(picker);
     var day = itineraryData.days.find(function (d) { return d.id === id; });
     if (day) renderDay(day);
   }
@@ -351,9 +385,11 @@
 
   function selectCompany(key) {
     activeCompanyKey = key;
-    document.querySelectorAll("#company-picker .company-chip").forEach(function (chip) {
+    var picker = document.getElementById("company-picker");
+    picker.querySelectorAll(".company-chip").forEach(function (chip) {
       chip.classList.toggle("active", chip.dataset.key === key);
     });
+    syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
     if (company) renderCompanyDetail(company);
   }
@@ -367,13 +403,14 @@
       picker.innerHTML = companiesData
         .map(function (c, i) {
           return (
-            '<button class="company-chip stagger-in" data-key="' + c.key + '" style="animation-delay:' + (i * 55) + 'ms">' +
+            '<button class="company-chip stagger-in" role="tab" aria-controls="company-detail" data-key="' + c.key + '" style="animation-delay:' + (i * 55) + 'ms">' +
               '<span class="dot" style="background:' + c.color + '"></span>' +
               '<span class="lbl">' + c.name + "</span>" +
             "</button>"
           );
         })
         .join("");
+      wireTablist(picker);
       picker.querySelectorAll(".company-chip").forEach(function (chip) {
         var c = companiesData.find(function (x) { return x.key === chip.dataset.key; });
         chip.style.borderColor = "transparent";
@@ -464,8 +501,9 @@
       routeItinerary = data;
       var picker = document.getElementById("route-daypicker");
       picker.innerHTML = data.days
-        .map(function (d) { return '<button data-day="' + d.id + '">' + d.weekday.slice(0, 3) + " " + d.date + "</button>"; })
+        .map(function (d) { return '<button role="tab" aria-controls="route-legs" data-day="' + d.id + '">' + d.weekday.slice(0, 3) + " " + d.date + "</button>"; })
         .join("");
+      wireTablist(picker);
       picker.querySelectorAll("button").forEach(function (btn) {
         btn.addEventListener("click", function () { selectRouteDay(btn.dataset.day); });
       });
@@ -481,9 +519,11 @@
 
   function selectRouteDay(id) {
     activeRouteDayId = id;
-    document.querySelectorAll("#route-daypicker button").forEach(function (b) {
+    var picker = document.getElementById("route-daypicker");
+    picker.querySelectorAll("button").forEach(function (b) {
       b.classList.toggle("active", b.dataset.day === id);
     });
+    syncTabState(picker);
     var day = routeItinerary.days.find(function (d) { return d.id === id; });
     if (day) renderRouteDay(day);
   }

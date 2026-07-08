@@ -90,7 +90,8 @@
       "note": "Manhã é bloco interno da liga. Janela de ~2h antes da Revolut é suficiente para almoço + deslocamento.",
       "stops": [
         { "time": "09:00–12:00", "company": "Medidas administrativas (interno)", "addr": "Sem visita externa", "status": "internal", "arrival": null },
-        { "time": "14:00–19:00", "company": "Revolut", "companyKey": "revolut", "addr": "R. Manuel da Nóbrega, 1280, 10º andar — Paraíso, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro desde o hotel" } }
+        { "time": "16:00–20:00", "company": "Revolut", "companyKey": "revolut", "addr": "R. Professor Atílio Innocenti, 642 — Vila Nova Conceição, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro desde o hotel" } },
+        { "time": "20:00", "company": "Happy hour", "companyKey": "revolut", "addr": "R. Professor Atílio Innocenti, 642 — Vila Nova Conceição, São Paulo - SP", "status": "ok", "arrival": { "label": "no mesmo local, ao final da visita" } }
       ],
       "returnToHotel": { "label": "~25–35 min de carro" },
       "lunch": {

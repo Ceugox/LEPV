@@ -40,7 +40,8 @@
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent;
     color: rgba(255,255,255,0.6); font-family: var(--font-display); font-weight: 700;
     font-size: 14.5px; text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 13px 11px 10px; cursor: pointer; transition: color 0.18s, border-color 0.18s;
+    min-height: 44px; display: inline-flex; align-items: center;
+    padding: 10px 11px; cursor: pointer; transition: color 0.18s, border-color 0.18s;
   }
   nav.tabs button:hover { color: rgba(255,255,255,0.9); }
   nav.tabs button.active { color: #fff; border-bottom-color: var(--red); }
@@ -159,7 +160,7 @@
   .day-head .date { font-size: 13px; color: var(--graphite-soft); font-weight: 600; }
   .day-note {
     font-size: 12.5px; color: #7C4A0A; background: var(--pending-soft);
-    border-left: 3px solid var(--pending); border-radius: 2px; padding: 10px 12px; margin: 0 0 16px; line-height: 1.4;
+    border: 1px solid rgba(180,83,9,0.28); border-radius: var(--radius-sm); padding: 10px 12px; margin: 0 0 16px; line-height: 1.4;
   }
   .timeline { display: flex; flex-direction: column; }
   .stop { display: grid; grid-template-columns: 68px 1fr; gap: 8px; position: relative; padding-bottom: 4px; }
@@ -176,8 +177,15 @@
     background: var(--offwhite); border: 1px solid var(--line); border-radius: var(--radius-sm);
     padding: 12px 13px; margin: 6px 0 10px;
   }
-  .stopcard .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .stopcard .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .stopcard .company { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--navy); text-transform: uppercase; letter-spacing: 0.01em; }
+  .stop-logo {
+    flex: none; width: 30px; height: 30px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .stop-logo.logoBg-light { background: var(--white); border: 1px solid var(--line); }
+  .stop-logo.logoBg-dark { background: var(--navy); }
+  .stop-logo img { max-width: 21px; max-height: 17px; object-fit: contain; }
   @media (min-width: 480px) {
     .stop { grid-template-columns: 84px 1fr; gap: 12px; }
     .stop .time { font-size: 11px; }
@@ -185,6 +193,8 @@
     .stop .dot { left: -12px; }
     .stopcard { padding: 13px 15px; }
     .stopcard .company { font-size: 17px; }
+    .stop-logo { width: 34px; height: 34px; }
+    .stop-logo img { max-width: 24px; max-height: 19px; }
   }
   .badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 2px; }
   .badge.ok { background: var(--good-soft); color: var(--good); }
@@ -198,7 +208,7 @@
   .connector .line { flex: 1; height: 1px; background: var(--line); }
   .connector.warn { color: var(--pending); font-weight: 700; }
 
-  .lunch-card { border-left: 3px solid var(--lunch); background: var(--lunch-soft); }
+  .lunch-card { border-color: rgba(138,90,33,0.25); background: var(--lunch-soft); }
   .lunch-window { font-size: 11.5px; color: var(--lunch-dark); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; }
   .lunch-options { display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
   .lunch-option { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
@@ -211,7 +221,8 @@
   .daypicker button {
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--graphite-soft);
     font-family: var(--font-display); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em;
-    padding: 10px 12px; cursor: pointer;
+    min-height: 44px; display: inline-flex; align-items: center;
+    padding: 8px 12px; cursor: pointer;
   }
   .daypicker button.active { color: var(--navy); border-bottom-color: var(--red); }
 
@@ -219,8 +230,8 @@
   .company-picker { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px; scrollbar-width: none; padding-bottom: 2px; }
   .company-picker::-webkit-scrollbar { display: none; }
   .company-chip {
-    flex: none; display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px 8px 10px; border-radius: 999px; border: 1.5px solid var(--line);
+    flex: none; display: flex; align-items: center; gap: 8px; min-height: 44px;
+    padding: 8px 16px 8px 12px; border-radius: 999px; border: 1.5px solid var(--line);
     background: var(--white); cursor: pointer;
     transition: border-color 0.15s, box-shadow 0.2s ease, transform 0.2s ease;
   }
@@ -339,7 +350,10 @@
   }
   .room-panel.open { transform: translateY(0); }
   .room-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-  .room-close { border: none; background: none; font-size: 22px; line-height: 1; color: var(--graphite-soft); cursor: pointer; padding: 4px; }
+  .room-close {
+    border: none; background: none; font-size: 22px; line-height: 1; color: var(--graphite-soft); cursor: pointer;
+    min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  }
   .room-panel-title {
     font-family: var(--font-display); font-size: 19px; font-weight: 800; text-transform: uppercase;
     color: var(--navy); margin: 2px 0 14px;
@@ -375,13 +389,13 @@
   </div>
 </header>
 
-<nav class="tabs" id="tabs">
-  <button data-tab="resumo" class="active">Resumo</button>
-  <button data-tab="membros">Membros</button>
-  <button data-tab="agenda">Agenda</button>
-  <button data-tab="empresas">Empresas</button>
-  <button data-tab="trajetos">Trajetos</button>
-  <button data-tab="checklist">Checklist</button>
+<nav class="tabs" id="tabs" role="tablist" aria-label="Seções">
+  <button data-tab="resumo" class="active" role="tab" id="tab-resumo" aria-controls="panel-resumo" aria-selected="true">Resumo</button>
+  <button data-tab="membros" role="tab" id="tab-membros" aria-controls="panel-membros" aria-selected="false" tabindex="-1">Membros</button>
+  <button data-tab="agenda" role="tab" id="tab-agenda" aria-controls="panel-agenda" aria-selected="false" tabindex="-1">Agenda</button>
+  <button data-tab="empresas" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
+  <button data-tab="trajetos" role="tab" id="tab-trajetos" aria-controls="panel-trajetos" aria-selected="false" tabindex="-1">Trajetos</button>
+  <button data-tab="checklist" role="tab" id="tab-checklist" aria-controls="panel-checklist" aria-selected="false" tabindex="-1">Checklist</button>
 </nav>
 
 <button id="room-fab" class="room-fab" aria-expanded="false" aria-controls="room-panel">
@@ -406,13 +420,13 @@
 <div class="wrap">
   <main>
 
-    <section class="panel active" id="panel-resumo">
+    <section class="panel active" id="panel-resumo" role="tabpanel" aria-labelledby="tab-resumo" tabindex="0">
       <div id="mission-content">
         <div class="card"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
-    <section class="panel" id="panel-membros">
+    <section class="panel" id="panel-membros" role="tabpanel" aria-labelledby="tab-membros" tabindex="0">
       <div class="card">
         <p class="section-label">Quem está na imersão</p>
         <div class="member-grid" id="member-grid">
@@ -421,30 +435,30 @@
       </div>
     </section>
 
-    <section class="panel" id="panel-agenda">
+    <section class="panel" id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" tabindex="0">
       <div class="card hotel-card" id="hotel-card"></div>
-      <div class="daypicker" id="daypicker"></div>
-      <div id="agenda-days"></div>
+      <div class="daypicker" id="daypicker" role="tablist" aria-label="Dias da agenda"></div>
+      <div id="agenda-days" role="region" aria-live="polite" aria-label="Roteiro do dia"></div>
     </section>
 
-    <section class="panel" id="panel-empresas">
-      <div class="company-picker" id="company-picker"></div>
-      <div class="card company-detail" id="company-detail">
+    <section class="panel" id="panel-empresas" role="tabpanel" aria-labelledby="tab-empresas" tabindex="0">
+      <div class="company-picker" id="company-picker" role="tablist" aria-label="Empresas"></div>
+      <div class="card company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
       </div>
     </section>
 
-    <section class="panel" id="panel-trajetos">
-      <div class="daypicker" id="route-daypicker"></div>
-      <div id="route-legs"></div>
+    <section class="panel" id="panel-trajetos" role="tabpanel" aria-labelledby="tab-trajetos" tabindex="0">
+      <div class="daypicker" id="route-daypicker" role="tablist" aria-label="Dias dos trajetos"></div>
+      <div id="route-legs" role="region" aria-live="polite" aria-label="Trajetos do dia"></div>
     </section>
 
-    <section class="panel checklist" id="panel-checklist">
+    <section class="panel checklist" id="panel-checklist" role="tabpanel" aria-labelledby="tab-checklist" tabindex="0">
       <div class="card">
         <p class="section-label">Pendências &amp; combinados</p>
         <ul id="checklist-items"></ul>
         <div class="addbar">
-          <input type="text" id="new-item" placeholder="Adicionar pendência...">
+          <input type="text" id="new-item" placeholder="Adicionar pendência..." aria-label="Nova pendência">
           <button class="btn-primary" id="add-item-btn">Adicionar</button>
         </div>
       </div>
