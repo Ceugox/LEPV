@@ -44,22 +44,23 @@
     },
     {
       "id": "ter21", "weekday": "Terça-feira", "date": "21/07",
-      "note": "Mottu termina 11h30 e Insper só começa 13h — dá pra almoçar com uma folga curta (~45 min) na região da Vila Olímpia antes de seguir.",
+      "note": "Mottu termina 11h30 e Insper já começa 12h30 — sem folga para almoço sentado nesse trecho, só um lanche rápido no caminho. Insper vira bloco de 1h (confirmar com o anfitrião se o conteúdo cabe). Depois, visita à Link (14h–15h) antes de seguir para a Mirow — o almoço fica para o intervalo entre Link e Mirow.",
       "stops": [
         { "time": "09:00–11:30", "company": "Mottu", "companyKey": "mottu", "addr": "R. Agostinho Cantu, 209 — Butantã, São Paulo - SP", "status": "pending", "statusLabel": "confirmar unidade (Butantã x sede)", "arrival": { "label": "~10–15 min de carro desde o hotel" } },
-        { "time": "13:00–15:00", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "ok", "arrival": { "label": "~25–35 min de carro" } },
-        { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro" } },
+        { "time": "12:30–13:30", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "pending", "statusLabel": "confirmar com anfitrião bloco de 1h (era 2h)", "arrival": { "label": "~30–35 min de carro desde a Mottu — sem folga para almoço sentado" } },
+        { "time": "14:00–15:00", "company": "Link", "addr": "Av. Brigadeiro Luís Antônio, 5083 — Jardim Paulista, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–25 min de carro desde o Insper" } },
+        { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro desde a Link, seguido do almoço já perto da Mirow" } },
         { "time": "20:00", "company": "Happy Hour — Segura", "companyKey": "segura", "addr": "A definir", "status": "pending", "statusLabel": "confirmar local e sobreposição com a Mirow", "arrival": { "label": "atenção: cruza ~30 min com o fim da visita à Mirow (que vai até 20h30)" } }
       ],
       "returnToHotel": { "label": "~20–30 min de carro" },
       "lunch": {
-        "note": "Janela curta (~45 min) entre Mottu e Insper — prefira algo de giro rápido perto da Vila Olímpia.",
+        "note": "Almoço fica para o intervalo entre a Link e a Mirow (~15h15–16h15) — dá pra almoçar com calma no Shopping Ibirapuera, a poucos metros da Mirow.",
         "groups": [
           {
-            "window": "12:00–12:45, entre Mottu e Insper",
+            "window": "15:15–16:15, entre Link e Mirow",
             "options": [
-              { "name": "Divino Fogão (Vila Olímpia)", "note": "a quilo, perto do Insper, giro rápido", "price": "R$ 45–60" },
-              { "name": "Santa Hora", "note": "comida caseira a quilo, Vila Olímpia/Itaim", "price": "R$ 60–90" }
+              { "name": "Divino Fogão (Shopping Ibirapuera)", "note": "a quilo, a ~200m da Mirow, giro rápido", "price": "R$ 45–60" },
+              { "name": "Frutaria São Paulo (Shopping Ibirapuera)", "note": "opção mais leve, saladas e sanduíches", "price": "R$ 30–50" }
             ]
           }
         ]
