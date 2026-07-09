@@ -106,7 +106,16 @@ app.get("/app.html", requireAuthPage, (req, res) => {
 });
 
 app.get("/api/members-public", (req, res) => {
-  res.json(members.map((m) => ({ order: m.order, name: m.name, photo: m.photo || null })));
+  res.json(
+    members.map((m) => ({
+      order: m.order,
+      name: m.name,
+      photo: m.photo || null,
+      course: m.course || "",
+      year: m.year || "",
+      interests: m.interests || [],
+    }))
+  );
 });
 
 app.post("/api/login", (req, res) => {
