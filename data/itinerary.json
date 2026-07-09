@@ -48,7 +48,7 @@
       "stops": [
         { "time": "09:00–11:30", "company": "Mottu", "companyKey": "mottu", "addr": "R. Agostinho Cantu, 209 — Butantã, São Paulo - SP", "status": "pending", "statusLabel": "confirmar unidade (Butantã x sede)", "arrival": { "label": "~10–15 min de carro desde o hotel" } },
         { "time": "12:30–13:30", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "pending", "statusLabel": "confirmar com anfitrião bloco de 1h (era 2h)", "arrival": { "label": "~30–35 min de carro desde a Mottu — sem folga para almoço sentado" } },
-        { "time": "14:00–15:00", "company": "Link", "addr": "Av. Brigadeiro Luís Antônio, 5083 — Jardim Paulista, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–25 min de carro desde o Insper" } },
+        { "time": "14:00–15:00", "company": "Link", "companyKey": "link", "addr": "Av. Brigadeiro Luís Antônio, 5083 — Jardim Paulista, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–25 min de carro desde o Insper" } },
         { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro desde a Link, seguido do almoço já perto da Mirow" } },
         { "time": "20:00", "company": "Happy Hour — Segura", "companyKey": "segura", "addr": "A definir", "status": "pending", "statusLabel": "confirmar local e sobreposição com a Mirow", "arrival": { "label": "atenção: cruza ~30 min com o fim da visita à Mirow (que vai até 20h30)" } }
       ],
