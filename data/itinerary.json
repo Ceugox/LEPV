@@ -26,7 +26,7 @@
       "id": "seg20", "weekday": "Segunda-feira", "date": "20/07",
       "note": "Visita única em período integral — combine com o anfitrião um horário de almoço dentro da janela.",
       "stops": [
-        { "time": "10:00–20:00", "company": "NOMAD", "companyKey": "nomad", "addr": "R. Bela Cintra, 1149 — Consolação, São Paulo - SP", "status": "pending", "statusLabel": "confirmar sala/andar", "arrival": { "label": "~20–30 min de carro desde o hotel" } }
+        { "time": "10:00–20:00", "company": "NOMAD", "companyKey": "nomad", "addr": "R. Bela Cintra, 1149 — Consolação, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–30 min de carro desde o hotel" } }
       ],
       "returnToHotel": { "label": "~20–30 min de carro" },
       "lunch": {
@@ -44,13 +44,13 @@
     },
     {
       "id": "ter21", "weekday": "Terça-feira", "date": "21/07",
-      "note": "Mottu termina 11h30 e Insper já começa 12h30. Com o endereço confirmado da Mottu (direto na Marginal Pinheiros), o trajeto até o Insper ficou mais rápido — ainda não dá pra um almoço sentado, mas sobra uma folga curta para um lanche rápido no caminho. Depois, visita à Link (14h–15h) antes de seguir para a Mirow — o almoço fica para o intervalo entre Link e Mirow.",
+      "note": "Mottu termina 11h30 e Insper já começa 12h30. Com o endereço confirmado da Mottu (direto na Marginal Pinheiros), o trajeto até o Insper ficou mais rápido — ainda não dá pra um almoço sentado, mas sobra uma folga curta para um lanche rápido no caminho. Depois, visita à Link (14h–15h) antes de seguir para a Mirow — o almoço fica para o intervalo entre Link e Mirow. A Mirow encerra às 19h30 para o grupo seguir direto para o happy hour com a Segura.",
       "stops": [
         { "time": "09:00–11:30", "company": "Mottu", "companyKey": "mottu", "addr": "Av. Dr. Gastão Vidigal, 501 — Vila Leopoldina, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro desde o hotel" } },
         { "time": "12:30–13:30", "company": "Insper", "companyKey": "insper", "addr": "R. Quatá, 300 — Vila Olímpia, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–25 min de carro desde a Mottu, direto pela Marginal Pinheiros" } },
         { "time": "14:00–15:00", "company": "Link", "companyKey": "link", "addr": "Av. Brigadeiro Luís Antônio, 5083 — Jardim Paulista, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–25 min de carro desde o Insper" } },
-        { "time": "16:30–20:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro desde a Link, seguido do almoço já perto da Mirow" } },
-        { "time": "20:00", "company": "Happy Hour — Segura", "companyKey": "segura", "addr": "A definir", "status": "pending", "statusLabel": "confirmar local e sobreposição com a Mirow", "arrival": { "label": "atenção: cruza ~30 min com o fim da visita à Mirow (que vai até 20h30)" } }
+        { "time": "16:30–19:30", "company": "Mirow & Co.", "companyKey": "mirow", "addr": "Av. Ibirapuera, 2033, conj. 133 — Indianópolis, São Paulo - SP", "status": "ok", "arrival": { "label": "~10–15 min de carro desde a Link, seguido do almoço já perto da Mirow" } },
+        { "time": "20:00", "company": "Happy Hour — Segura", "companyKey": "segura", "addr": "A definir", "status": "pending", "statusLabel": "confirmar local", "arrival": { "label": "saída direto da Mirow ao fim da visita (19h30)" } }
       ],
       "returnToHotel": { "label": "~20–30 min de carro" },
       "lunch": {
