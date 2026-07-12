@@ -505,9 +505,146 @@
     syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
     if (company) renderCompanyDetail(company);
+    renderMaterialsPanel(key);
     renderCollabPanel(QUESTIONS_PANEL, key);
     renderCollabPanel(LEARNINGS_PANEL, key);
     renderAttendancePanel(key);
+  }
+
+  // ---- Materiais de preparação (dentro de Empresas) ----
+  var materialsCache = null;
+
+  function formatBytes(n) {
+    if (!n) return "";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + " KB";
+    return (n / (1024 * 1024)).toFixed(1).replace(".", ",") + " MB";
+  }
+
+  function materialsListHtml(list, me) {
+    if (!list.length) return '<p class="empty-state">Nenhum material ainda.</p>';
+    return (
+      '<ul class="materials-list">' +
+      list
+        .map(function (m) {
+          var isPdf = m.type === "pdf";
+          var iconHtml = isPdf
+            ? '<span class="material-icon">PDF</span>'
+            : '<span class="material-icon link">LINK</span>';
+          var metaHtml = isPdf ? '<div class="material-meta">PDF · ' + formatBytes(m.size) + "</div>" : '<div class="material-meta">Link externo</div>';
+          var actionsHtml = isPdf
+            ? '<a target="_blank" rel="noopener" href="/api/materials/' + m.id + '/file">Abrir</a>' +
+              '<a href="/api/materials/' + m.id + '/file?dl=1">Baixar</a>'
+            : '<a target="_blank" rel="noopener" href="' + esc(m.url) + '">Abrir</a>';
+          return (
+            '<li data-id="' + m.id + '">' +
+              iconHtml +
+              '<div class="material-main"><div class="material-title">' + esc(m.title) + "</div>" + metaHtml + "</div>" +
+              '<div class="material-actions">' + actionsHtml +
+                (me.admin ? '<button class="del-btn" title="Remover material">×</button>' : "") +
+              "</div>" +
+            "</li>"
+          );
+        })
+        .join("") +
+      "</ul>"
+    );
+  }
+
+  function renderMaterialsPanel(companyKey) {
+    var panel = document.getElementById("materials-panel");
+    Promise.all([
+      meReady,
+      materialsCache ? Promise.resolve(materialsCache) : api("/api/materials"),
+    ]).then(function (results) {
+      var me = results[0];
+      materialsCache = results[1];
+      if (companyKey !== activeCompanyKey) return;
+      var list = materialsCache[companyKey] || [];
+
+      if (!list.length && !me.admin) {
+        panel.innerHTML = ""; // membro sem material não precisa ver card vazio
+        return;
+      }
+
+      var adminHtml = me.admin
+        ? '<div class="material-admin">' +
+            '<input type="text" class="mat-title" placeholder="Título do material" aria-label="Título do material" maxlength="120">' +
+            '<div class="row2">' +
+              '<input type="file" class="mat-file" accept="application/pdf" aria-label="Arquivo PDF">' +
+              '<button class="btn-primary mat-upload">Enviar PDF</button>' +
+            "</div>" +
+            '<div class="row2">' +
+              '<input type="url" class="mat-url" placeholder="ou cole um link (vídeo, página...)" aria-label="URL do material">' +
+              '<button class="btn-primary mat-add-link">Adicionar link</button>' +
+            "</div>" +
+            '<p class="hintline">PDF até 25 MB — fica no volume do servidor, disponível pra todo mundo na hora.</p>' +
+          "</div>"
+        : "";
+
+      panel.innerHTML =
+        '<div class="card">' +
+          '<p class="section-label">Materiais de preparação</p>' +
+          '<div class="materials-box">' + materialsListHtml(list, me) + "</div>" +
+          adminHtml +
+        "</div>";
+
+      function refresh(updated) {
+        materialsCache = updated;
+        panel.querySelector(".materials-box").innerHTML = materialsListHtml(updated[companyKey] || [], me);
+        wireDeletes();
+      }
+      function wireDeletes() {
+        panel.querySelectorAll(".materials-list .del-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var li = btn.closest("li");
+            if (!window.confirm("Remover este material para todo mundo?")) return;
+            api("/api/materials/" + li.dataset.id, { method: "DELETE" }).then(refresh);
+          });
+        });
+      }
+      wireDeletes();
+
+      if (!me.admin) return;
+      var uploadBtn = panel.querySelector(".mat-upload");
+      uploadBtn.addEventListener("click", function () {
+        var title = panel.querySelector(".mat-title").value.trim();
+        var file = panel.querySelector(".mat-file").files[0];
+        if (!title) return window.alert("Dê um título ao material.");
+        if (!file) return window.alert("Escolha um arquivo PDF.");
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = "Enviando...";
+        fetch("/api/materials/upload?companyKey=" + encodeURIComponent(companyKey) + "&title=" + encodeURIComponent(title), {
+          method: "POST",
+          headers: { "Content-Type": "application/pdf" },
+          body: file,
+        })
+          .then(function (r) {
+            if (!r.ok) throw new Error("upload failed");
+            return r.json();
+          })
+          .then(function (updated) {
+            panel.querySelector(".mat-title").value = "";
+            panel.querySelector(".mat-file").value = "";
+            refresh(updated);
+          })
+          .catch(function () { window.alert("Falha no envio — confira se o arquivo é um PDF de até 25 MB."); })
+          .then(function () {
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = "Enviar PDF";
+          });
+      });
+      panel.querySelector(".mat-add-link").addEventListener("click", function () {
+        var title = panel.querySelector(".mat-title").value.trim();
+        var url = panel.querySelector(".mat-url").value.trim();
+        if (!title) return window.alert("Dê um título ao material.");
+        if (!/^https?:\/\//i.test(url)) return window.alert("Cole um link começando com http(s)://");
+        api("/api/materials/link", { method: "POST", body: JSON.stringify({ companyKey: companyKey, title: title, url: url }) }).then(function (updated) {
+          panel.querySelector(".mat-title").value = "";
+          panel.querySelector(".mat-url").value = "";
+          refresh(updated);
+        });
+      });
+    });
   }
 
   // ---- Painéis colaborativos por empresa (perguntas e aprendizados) ----
@@ -694,6 +831,7 @@
   function loadCompanies() {
     attendanceCache = null; // presença pode ter mudado desde a última visita à aba
     collabCaches = {}; // outra pessoa pode ter adicionado perguntas/aprendizados
+    materialsCache = null; // material novo pode ter sido publicado
     Promise.all([api("/api/companies"), api("/api/itinerary")]).then(function (results) {
       companiesData = results[0];
       companyVisits = buildCompanyVisits(results[1]);
@@ -1104,6 +1242,172 @@
     });
   }
 
+  // ---- Despesas (divisão estilo Splitwise, tudo em centavos) ----
+  var expenseMembers = null;
+
+  function fmtBRL(cents) {
+    return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+  function parseBRL(text) {
+    var clean = String(text).replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".");
+    // aceita também "48.70" digitado com ponto decimal (sem milhar)
+    if (/^\d+\.\d{1,2}$/.test(String(text).trim())) clean = String(text).trim();
+    var value = parseFloat(clean);
+    return isNaN(value) ? null : Math.round(value * 100);
+  }
+  function firstName(order) {
+    var m = expenseMembers.find(function (x) { return x.order === order; });
+    return m ? m.name.split(" ")[0] : "?";
+  }
+
+  function loadExpenses() {
+    Promise.all([meReady, api("/api/expenses"), expenseMembers ? Promise.resolve(expenseMembers) : api("/api/members")]).then(function (results) {
+      var me = results[0], data = results[1];
+      expenseMembers = results[2];
+      var container = document.getElementById("expenses-content");
+      var myBalance = data.balances[String(me.order)] || 0;
+
+      var heroClass = myBalance < 0 ? "owe" : myBalance > 0 ? "receive" : "even";
+      var heroValue = myBalance < 0 ? "Você deve " + fmtBRL(-myBalance) : myBalance > 0 ? "Te devem " + fmtBRL(myBalance) : "Contas em dia";
+      var heroHtml =
+        '<div class="card"><div class="balance-hero">' +
+          '<span class="bh-label">Seu saldo na viagem</span>' +
+          '<span class="bh-value num ' + heroClass + '">' + heroValue + "</span>" +
+          '<span class="bh-sub">' + (function (n) {
+            return n === 0 ? "Nenhuma despesa registrada ainda."
+              : n === 1 ? "Calculado sobre 1 despesa registrada pelo grupo."
+              : "Calculado sobre " + n + " despesas registradas pelo grupo.";
+          })(data.expenses.filter(function (e) { return e.type !== "settlement"; }).length) + "</span>" +
+        "</div></div>";
+
+      var payerChips = expenseMembers
+        .map(function (m) {
+          return '<button type="button" class="p-chip pay' + (m.order === me.order ? " on" : "") + '" data-order="' + m.order + '">' + m.name.split(" ")[0] + "</button>";
+        })
+        .join("");
+      var splitChips = expenseMembers
+        .map(function (m) {
+          return '<button type="button" class="p-chip split on" data-order="' + m.order + '">' + m.name.split(" ")[0] + "</button>";
+        })
+        .join("");
+      var formHtml =
+        '<div class="card"><p class="section-label">Adicionar despesa</p>' +
+          '<div class="expense-form">' +
+            '<div class="row2">' +
+              '<input type="text" inputmode="decimal" class="exp-amount" placeholder="R$ 0,00" aria-label="Valor">' +
+              '<input type="text" class="exp-desc" placeholder="Uber, almoço, mercado..." aria-label="Descrição" maxlength="80">' +
+            "</div>" +
+            '<p class="chips-label">Quem pagou</p>' +
+            '<div class="payer-chips">' + payerChips + "</div>" +
+            '<p class="chips-label">Dividir entre <button type="button" class="split-all" style="border:none;background:none;color:var(--red);font-weight:700;cursor:pointer;font-size:11px;">todos / ninguém</button></p>' +
+            '<div class="split-chips">' + splitChips + "</div>" +
+            '<button class="btn-primary exp-add">Registrar despesa</button>' +
+          "</div>" +
+        "</div>";
+
+      var settleHtml = "";
+      if (data.settle.length) {
+        var rows = data.settle
+          .map(function (s) {
+            var canMark = s.from === me.order;
+            return (
+              '<div class="settle-row">' +
+                '<span class="sp">' + firstName(s.from) + ' <span class="arrow">→</span> ' + firstName(s.to) +
+                  ' <span class="sv num">' + fmtBRL(s.amountCents) + "</span></span>" +
+                (canMark ? '<button class="mark-paid" data-to="' + s.to + '" data-cents="' + s.amountCents + '">Paguei via Pix</button>' : "") +
+              "</div>"
+            );
+          })
+          .join("");
+        settleHtml =
+          '<div class="card"><p class="section-label">Acerto final (mínimo de transações)</p>' +
+            '<div class="settle-list">' + rows + "</div>" +
+          "</div>";
+      }
+
+      var feedHtml;
+      if (!data.expenses.length) {
+        feedHtml = '<div class="card"><p class="section-label">Despesas</p><p class="empty-state">Nenhuma despesa ainda. Registre a primeira acima.</p></div>';
+      } else {
+        var items = data.expenses
+          .map(function (e) {
+            var canDelete = e.createdBy === me.order || me.admin;
+            var delHtml = canDelete ? '<button class="del-btn" data-id="' + e.id + '" title="Remover">×</button>' : "";
+            if (e.type === "settlement") {
+              return (
+                '<div class="expense-item settlement">' +
+                  '<div class="ei-main"><div class="ei-desc">' + firstName(e.from) + " pagou " + firstName(e.to) + '</div><div class="ei-meta">acerto via Pix</div></div>' +
+                  '<span class="ei-value num">' + fmtBRL(e.amountCents) + "</span>" + delHtml +
+                "</div>"
+              );
+            }
+            return (
+              '<div class="expense-item">' +
+                '<div class="ei-main"><div class="ei-desc">' + esc(e.description) + "</div>" +
+                  '<div class="ei-meta">pago por ' + firstName(e.paidBy) + " · dividido entre " + e.participants.length + "</div></div>" +
+                '<span class="ei-value num">' + fmtBRL(e.amountCents) + "</span>" + delHtml +
+              "</div>"
+            );
+          })
+          .join("");
+        feedHtml = '<div class="card"><p class="section-label">Despesas</p><div class="expense-feed">' + items + "</div></div>";
+      }
+
+      container.innerHTML = heroHtml + formHtml + settleHtml + feedHtml;
+
+      // pagador: seleção única
+      container.querySelectorAll(".p-chip.pay").forEach(function (chip) {
+        chip.addEventListener("click", function () {
+          container.querySelectorAll(".p-chip.pay").forEach(function (c) { c.classList.remove("on"); });
+          chip.classList.add("on");
+        });
+      });
+      // participantes: toggle individual + atalho todos/ninguém
+      container.querySelectorAll(".p-chip.split").forEach(function (chip) {
+        chip.addEventListener("click", function () { chip.classList.toggle("on"); });
+      });
+      container.querySelector(".split-all").addEventListener("click", function () {
+        var chips = container.querySelectorAll(".p-chip.split");
+        var allOn = Array.prototype.every.call(chips, function (c) { return c.classList.contains("on"); });
+        chips.forEach(function (c) { c.classList.toggle("on", !allOn); });
+      });
+
+      container.querySelector(".exp-add").addEventListener("click", function () {
+        var cents = parseBRL(container.querySelector(".exp-amount").value);
+        var desc = container.querySelector(".exp-desc").value.trim();
+        var payer = container.querySelector(".p-chip.pay.on");
+        var participants = Array.prototype.map.call(
+          container.querySelectorAll(".p-chip.split.on"),
+          function (c) { return parseInt(c.dataset.order, 10); }
+        );
+        if (!cents || cents <= 0) return window.alert("Informe o valor (ex: 48,70).");
+        if (!desc) return window.alert("Descreva a despesa.");
+        if (!payer) return window.alert("Selecione quem pagou.");
+        if (!participants.length) return window.alert("Selecione entre quem dividir.");
+        api("/api/expenses", {
+          method: "POST",
+          body: JSON.stringify({ description: desc, amountCents: cents, paidBy: parseInt(payer.dataset.order, 10), participants: participants }),
+        }).then(loadExpenses);
+      });
+
+      container.querySelectorAll(".mark-paid").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var to = parseInt(btn.dataset.to, 10);
+          var cents = parseInt(btn.dataset.cents, 10);
+          if (!window.confirm("Confirmar que você pagou " + fmtBRL(cents) + " para " + firstName(to) + "?")) return;
+          api("/api/expenses/settle", { method: "POST", body: JSON.stringify({ to: to, amountCents: cents }) }).then(loadExpenses);
+        });
+      });
+
+      container.querySelectorAll(".expense-item .del-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (!window.confirm("Remover esta despesa para todo mundo?")) return;
+          api("/api/expenses/" + btn.dataset.id, { method: "DELETE" }).then(loadExpenses);
+        });
+      });
+    });
+  }
+
   // ---- Checklist (server-persisted, compartilhado entre todos os membros) ----
   function renderChecklist(items) {
     var listEl = document.getElementById("checklist-items");
@@ -1210,6 +1514,7 @@
     empresas: loadCompanies,
     trajetos: loadRoutes,
     selos: loadBadges,
+    despesas: loadExpenses,
     checklist: loadChecklist,
   };
 

@@ -3,3 +3,6 @@ node_modules/
 data/questions.json
 data/learnings.json
 data/pin-poll.json
+data/materials.json
+data/materials/
+data/expenses.json

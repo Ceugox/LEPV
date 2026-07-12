@@ -352,6 +352,84 @@
   .unlock-toast.show { transform: translateX(-50%) translateY(0); }
   @media (prefers-reduced-motion: reduce) { .unlock-toast { transition: none; } }
 
+  /* Materiais de preparação (dentro de Empresas) */
+  .materials-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .materials-list li {
+    display: flex; align-items: center; gap: 11px; padding: 11px 2px;
+    border-top: 1px solid var(--line);
+  }
+  .materials-list li:first-child { border-top: none; }
+  .material-icon {
+    flex: none; width: 34px; height: 34px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+    background: var(--offwhite); border: 1px solid var(--line); color: var(--navy);
+  }
+  .material-icon.link { color: var(--red); }
+  .material-main { flex: 1; min-width: 0; }
+  .material-title { font-size: 13.5px; font-weight: 700; color: var(--graphite); line-height: 1.3; }
+  .material-meta { font-size: 11px; color: var(--graphite-soft); margin-top: 1px; }
+  .material-actions { flex: none; display: flex; align-items: center; gap: 12px; }
+  .material-actions a { font-size: 12px; font-weight: 700; color: var(--red); text-decoration: none; }
+  .material-actions a:hover { text-decoration: underline; }
+  .material-actions .del-btn { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 16px; padding: 0 2px; }
+  .material-actions .del-btn:hover { color: var(--red); }
+  .material-admin { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 14px; display: flex; flex-direction: column; gap: 9px; }
+  .material-admin .row2 { display: flex; gap: 9px; }
+  .material-admin .row2 > * { flex: 1; min-width: 0; }
+  .material-admin input[type="file"] { font-size: 12px; color: var(--graphite-soft); }
+  .material-admin .hintline { font-size: 11px; color: var(--graphite-soft); margin: 0; }
+
+  /* Despesas */
+  .balance-hero { display: flex; flex-direction: column; gap: 4px; }
+  .balance-hero .bh-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 700; color: var(--graphite-soft); }
+  .balance-hero .bh-value { font-family: var(--font-display); font-size: 34px; font-weight: 800; line-height: 1.05; }
+  .balance-hero .bh-value.owe { color: var(--red); }
+  .balance-hero .bh-value.receive { color: var(--good); }
+  .balance-hero .bh-value.even { color: var(--navy); }
+  .balance-hero .bh-sub { font-size: 12.5px; color: var(--graphite-soft); }
+
+  .expense-form { display: flex; flex-direction: column; gap: 11px; }
+  .expense-form .row2 { display: flex; gap: 9px; }
+  .expense-form .row2 > * { flex: 1; min-width: 0; }
+  .payer-chips, .split-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .p-chip {
+    border: 1.5px solid var(--line); background: var(--white); border-radius: 999px;
+    padding: 7px 12px; font-size: 12px; font-weight: 700; color: var(--graphite-soft);
+    cursor: pointer; font-family: var(--font-body); transition: border-color 0.12s, background 0.12s, color 0.12s;
+  }
+  .p-chip.on { border-color: var(--navy); background: var(--navy); color: #fff; }
+  .chips-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft); margin: 0 0 2px; }
+
+  .settle-list { display: flex; flex-direction: column; }
+  .settle-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 11px 2px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--graphite);
+  }
+  .settle-row:first-child { border-top: none; }
+  .settle-row .sp { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .settle-row .sp .arrow { color: var(--red); }
+  .settle-row .sv { font-weight: 800; white-space: nowrap; }
+  .settle-row .mark-paid {
+    border: 1px solid var(--line); background: var(--white); border-radius: var(--radius-sm);
+    font-size: 11px; font-weight: 700; color: var(--good); padding: 6px 10px; cursor: pointer;
+    font-family: var(--font-body); white-space: nowrap;
+  }
+  .settle-row .mark-paid:hover { border-color: var(--good); }
+
+  .expense-feed { display: flex; flex-direction: column; }
+  .expense-item {
+    display: flex; align-items: center; gap: 11px; padding: 11px 2px; border-top: 1px solid var(--line);
+  }
+  .expense-item:first-child { border-top: none; }
+  .expense-item .ei-main { flex: 1; min-width: 0; }
+  .expense-item .ei-desc { font-size: 13.5px; font-weight: 700; color: var(--graphite); }
+  .expense-item .ei-meta { font-size: 11.5px; color: var(--graphite-soft); margin-top: 1px; }
+  .expense-item .ei-value { font-size: 13.5px; font-weight: 800; color: var(--navy); white-space: nowrap; }
+  .expense-item.settlement .ei-desc { color: var(--good); }
+  .expense-item .del-btn { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 16px; padding: 0 2px; flex: none; }
+  .expense-item .del-btn:hover { color: var(--red); }
+
   /* Perguntas do grupo (dentro de Empresas) */
   .questions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .questions-list li {
@@ -549,6 +627,7 @@
   <button data-tab="empresas" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
   <button data-tab="trajetos" role="tab" id="tab-trajetos" aria-controls="panel-trajetos" aria-selected="false" tabindex="-1">Trajetos</button>
   <button data-tab="selos" role="tab" id="tab-selos" aria-controls="panel-selos" aria-selected="false" tabindex="-1">Selos</button>
+  <button data-tab="despesas" role="tab" id="tab-despesas" aria-controls="panel-despesas" aria-selected="false" tabindex="-1">Despesas</button>
   <button data-tab="checklist" role="tab" id="tab-checklist" aria-controls="panel-checklist" aria-selected="false" tabindex="-1">Checklist</button>
 </nav>
 
@@ -600,6 +679,7 @@
       <div class="card company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
       </div>
+      <div id="materials-panel"></div>
       <div id="questions-panel"></div>
       <div id="learnings-panel"></div>
       <div id="attendance-panel"></div>
@@ -612,6 +692,12 @@
 
     <section class="panel" id="panel-selos" role="tabpanel" aria-labelledby="tab-selos" tabindex="0">
       <div id="badges-content">
+        <div class="card"><p class="empty-state">Carregando...</p></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-despesas" role="tabpanel" aria-labelledby="tab-despesas" tabindex="0">
+      <div id="expenses-content">
         <div class="card"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>

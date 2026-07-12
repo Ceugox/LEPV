@@ -2,7 +2,7 @@
 // Objetivo único: a agenda/trajetos continuarem legíveis com sinal ruim
 // (metrô, Marginal) usando a última resposta vista. Nada de cache-first —
 // deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v1";
+var CACHE = "lepv-sp-v2";
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();
@@ -23,6 +23,7 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // fontes do Google etc. ficam de fora
+  if (/^\/api\/materials\/[^/]+\/file$/.test(url.pathname)) return; // PDFs grandes não entram no cache
 
   e.respondWith(
     fetch(req)

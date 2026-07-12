@@ -86,6 +86,36 @@ if (!fs.existsSync(PIN_POLL_PATH)) {
   writePinPoll({});
 }
 
+// Materiais de preparação por empresa — PDFs vivem no volume (fora do repo
+// e do front), metadados em materials.json. Upload pelo painel admin.
+const MATERIALS_PATH = path.join(STORAGE_DIR, "materials.json");
+const MATERIALS_DIR = path.join(STORAGE_DIR, "materials");
+function readMaterials() {
+  return JSON.parse(fs.readFileSync(MATERIALS_PATH, "utf8"));
+}
+function writeMaterials(value) {
+  fs.writeFileSync(MATERIALS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(MATERIALS_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeMaterials({});
+}
+fs.mkdirSync(MATERIALS_DIR, { recursive: true });
+
+// Despesas da viagem (divisão estilo Splitwise) — tudo em centavos inteiros,
+// saldos sempre derivados da lista (nunca persistidos).
+const EXPENSES_PATH = path.join(STORAGE_DIR, "expenses.json");
+function readExpenses() {
+  return JSON.parse(fs.readFileSync(EXPENSES_PATH, "utf8"));
+}
+function writeExpenses(value) {
+  fs.writeFileSync(EXPENSES_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(EXPENSES_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeExpenses({ expenses: [] });
+}
+
 if (!fs.existsSync(path.join(DATA_DIR, "credentials.json"))) {
   console.error("credentials.json não encontrado. Rode: npm run seed");
   process.exit(1);
@@ -234,6 +264,227 @@ app.delete("/api/checklist/:id", requireAuthApi, (req, res) => {
   const items = readChecklist().filter((i) => i.id !== id);
   writeChecklist(items);
   res.json(items);
+});
+
+// ---- Materiais de preparação por empresa ----
+
+function findMaterial(id) {
+  const materials = readMaterials();
+  for (const [companyKey, list] of Object.entries(materials)) {
+    const item = list.find((m) => m.id === id);
+    if (item) return { companyKey, item };
+  }
+  return null;
+}
+
+app.get("/api/materials", requireAuthApi, (req, res) => {
+  res.json(readMaterials());
+});
+
+// Visualizar (inline, viewer nativo do celular) ou baixar (?dl=1).
+app.get("/api/materials/:id/file", requireAuthApi, (req, res) => {
+  const found = findMaterial(req.params.id);
+  if (!found || found.item.type !== "pdf") return res.status(404).json({ error: "not_found" });
+  const disposition = req.query.dl === "1" ? "attachment" : "inline";
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": disposition + "; filename*=UTF-8''" + encodeURIComponent(found.item.title) + ".pdf",
+    "Cache-Control": "private, max-age=3600",
+  });
+  res.sendFile(path.join(MATERIALS_DIR, found.item.file));
+});
+
+// Upload de PDF (admin): corpo cru da requisição, sem multipart/multer.
+app.post(
+  "/api/materials/upload",
+  requireAdminApi,
+  express.raw({ type: ["application/pdf", "application/octet-stream"], limit: "25mb" }),
+  (req, res) => {
+    const companyKey = String(req.query.companyKey || "");
+    const title = String(req.query.title || "").trim();
+    if (!title) return res.status(400).json({ error: "empty_title" });
+    if (!readJson("companies.json").some((c) => c.key === companyKey)) {
+      return res.status(400).json({ error: "invalid_company" });
+    }
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      return res.status(400).json({ error: "empty_file" });
+    }
+    if (req.body.subarray(0, 5).toString("latin1") !== "%PDF-") {
+      return res.status(400).json({ error: "not_a_pdf" });
+    }
+    const id = "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+    const file = companyKey + "-" + id + ".pdf";
+    fs.writeFileSync(path.join(MATERIALS_DIR, file), req.body);
+    const materials = readMaterials();
+    if (!(companyKey in materials)) materials[companyKey] = [];
+    materials[companyKey].push({
+      id,
+      type: "pdf",
+      title,
+      file,
+      size: req.body.length,
+      addedAt: new Date().toISOString(),
+    });
+    writeMaterials(materials);
+    res.json(materials);
+  }
+);
+
+// Material do tipo link (vídeo, página externa) — só a URL.
+app.post("/api/materials/link", requireAdminApi, (req, res) => {
+  const companyKey = String(req.body.companyKey || "");
+  const title = String(req.body.title || "").trim();
+  const url = String(req.body.url || "").trim();
+  if (!title) return res.status(400).json({ error: "empty_title" });
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "invalid_url" });
+  if (!readJson("companies.json").some((c) => c.key === companyKey)) {
+    return res.status(400).json({ error: "invalid_company" });
+  }
+  const materials = readMaterials();
+  if (!(companyKey in materials)) materials[companyKey] = [];
+  const id = "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+  materials[companyKey].push({ id, type: "link", title, url, addedAt: new Date().toISOString() });
+  writeMaterials(materials);
+  res.json(materials);
+});
+
+app.delete("/api/materials/:id", requireAdminApi, (req, res) => {
+  const found = findMaterial(req.params.id);
+  if (!found) return res.status(404).json({ error: "not_found" });
+  const materials = readMaterials();
+  materials[found.companyKey] = materials[found.companyKey].filter((m) => m.id !== req.params.id);
+  writeMaterials(materials);
+  if (found.item.file) {
+    fs.unlink(path.join(MATERIALS_DIR, found.item.file), () => {});
+  }
+  res.json(materials);
+});
+
+// ---- Despesas da viagem (divisão estilo Splitwise) ----
+
+// Divisão igual em centavos: base + resto distribuído deterministicamente
+// (ordem de inscrição crescente), então a soma bate SEMPRE com o total.
+function splitEqual(amountCents, participants) {
+  const sorted = [...participants].sort((a, b) => a - b);
+  const base = Math.floor(amountCents / sorted.length);
+  const remainder = amountCents % sorted.length;
+  const shares = {};
+  sorted.forEach((order, i) => {
+    shares[order] = base + (i < remainder ? 1 : 0);
+  });
+  return shares;
+}
+
+// Saldo por membro derivado das despesas: positivo = tem a receber.
+function computeBalances(expenses) {
+  const bal = {};
+  members.forEach((m) => { bal[m.order] = 0; });
+  for (const e of expenses) {
+    if (e.type === "settlement") {
+      bal[e.from] += e.amountCents;
+      bal[e.to] -= e.amountCents;
+      continue;
+    }
+    const shares = splitEqual(e.amountCents, e.participants);
+    bal[e.paidBy] += e.amountCents;
+    for (const [order, cents] of Object.entries(shares)) bal[order] -= cents;
+  }
+  return bal;
+}
+
+// Acerto final: greedy maior devedor × maior credor — máx. n-1 transações.
+function settleUp(balances) {
+  const debtors = [], creditors = [];
+  for (const [order, cents] of Object.entries(balances)) {
+    if (cents < 0) debtors.push({ order: parseInt(order, 10), amount: -cents });
+    else if (cents > 0) creditors.push({ order: parseInt(order, 10), amount: cents });
+  }
+  const byAmount = (a, b) => b.amount - a.amount || a.order - b.order;
+  debtors.sort(byAmount);
+  creditors.sort(byAmount);
+  const payments = [];
+  let i = 0, j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const pay = Math.min(debtors[i].amount, creditors[j].amount);
+    payments.push({ from: debtors[i].order, to: creditors[j].order, amountCents: pay });
+    debtors[i].amount -= pay;
+    creditors[j].amount -= pay;
+    if (debtors[i].amount === 0) i++;
+    if (creditors[j].amount === 0) j++;
+  }
+  return payments;
+}
+
+app.get("/api/expenses", requireAuthApi, (req, res) => {
+  const data = readExpenses();
+  const expenses = [...data.expenses].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const balances = computeBalances(data.expenses);
+  res.json({ expenses, balances, settle: settleUp(balances) });
+});
+
+app.post("/api/expenses", requireAuthApi, (req, res) => {
+  const description = String(req.body.description || "").trim();
+  const amountCents = parseInt(req.body.amountCents, 10);
+  const paidBy = parseInt(req.body.paidBy, 10);
+  const participants = Array.isArray(req.body.participants)
+    ? [...new Set(req.body.participants.map((p) => parseInt(p, 10)))]
+    : [];
+  if (!description) return res.status(400).json({ error: "empty_description" });
+  if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > 10_000_000) {
+    return res.status(400).json({ error: "invalid_amount" });
+  }
+  if (!membersByOrder.has(paidBy)) return res.status(400).json({ error: "invalid_payer" });
+  if (!participants.length || participants.some((p) => !membersByOrder.has(p))) {
+    return res.status(400).json({ error: "invalid_participants" });
+  }
+  const data = readExpenses();
+  data.expenses.push({
+    id: "e" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    description,
+    amountCents,
+    paidBy,
+    participants: participants.sort((a, b) => a - b),
+    createdAt: new Date().toISOString(),
+    createdBy: req.session.user.order,
+  });
+  writeExpenses(data);
+  const balances = computeBalances(data.expenses);
+  res.json({ expenses: data.expenses, balances, settle: settleUp(balances) });
+});
+
+// Registrar um Pix feito: quem paga é sempre o usuário logado.
+app.post("/api/expenses/settle", requireAuthApi, (req, res) => {
+  const to = parseInt(req.body.to, 10);
+  const amountCents = parseInt(req.body.amountCents, 10);
+  const from = req.session.user.order;
+  if (!membersByOrder.has(to) || to === from) return res.status(400).json({ error: "invalid_recipient" });
+  if (!Number.isInteger(amountCents) || amountCents <= 0) return res.status(400).json({ error: "invalid_amount" });
+  const data = readExpenses();
+  data.expenses.push({
+    id: "e" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    type: "settlement",
+    from,
+    to,
+    amountCents,
+    createdAt: new Date().toISOString(),
+    createdBy: from,
+  });
+  writeExpenses(data);
+  const balances = computeBalances(data.expenses);
+  res.json({ expenses: data.expenses, balances, settle: settleUp(balances) });
+});
+
+app.delete("/api/expenses/:id", requireAuthApi, (req, res) => {
+  const data = readExpenses();
+  const item = data.expenses.find((e) => e.id === req.params.id);
+  if (!item) return res.status(404).json({ error: "not_found" });
+  if (item.createdBy !== req.session.user.order && !req.session.user.admin) {
+    return res.status(403).json({ error: "not_owner" });
+  }
+  data.expenses = data.expenses.filter((e) => e.id !== req.params.id);
+  writeExpenses(data);
+  const balances = computeBalances(data.expenses);
+  res.json({ expenses: data.expenses, balances, settle: settleUp(balances) });
 });
 
 // ---- Enquete do bóton limitado ----
