@@ -1384,10 +1384,21 @@
         if (!desc) return window.alert("Descreva a despesa.");
         if (!payer) return window.alert("Selecione quem pagou.");
         if (!participants.length) return window.alert("Selecione entre quem dividir.");
-        api("/api/expenses", {
-          method: "POST",
-          body: JSON.stringify({ description: desc, amountCents: cents, paidBy: parseInt(payer.dataset.order, 10), participants: participants }),
-        }).then(loadExpenses);
+        var payload = { description: desc, amountCents: cents, paidBy: parseInt(payer.dataset.order, 10), participants: participants };
+        api("/api/expenses", { method: "POST", body: JSON.stringify(payload) }).then(function (res) {
+          if (res && res.error === "possible_duplicate") {
+            var d = res.duplicate;
+            var mins = Math.max(1, Math.round((Date.now() - new Date(d.createdAt).getTime()) / 60000));
+            var ok = window.confirm(
+              "Parece duplicada: \"" + d.description + "\" (" + fmtBRL(d.amountCents) + ", mesmos participantes) foi registrada por " +
+              firstName(d.createdBy) + " há " + mins + " min.\n\nRegistrar essa nova despesa mesmo assim?"
+            );
+            if (!ok) return;
+            payload.force = true;
+            return api("/api/expenses", { method: "POST", body: JSON.stringify(payload) }).then(loadExpenses);
+          }
+          loadExpenses();
+        });
       });
 
       container.querySelectorAll(".mark-paid").forEach(function (btn) {
@@ -1478,7 +1489,7 @@
         '<div class="pin-badge">' + editionBadgeSVG(me.order) + "</div>" +
         '<p class="pin-eyebrow">Edição limitada</p>' +
         '<h3 id="pin-modal-title">Bóton ' + num + "/11 — 1ª Imersão LEPV</h3>" +
-        '<p class="pin-text">Vamos produzir um bóton físico numerado, exclusivo de quem esteve na primeira imersão da LEPV em São Paulo. O seu sai com o número <strong>' + num + "/11</strong>. Quer garantir o seu?</p>" +
+        '<p class="pin-text">Vamos produzir um bóton físico numerado, exclusivo de quem esteve na primeira imersão da LEPV em São Paulo. O seu sai com o número <strong>' + num + "/11</strong> por <strong>R$ 11,00</strong> — aceitando, o valor entra como dívida com o Marcell na aba Despesas. Quer garantir o seu?</p>" +
         '<div class="pin-actions">' +
           '<button class="btn-primary" data-want="1">Quero o meu</button>' +
           '<button class="pin-later" data-want="0">Agora não</button>' +

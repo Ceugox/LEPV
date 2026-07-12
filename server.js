@@ -438,12 +438,41 @@ app.post("/api/expenses", requireAuthApi, (req, res) => {
     return res.status(400).json({ error: "invalid_participants" });
   }
   const data = readExpenses();
+
+  // Duas pessoas registrando o mesmo Uber/almoço é o erro mais provável do
+  // grupo: mesmo valor + mesmos participantes em menos de 15 min vira aviso.
+  // O cliente pode insistir com force=true (falso positivo é possível).
+  const sortedParticipants = participants.sort((a, b) => a - b);
+  if (req.body.force !== true) {
+    const cutoff = Date.now() - 15 * 60 * 1000;
+    const duplicate = data.expenses.find(
+      (e) =>
+        e.type !== "settlement" &&
+        e.amountCents === amountCents &&
+        new Date(e.createdAt).getTime() >= cutoff &&
+        e.participants.length === sortedParticipants.length &&
+        e.participants.every((p, i) => p === sortedParticipants[i])
+    );
+    if (duplicate) {
+      return res.status(409).json({
+        error: "possible_duplicate",
+        duplicate: {
+          description: duplicate.description,
+          amountCents: duplicate.amountCents,
+          paidBy: duplicate.paidBy,
+          createdAt: duplicate.createdAt,
+          createdBy: duplicate.createdBy,
+        },
+      });
+    }
+  }
+
   data.expenses.push({
     id: "e" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
     description,
     amountCents,
     paidBy,
-    participants: participants.sort((a, b) => a - b),
+    participants: sortedParticipants,
     createdAt: new Date().toISOString(),
     createdBy: req.session.user.order,
   });
@@ -494,10 +523,34 @@ app.get("/api/pin-poll", requireAuthApi, (req, res) => {
   res.json({ answered: entry !== undefined, want: entry ? entry.want : null });
 });
 
+// Bóton custa R$ 11,00, bancado pelo Marcell (order 1) — quem aceita já entra
+// devendo na aba Despesas. O próprio Marcell não deve a si mesmo, e o id
+// determinístico ("pin-N") garante que reenvio de resposta não duplica dívida.
+const PIN_PRICE_CENTS = 1100;
+const PIN_PAYER_ORDER = 1;
+
 app.post("/api/pin-poll", requireAuthApi, (req, res) => {
+  const order = req.session.user.order;
+  const want = Boolean(req.body.want);
   const poll = readPinPoll();
-  poll[String(req.session.user.order)] = { want: Boolean(req.body.want), name: req.session.user.name };
+  poll[String(order)] = { want, name: req.session.user.name };
   writePinPoll(poll);
+
+  if (want && order !== PIN_PAYER_ORDER) {
+    const data = readExpenses();
+    if (!data.expenses.some((e) => e.id === "pin-" + order)) {
+      data.expenses.push({
+        id: "pin-" + order,
+        description: "Bóton LEPV " + String(order).padStart(2, "0") + "/11",
+        amountCents: PIN_PRICE_CENTS,
+        paidBy: PIN_PAYER_ORDER,
+        participants: [order],
+        createdAt: new Date().toISOString(),
+        createdBy: PIN_PAYER_ORDER, // só o admin remove (a dívida espelha a enquete)
+      });
+      writeExpenses(data);
+    }
+  }
   res.json({ ok: true });
 });
 
