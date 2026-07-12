@@ -3,6 +3,14 @@
     return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(addr);
   }
 
+  // Conteúdo digitado por membro (checklist, perguntas etc.) passa por aqui
+  // antes de entrar em innerHTML — o resto dos dados vem dos JSONs do repo.
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
   function api(path, opts) {
     return fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts)).then(function (r) {
       if (r.status === 401) {
@@ -763,8 +771,8 @@
         return (
           '<li class="' + (item.done ? "done" : "") + '" data-id="' + item.id + '">' +
             '<input type="checkbox" ' + (item.done ? "checked" : "") + ">" +
-            '<span class="txt">' + item.text +
-              (item.addedBy ? '<span class="who-added">adicionado por ' + item.addedBy + "</span>" : "") +
+            '<span class="txt">' + esc(item.text) +
+              (item.addedBy ? '<span class="who-added">adicionado por ' + esc(item.addedBy) + "</span>" : "") +
             "</span>" +
             '<button class="del-btn" title="Remover">×</button>' +
           "</li>"
@@ -778,6 +786,8 @@
         api("/api/checklist/" + id, { method: "PATCH", body: JSON.stringify({ done: e.target.checked }) }).then(renderChecklist);
       });
       li.querySelector(".del-btn").addEventListener("click", function () {
+        var txt = li.querySelector(".txt").childNodes[0].textContent;
+        if (!window.confirm('Remover "' + txt.trim() + '" da lista de todo mundo?')) return;
         api("/api/checklist/" + id, { method: "DELETE" }).then(renderChecklist);
       });
     });
