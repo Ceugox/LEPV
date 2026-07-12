@@ -116,12 +116,108 @@
     b.addEventListener("click", function () { activateTab(b.dataset.tab); });
   });
 
+  // ---- Resumo: card "agora / a seguir" (durante a viagem) ou countdown ----
+  function parseTimeRange(t) {
+    var m = /^(\d{1,2}):(\d{2})(?:–(\d{1,2}):(\d{2}))?$/.exec(String(t || "").trim());
+    if (!m) return null;
+    var start = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    var end = m[3] ? parseInt(m[3], 10) * 60 + parseInt(m[4], 10) : start + 60;
+    return { start: start, end: end };
+  }
+  function fmtStart(t) {
+    return String(t).split("–")[0];
+  }
+
+  function nowStopHtml(label, stop, companiesByKey, extraLine) {
+    var company = stop.companyKey ? companiesByKey[stop.companyKey] : null;
+    var logoHtml = company && company.logo
+      ? '<span class="now-logo"><img src="' + company.logo + '" alt=""></span>'
+      : "";
+    var mapHtml = isRealAddr(stop.addr)
+      ? '<a target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
+      : "";
+    return (
+      '<div class="card now-card">' +
+        '<p class="now-label">' + label + "</p>" +
+        '<div class="now-main">' +
+          logoHtml +
+          '<div><div class="now-title">' + stop.company + '</div><div class="now-time num">' + stop.time + "</div></div>" +
+        "</div>" +
+        (isRealAddr(stop.addr) ? '<div class="now-addr">' + stop.addr + "</div>" : "") +
+        '<div class="now-foot">' + mapHtml + '<button type="button" data-goto="agenda">Agenda do dia →</button></div>' +
+        (extraLine ? '<div class="now-later">' + extraLine + "</div>" : "") +
+      "</div>"
+    );
+  }
+
+  function buildNowCard(itin, companiesByKey) {
+    function dayDate(d) {
+      var p = d.date.split("/");
+      return new Date(2026, parseInt(p[1], 10) - 1, parseInt(p[0], 10));
+    }
+    var now = new Date();
+    var today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var days = itin.days;
+    var first = dayDate(days[0]);
+    var last = dayDate(days[days.length - 1]);
+
+    if (today0 < first) {
+      var diff = Math.round((first - today0) / 86400000);
+      return (
+        '<div class="card now-card">' +
+          '<p class="now-label">Contagem regressiva</p>' +
+          '<div class="count-num">' + (diff === 1 ? "Falta 1 dia" : "Faltam " + diff + " dias") + "</div>" +
+          '<div class="count-line">' + days[0].weekday + " " + days[0].date + " — chegada em São Paulo e check-in no " + itin.hotel.name + ".</div>" +
+          '<div class="now-foot"><button type="button" data-goto="agenda">Ver a agenda da semana →</button></div>' +
+        "</div>"
+      );
+    }
+    if (today0 > last) return "";
+
+    var today = days.find(function (d) { return dayDate(d).getTime() === today0.getTime(); });
+    if (!today) return "";
+    var minutes = now.getHours() * 60 + now.getMinutes();
+
+    var current = null, next = null;
+    today.stops.forEach(function (stop) {
+      var r = parseTimeRange(stop.time);
+      if (!r) return;
+      if (minutes >= r.start && minutes < r.end && !current) current = stop;
+      else if (r.start > minutes && !next) next = stop;
+    });
+
+    if (current) {
+      var later = next ? "Depois: " + next.company + " às " + fmtStart(next.time) : "";
+      return nowStopHtml("Acontecendo agora", current, companiesByKey, later);
+    }
+    if (next) return nowStopHtml("Próxima parada", next, companiesByKey, "");
+
+    // Dia sem horários parseáveis (ex: chegada) ou já encerrado
+    var untimed = today.stops.filter(function (s) { return !parseTimeRange(s.time); });
+    if (untimed.length === today.stops.length && untimed.length) {
+      return nowStopHtml("Hoje", untimed[0], companiesByKey, today.note || "");
+    }
+    var tomorrow = days.find(function (d) { return dayDate(d) > today0 && d.stops.length; });
+    var tomorrowLine = tomorrow
+      ? "Amanhã: " + tomorrow.stops[0].company + (parseTimeRange(tomorrow.stops[0].time) ? " às " + fmtStart(tomorrow.stops[0].time) : "")
+      : "";
+    return (
+      '<div class="card now-card">' +
+        '<p class="now-label">Hoje</p>' +
+        '<div class="now-title">Programação de hoje encerrada</div>' +
+        (tomorrowLine ? '<div class="now-later">' + tomorrowLine + "</div>" : "") +
+        '<div class="now-foot"><button type="button" data-goto="agenda">Agenda do dia →</button></div>' +
+      "</div>"
+    );
+  }
+
   // ---- Resumo ----
   function loadMission() {
-    Promise.all([api("/api/mission"), api("/api/companies")]).then(function (results) {
+    Promise.all([api("/api/mission"), api("/api/companies"), api("/api/itinerary")]).then(function (results) {
       var m = results[0];
       var companiesByKey = {};
       results[1].forEach(function (c) { companiesByKey[c.key] = c; });
+      var nowHtml = buildNowCard(results[2], companiesByKey);
 
       var objectivesHtml = m.objectives.map(function (o) { return "<li>" + o + "</li>"; }).join("");
       var chipsHtml = m.companies.map(function (c) { return '<span class="chip">' + c + "</span>"; }).join("");
@@ -171,7 +267,11 @@
           "</div>"
         : "";
 
-      document.getElementById("mission-content").innerHTML = heroHtml + pioneerHtml + prepareHtml + expectHtml;
+      var content = document.getElementById("mission-content");
+      content.innerHTML = nowHtml + heroHtml + pioneerHtml + prepareHtml + expectHtml;
+      content.querySelectorAll("[data-goto]").forEach(function (btn) {
+        btn.addEventListener("click", function () { activateTab(btn.dataset.goto); });
+      });
     });
   }
 

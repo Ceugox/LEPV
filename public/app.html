@@ -72,6 +72,45 @@
     color: var(--graphite-soft); margin: 0 0 16px; font-weight: 700;
   }
 
+  /* Resumo — card "agora / a seguir / countdown" */
+  .now-card { background: var(--navy); border: none; color: #fff; }
+  .now-card .now-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;
+    color: var(--red-2); margin: 0 0 10px;
+  }
+  .now-card .now-main { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .now-card .now-logo {
+    flex: none; width: 40px; height: 40px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: var(--white);
+  }
+  .now-card .now-logo img { max-width: 28px; max-height: 22px; object-fit: contain; }
+  .now-card .now-title {
+    font-family: var(--font-display); font-weight: 800; font-size: 24px;
+    text-transform: uppercase; letter-spacing: 0.01em; line-height: 1.1; color: #fff;
+  }
+  .now-card .now-time { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); }
+  .now-card .now-addr { font-size: 12.5px; color: rgba(255,255,255,0.6); margin-top: 8px; line-height: 1.45; }
+  .now-card .now-foot { display: flex; align-items: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+  .now-card .now-foot a, .now-card .now-foot button {
+    font-size: 12.5px; font-weight: 700; color: var(--red-2); text-decoration: none;
+    background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-body);
+  }
+  .now-card .now-foot a:hover, .now-card .now-foot button:hover { text-decoration: underline; }
+  .now-card .now-later {
+    font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 10px;
+    padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  .now-card .count-num {
+    font-family: var(--font-display); font-weight: 800; font-size: 42px; line-height: 1;
+    color: #fff;
+  }
+  .now-card .count-line { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 6px; line-height: 1.5; }
+  @media (min-width: 700px) {
+    .now-card .now-title { font-size: 30px; }
+    .now-card .count-num { font-size: 52px; }
+  }
+
   /* Resumo */
   .mission-title {
     font-family: var(--font-display); font-size: 26px; font-weight: 800; text-transform: uppercase;
