@@ -93,7 +93,6 @@
 
   var tabButtons = document.querySelectorAll("nav.tabs button");
   var panels = document.querySelectorAll(".panel");
-  var loaded = {};
   wireTablist(document.getElementById("tabs"));
 
   function activateTab(name) {
@@ -108,14 +107,10 @@
         p.classList.add("fade-in");
       }
     });
-    if (name === "selos") {
-      // Presença pode mudar a qualquer momento (o admin marca durante a viagem);
-      // sempre recarrega, diferente das outras abas (mais estáticas).
-      loaders.selos();
-    } else if (!loaded[name]) {
-      loaded[name] = true;
-      loaders[name] && loaders[name]();
-    }
+    // Tudo pode mudar durante a viagem (agenda corrigida, item de checklist de
+    // outro membro, presença marcada) — recarrega a aba a cada ativação. Os
+    // JSONs são pequenos e os loaders preservam o dia/empresa selecionados.
+    loaders[name] && loaders[name]();
   }
   tabButtons.forEach(function (b) {
     b.addEventListener("click", function () { activateTab(b.dataset.tab); });
@@ -323,7 +318,10 @@
       var todayStr = today.getFullYear() === 2026
         ? String(today.getDate()).padStart(2, "0") + "/" + String(today.getMonth() + 1).padStart(2, "0")
         : null;
-      var initial = data.days.find(function (d) { return d.date === todayStr; }) || data.days[0];
+      var initial =
+        data.days.find(function (d) { return d.id === activeDayId; }) ||
+        data.days.find(function (d) { return d.date === todayStr; }) ||
+        data.days[0];
       selectDay(initial.id);
     });
   }
@@ -472,6 +470,7 @@
   }
 
   function loadCompanies() {
+    attendanceCache = null; // presença pode ter mudado desde a última visita à aba
     Promise.all([api("/api/companies"), api("/api/itinerary")]).then(function (results) {
       companiesData = results[0];
       companyVisits = buildCompanyVisits(results[1]);
@@ -506,7 +505,9 @@
       var todaysCompany = companiesData.find(function (c) {
         return companyVisits[c.key] && companyVisits[c.key].date === todayStr;
       });
-      var initial = todaysCompany || companiesData[0];
+      var initial =
+        companiesData.find(function (c) { return c.key === activeCompanyKey; }) ||
+        todaysCompany || companiesData[0];
       var initialChip = picker.querySelector('[data-key="' + initial.key + '"]');
       if (initialChip) initialChip.style.borderColor = initial.color;
       selectCompany(initial.key);
@@ -589,7 +590,10 @@
       var todayStr = today.getFullYear() === 2026
         ? String(today.getDate()).padStart(2, "0") + "/" + String(today.getMonth() + 1).padStart(2, "0")
         : null;
-      var initial = data.days.find(function (d) { return d.date === todayStr; }) || data.days[0];
+      var initial =
+        data.days.find(function (d) { return d.id === activeRouteDayId; }) ||
+        data.days.find(function (d) { return d.date === todayStr; }) ||
+        data.days[0];
       selectRouteDay(initial.id);
     });
   }
