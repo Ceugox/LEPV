@@ -46,6 +46,20 @@ if (!fs.existsSync(ATTENDANCE_PATH)) {
   writeAttendance(readJson("attendance.json"));
 }
 
+// Perguntas do grupo por empresa (roteiro coletivo do Q&A de cada visita) —
+// criadas em runtime pelos membros, mesmo padrão de persistência do checklist.
+const QUESTIONS_PATH = path.join(STORAGE_DIR, "questions.json");
+function readQuestions() {
+  return JSON.parse(fs.readFileSync(QUESTIONS_PATH, "utf8"));
+}
+function writeQuestions(value) {
+  fs.writeFileSync(QUESTIONS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(QUESTIONS_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeQuestions({});
+}
+
 if (!fs.existsSync(path.join(DATA_DIR, "credentials.json"))) {
   console.error("credentials.json não encontrado. Rode: npm run seed");
   process.exit(1);
@@ -194,6 +208,43 @@ app.delete("/api/checklist/:id", requireAuthApi, (req, res) => {
   const items = readChecklist().filter((i) => i.id !== id);
   writeChecklist(items);
   res.json(items);
+});
+
+// ---- Perguntas do grupo (Q&A colaborativo por empresa) ----
+
+app.get("/api/questions", requireAuthApi, (req, res) => {
+  res.json(readQuestions());
+});
+
+app.post("/api/questions", requireAuthApi, (req, res) => {
+  const companyKey = String(req.body.companyKey || "");
+  const text = String(req.body.text || "").trim();
+  if (!text) return res.status(400).json({ error: "empty_text" });
+  if (!readJson("companies.json").some((c) => c.key === companyKey)) {
+    return res.status(400).json({ error: "invalid_company" });
+  }
+  const questions = readQuestions();
+  if (!(companyKey in questions)) questions[companyKey] = [];
+  const nextId = Object.values(questions).flat().reduce((max, q) => Math.max(max, q.id), 0) + 1;
+  questions[companyKey].push({ id: nextId, text, addedBy: req.session.user.name, order: req.session.user.order });
+  writeQuestions(questions);
+  res.json(questions);
+});
+
+app.delete("/api/questions/:companyKey/:id", requireAuthApi, (req, res) => {
+  const companyKey = String(req.params.companyKey);
+  const id = parseInt(req.params.id, 10);
+  const questions = readQuestions();
+  const list = questions[companyKey] || [];
+  const q = list.find((x) => x.id === id);
+  if (!q) return res.status(404).json({ error: "not_found" });
+  // Cada um apaga só a própria pergunta; o admin pode moderar qualquer uma.
+  if (q.order !== req.session.user.order && !req.session.user.admin) {
+    return res.status(403).json({ error: "not_owner" });
+  }
+  questions[companyKey] = list.filter((x) => x.id !== id);
+  writeQuestions(questions);
+  res.json(questions);
 });
 
 // ---- Selos (presença por empresa → gamificação individualizada) ----

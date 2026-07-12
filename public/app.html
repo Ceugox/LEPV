@@ -344,6 +344,20 @@
   .unlock-toast.show { transform: translateX(-50%) translateY(0); }
   @media (prefers-reduced-motion: reduce) { .unlock-toast { transition: none; } }
 
+  /* Perguntas do grupo (dentro de Empresas) */
+  .questions-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .questions-list li {
+    display: flex; align-items: flex-start; gap: 10px; padding: 11px 2px;
+    border-top: 1px solid var(--line); font-size: 14px; line-height: 1.5; color: var(--graphite);
+  }
+  .questions-list li:first-child { border-top: none; }
+  .questions-list .q-mark { color: var(--red); font-weight: 800; flex: none; }
+  .questions-list .q-body { flex: 1; min-width: 0; }
+  .questions-list .q-by { display: block; font-size: 11px; color: var(--graphite-soft); margin-top: 2px; }
+  .questions-list .del-btn { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 16px; padding: 0 4px; flex: none; }
+  .questions-list .del-btn:hover { color: var(--red); }
+  .questions-hint { font-size: 12.5px; color: var(--graphite-soft); line-height: 1.5; margin: 0 0 10px; }
+
   /* Presença (admin, dentro de Empresas) */
   .attendance-panel { margin-top: 16px; }
   .attendance-panel .section-label { color: var(--red); }
@@ -533,6 +547,7 @@
       <div class="card company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
       </div>
+      <div id="questions-panel"></div>
       <div id="attendance-panel"></div>
     </section>
 

@@ -505,7 +505,86 @@
     syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
     if (company) renderCompanyDetail(company);
+    renderQuestionsPanel(key);
     renderAttendancePanel(key);
+  }
+
+  // ---- Perguntas do grupo (Q&A colaborativo por empresa) ----
+  var questionsCache = null;
+
+  function questionsListHtml(list, me) {
+    if (!list.length) {
+      return '<p class="empty-state">Nenhuma pergunta ainda. Puxe a fila: adicione a primeira.</p>';
+    }
+    return (
+      '<ul class="questions-list">' +
+      list
+        .map(function (q) {
+          var canDelete = me.admin || q.order === me.order;
+          return (
+            '<li data-id="' + q.id + '">' +
+              '<span class="q-mark">?</span>' +
+              '<span class="q-body">' + esc(q.text) + '<span class="q-by">' + esc(q.addedBy) + "</span></span>" +
+              (canDelete ? '<button class="del-btn" title="Remover pergunta">×</button>' : "") +
+            "</li>"
+          );
+        })
+        .join("") +
+      "</ul>"
+    );
+  }
+
+  function renderQuestionsPanel(companyKey) {
+    var panel = document.getElementById("questions-panel");
+    var ready = Promise.all([
+      meReady,
+      questionsCache ? Promise.resolve(questionsCache) : api("/api/questions"),
+    ]);
+    ready.then(function (results) {
+      var me = results[0];
+      questionsCache = results[1];
+      if (companyKey !== activeCompanyKey) return; // usuário já trocou de empresa
+      var list = questionsCache[companyKey] || [];
+      panel.innerHTML =
+        '<div class="card">' +
+          '<p class="section-label">Perguntas do grupo</p>' +
+          '<p class="questions-hint">O roteiro coletivo do Q&amp;A desta visita — todo mundo vê, cada um leva 2 ou 3 pra fazer.</p>' +
+          '<div id="questions-list-box">' + questionsListHtml(list, me) + "</div>" +
+          '<div class="addbar">' +
+            '<input type="text" id="new-question" placeholder="Adicionar pergunta..." aria-label="Nova pergunta" maxlength="280">' +
+            '<button class="btn-primary" id="add-question-btn">Adicionar</button>' +
+          "</div>" +
+        "</div>";
+
+      function refresh(updated) {
+        questionsCache = updated;
+        document.getElementById("questions-list-box").innerHTML = questionsListHtml(updated[companyKey] || [], me);
+        wireDeletes();
+      }
+      function addQuestion() {
+        var input = document.getElementById("new-question");
+        var text = input.value.trim();
+        if (!text) return;
+        api("/api/questions", { method: "POST", body: JSON.stringify({ companyKey: companyKey, text: text }) }).then(function (updated) {
+          input.value = "";
+          refresh(updated);
+        });
+      }
+      function wireDeletes() {
+        panel.querySelectorAll(".questions-list .del-btn").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var li = btn.closest("li");
+            if (!window.confirm("Remover esta pergunta?")) return;
+            api("/api/questions/" + companyKey + "/" + li.dataset.id, { method: "DELETE" }).then(refresh);
+          });
+        });
+      }
+      document.getElementById("add-question-btn").addEventListener("click", addQuestion);
+      document.getElementById("new-question").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") addQuestion();
+      });
+      wireDeletes();
+    });
   }
 
   // ---- Presença (admin) ----
@@ -571,6 +650,7 @@
 
   function loadCompanies() {
     attendanceCache = null; // presença pode ter mudado desde a última visita à aba
+    questionsCache = null; // outra pessoa pode ter adicionado perguntas
     Promise.all([api("/api/companies"), api("/api/itinerary")]).then(function (results) {
       companiesData = results[0];
       companyVisits = buildCompanyVisits(results[1]);

@@ -1,1 +1,3 @@
 node_modules/
+# runtime local (em produção vive no volume do Railway)
+data/questions.json
