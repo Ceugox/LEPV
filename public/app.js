@@ -910,6 +910,92 @@
     );
   }
 
+  // ---- Compartilhar selo (story 1080×1920 via canvas) ----
+  function logoAsDataUri(url) {
+    return fetch(url)
+      .then(function (r) { return r.blob(); })
+      .then(function (blob) {
+        return new Promise(function (resolve) {
+          var fr = new FileReader();
+          fr.onload = function () { resolve(fr.result); };
+          fr.readAsDataURL(blob);
+        });
+      });
+  }
+
+  function svgToImage(svgText) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml" }));
+      var img = new Image();
+      img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  function shareBadgeImage(company, me) {
+    // SVG renderizado como imagem não carrega href externo — inline o logo antes
+    var prep = company.logo ? logoAsDataUri(company.logo) : Promise.resolve(null);
+    Promise.all([prep, document.fonts.ready])
+      .then(function (results) {
+        var c = results[0] ? Object.assign({}, company, { logo: results[0] }) : company;
+        return svgToImage(badgeSVG(c, true));
+      })
+      .then(function (img) {
+        var W = 1080, H = 1920;
+        var cv = document.createElement("canvas");
+        cv.width = W; cv.height = H;
+        var ctx = cv.getContext("2d");
+
+        ctx.fillStyle = NAVY;
+        ctx.fillRect(0, 0, W, H);
+
+        var t1 = "LEPV ", t2 = "SP";
+        ctx.font = '800 108px "Barlow Condensed", "Arial Narrow", sans-serif';
+        var w1 = ctx.measureText(t1).width, w2 = ctx.measureText(t2).width;
+        var x0 = (W - (w1 + w2)) / 2;
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText(t1, x0, 300);
+        ctx.fillStyle = "#F04E4E";
+        ctx.fillText(t2, x0 + w1, 300);
+
+        ctx.textAlign = "center";
+        ctx.font = "700 34px Inter, sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.55)";
+        ctx.fillText("M I S S Ã O   E M P R E E N D E D O R A", W / 2, 368);
+
+        var bw = 780;
+        ctx.drawImage(img, (W - bw) / 2, 480, bw, bw);
+
+        ctx.font = '800 72px "Barlow Condensed", "Arial Narrow", sans-serif';
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText(me.name.toUpperCase(), W / 2, 1430);
+        ctx.font = '700 44px "Barlow Condensed", "Arial Narrow", sans-serif';
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fillText("EDIÇÃO " + String(me.order).padStart(2, "0") + "/11", W / 2, 1500);
+
+        ctx.fillStyle = RED;
+        ctx.fillRect(W / 2 - 44, 1580, 88, 6);
+        ctx.font = "700 38px Inter, sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.fillText("19–24 JUL 2026 · SÃO PAULO", W / 2, 1680);
+
+        cv.toBlob(function (blob) {
+          var file = new File([blob], "selo-" + company.key + ".png", { type: "image/png" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file], title: "Selo " + company.name + " — LEPV SP" }).catch(function () {});
+          } else {
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = file.name;
+            a.click();
+            setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+          }
+        }, "image/png");
+      });
+  }
+
   function editionBadgeSVG(order) {
     var num = String(order).padStart(2, "0");
     return (
@@ -962,12 +1048,20 @@
             '<div class="badge-tile' + (isNew ? " reveal" : "") + '">' +
               badgeSVG(c, unlocked) +
               '<span class="blabel">' + c.name + "</span>" +
+              (unlocked ? '<button class="badge-share" data-key="' + c.key + '">Compartilhar</button>' : "") +
             "</div>"
           );
         })
         .join("");
 
       container.innerHTML = headerHtml + '<div class="badges-grid">' + gridHtml + "</div>";
+
+      container.querySelectorAll(".badge-share").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var company = companies.find(function (c) { return c.key === btn.dataset.key; });
+          if (company) shareBadgeImage(company, me);
+        });
+      });
 
       try { localStorage.setItem(seenKey, JSON.stringify(badges.earned)); } catch (e) {}
 

@@ -328,6 +328,11 @@
   .badge-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; }
   .badge-tile svg { width: 128px; height: 128px; }
   .badge-tile .blabel { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--graphite-soft); }
+  .badge-share {
+    border: none; background: none; padding: 2px 6px; cursor: pointer;
+    font-size: 11px; font-weight: 700; color: var(--red); font-family: var(--font-body);
+  }
+  .badge-share:hover { text-decoration: underline; }
   @keyframes badgeReveal {
     0% { opacity: 0; transform: scale(0.72) rotate(-6deg); }
     70% { opacity: 1; transform: scale(1.06) rotate(1deg); }
