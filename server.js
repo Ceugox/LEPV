@@ -73,6 +73,19 @@ if (!fs.existsSync(LEARNINGS_PATH)) {
   writeLearnings({});
 }
 
+// Enquete do bóton limitado (1ª imersão) — resposta por membro, no volume.
+const PIN_POLL_PATH = path.join(STORAGE_DIR, "pin-poll.json");
+function readPinPoll() {
+  return JSON.parse(fs.readFileSync(PIN_POLL_PATH, "utf8"));
+}
+function writePinPoll(value) {
+  fs.writeFileSync(PIN_POLL_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(PIN_POLL_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writePinPoll({});
+}
+
 if (!fs.existsSync(path.join(DATA_DIR, "credentials.json"))) {
   console.error("credentials.json não encontrado. Rode: npm run seed");
   process.exit(1);
@@ -221,6 +234,24 @@ app.delete("/api/checklist/:id", requireAuthApi, (req, res) => {
   const items = readChecklist().filter((i) => i.id !== id);
   writeChecklist(items);
   res.json(items);
+});
+
+// ---- Enquete do bóton limitado ----
+
+app.get("/api/pin-poll", requireAuthApi, (req, res) => {
+  const entry = readPinPoll()[String(req.session.user.order)];
+  res.json({ answered: entry !== undefined, want: entry ? entry.want : null });
+});
+
+app.post("/api/pin-poll", requireAuthApi, (req, res) => {
+  const poll = readPinPoll();
+  poll[String(req.session.user.order)] = { want: Boolean(req.body.want), name: req.session.user.name };
+  writePinPoll(poll);
+  res.json({ ok: true });
+});
+
+app.get("/api/pin-poll/all", requireAdminApi, (req, res) => {
+  res.json(readPinPoll());
 });
 
 // ---- Perguntas do grupo (Q&A colaborativo por empresa) ----

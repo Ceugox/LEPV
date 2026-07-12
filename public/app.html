@@ -431,6 +431,51 @@
 
   .empty-state { font-size: 13px; color: var(--graphite-soft); padding: 20px 0; text-align: center; }
 
+  /* Enquete do bóton */
+  .pin-backdrop {
+    position: fixed; inset: 0; background: rgba(8,27,51,0.55); z-index: 60;
+    opacity: 0; transition: opacity 0.25s ease;
+  }
+  .pin-backdrop.open { opacity: 1; }
+  .pin-modal {
+    position: fixed; z-index: 61; left: 20px; right: 20px; top: 50%;
+    max-width: 400px; margin: 0 auto;
+    background: var(--white); border-radius: var(--radius-lg); padding: 26px 22px 22px;
+    text-align: center; box-shadow: 0 24px 60px rgba(8,27,51,0.4);
+    transform: translateY(-46%) scale(0.96); opacity: 0;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+  }
+  .pin-modal.open { transform: translateY(-50%) scale(1); opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .pin-modal, .pin-backdrop { transition: none; } }
+  .pin-modal .pin-badge { width: 88px; height: 88px; margin: 0 auto 12px; }
+  .pin-modal .pin-eyebrow {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;
+    color: var(--red); margin: 0 0 6px;
+  }
+  .pin-modal h3 {
+    font-family: var(--font-display); font-size: 21px; font-weight: 800; text-transform: uppercase;
+    color: var(--navy); margin: 0 0 10px; line-height: 1.15;
+  }
+  .pin-modal .pin-text { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0 0 18px; }
+  .pin-modal .pin-actions { display: flex; flex-direction: column; gap: 10px; }
+  .pin-modal .pin-later {
+    border: none; background: none; color: var(--graphite-soft); cursor: pointer;
+    font-size: 13px; font-weight: 600; padding: 8px; font-family: var(--font-body);
+  }
+  .pin-modal .pin-later:hover { color: var(--graphite); }
+
+  /* Placar da enquete (admin, aba Selos) */
+  .pin-list { display: flex; flex-direction: column; }
+  .pin-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 9px 2px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--graphite);
+  }
+  .pin-row:first-child { border-top: none; }
+  .pin-status { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 3px 8px; border-radius: 2px; }
+  .pin-status.yes { background: var(--good-soft); color: var(--good); }
+  .pin-status.no { background: var(--internal-soft); color: var(--internal); }
+  .pin-status.pending { background: var(--pending-soft); color: var(--pending); }
+
   /* Quartos — widget flutuante */
   .room-fab {
     position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom));

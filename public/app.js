@@ -1063,6 +1063,30 @@
         });
       });
 
+      // Placar da enquete do bóton — só o admin vê, pra fechar o pedido
+      if (me.admin) {
+        Promise.all([api("/api/pin-poll/all"), api("/api/members")]).then(function (r) {
+          var poll = r[0], members = r[1];
+          var rows = members
+            .map(function (m) {
+              var entry = poll[String(m.order)];
+              var status = entry === undefined
+                ? '<span class="pin-status pending">sem resposta</span>'
+                : entry.want
+                  ? '<span class="pin-status yes">quer</span>'
+                  : '<span class="pin-status no">não quer</span>';
+              return '<div class="pin-row"><span class="pn">' + m.name + "</span>" + status + "</div>";
+            })
+            .join("");
+          var wants = members.filter(function (m) { return (poll[String(m.order)] || {}).want; }).length;
+          container.innerHTML +=
+            '<div class="card">' +
+              '<p class="section-label" style="color:var(--red);">Enquete do bóton (admin) — ' + wants + "/11 confirmados</p>" +
+              '<div class="pin-list">' + rows + "</div>" +
+            "</div>";
+        });
+      }
+
       try { localStorage.setItem(seenKey, JSON.stringify(badges.earned)); } catch (e) {}
 
       if (newlyUnlocked.length) {
@@ -1131,6 +1155,49 @@
       renderChecklist(items);
     });
   }
+
+  // ---- Enquete do bóton limitado (pop-up até o membro responder) ----
+  function maybeShowPinPoll() {
+    Promise.all([meReady, api("/api/pin-poll")]).then(function (results) {
+      var me = results[0], poll = results[1];
+      if (poll.answered) return;
+
+      var num = String(me.order).padStart(2, "0");
+      var backdrop = document.createElement("div");
+      backdrop.className = "pin-backdrop";
+      var modal = document.createElement("div");
+      modal.className = "pin-modal";
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "true");
+      modal.setAttribute("aria-labelledby", "pin-modal-title");
+      modal.innerHTML =
+        '<div class="pin-badge">' + editionBadgeSVG(me.order) + "</div>" +
+        '<p class="pin-eyebrow">Edição limitada</p>' +
+        '<h3 id="pin-modal-title">Bóton ' + num + "/11 — 1ª Imersão LEPV</h3>" +
+        '<p class="pin-text">Vamos produzir um bóton físico numerado, exclusivo de quem esteve na primeira imersão da LEPV em São Paulo. O seu sai com o número <strong>' + num + "/11</strong>. Quer garantir o seu?</p>" +
+        '<div class="pin-actions">' +
+          '<button class="btn-primary" data-want="1">Quero o meu</button>' +
+          '<button class="pin-later" data-want="0">Agora não</button>' +
+        "</div>";
+      document.body.appendChild(backdrop);
+      document.body.appendChild(modal);
+      requestAnimationFrame(function () {
+        backdrop.classList.add("open");
+        modal.classList.add("open");
+      });
+
+      modal.querySelectorAll("[data-want]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          api("/api/pin-poll", { method: "POST", body: JSON.stringify({ want: btn.dataset.want === "1" }) }).then(function () {
+            backdrop.classList.remove("open");
+            modal.classList.remove("open");
+            setTimeout(function () { backdrop.remove(); modal.remove(); }, 300);
+          });
+        });
+      });
+    });
+  }
+  setTimeout(maybeShowPinPoll, 1400); // deixa a primeira aba assentar antes
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(function () {});
