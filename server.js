@@ -58,9 +58,11 @@ const credsByOrder = new Map(credentials.map((c) => [c.order, c]));
 
 const app = express();
 app.use(express.json());
+// Secret fixo via env em produção: sem ele, cada deploy/restart invalida a
+// sessão de todo mundo no meio da viagem. O fallback aleatório fica só pra dev.
 app.use(
   session({
-    secret: crypto.randomBytes(32).toString("hex"),
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
     resave: false,
     saveUninitialized: false,
     cookie: { httpOnly: true, sameSite: "lax", maxAge: 1000 * 60 * 60 * 24 * 7 },
