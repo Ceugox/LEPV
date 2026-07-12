@@ -1,3 +1,4 @@
 node_modules/
-# runtime local (em produção vive no volume do Railway)
+# runtime local (em produção vivem no volume do Railway)
 data/questions.json
+data/learnings.json

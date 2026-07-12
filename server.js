@@ -60,6 +60,19 @@ if (!fs.existsSync(QUESTIONS_PATH)) {
   writeQuestions({});
 }
 
+// Aprendizados pós-visita (memória coletiva da imersão) — mesmo padrão.
+const LEARNINGS_PATH = path.join(STORAGE_DIR, "learnings.json");
+function readLearnings() {
+  return JSON.parse(fs.readFileSync(LEARNINGS_PATH, "utf8"));
+}
+function writeLearnings(value) {
+  fs.writeFileSync(LEARNINGS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(LEARNINGS_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeLearnings({});
+}
+
 if (!fs.existsSync(path.join(DATA_DIR, "credentials.json"))) {
   console.error("credentials.json não encontrado. Rode: npm run seed");
   process.exit(1);
@@ -245,6 +258,48 @@ app.delete("/api/questions/:companyKey/:id", requireAuthApi, (req, res) => {
   questions[companyKey] = list.filter((x) => x.id !== id);
   writeQuestions(questions);
   res.json(questions);
+});
+
+// ---- Aprendizados pós-visita (memória coletiva por empresa) ----
+
+app.get("/api/learnings", requireAuthApi, (req, res) => {
+  res.json(readLearnings());
+});
+
+app.post("/api/learnings", requireAuthApi, (req, res) => {
+  const companyKey = String(req.body.companyKey || "");
+  const text = String(req.body.text || "").trim();
+  if (!text) return res.status(400).json({ error: "empty_text" });
+  if (!readJson("companies.json").some((c) => c.key === companyKey)) {
+    return res.status(400).json({ error: "invalid_company" });
+  }
+  // Só registra aprendizado quem já tem o selo da visita (presença marcada);
+  // o admin pode sempre, pra anotar em nome do grupo.
+  const attended = (readAttendance()[companyKey] || []).includes(req.session.user.order);
+  if (!attended && !req.session.user.admin) {
+    return res.status(403).json({ error: "not_attended" });
+  }
+  const learnings = readLearnings();
+  if (!(companyKey in learnings)) learnings[companyKey] = [];
+  const nextId = Object.values(learnings).flat().reduce((max, l) => Math.max(max, l.id), 0) + 1;
+  learnings[companyKey].push({ id: nextId, text, addedBy: req.session.user.name, order: req.session.user.order });
+  writeLearnings(learnings);
+  res.json(learnings);
+});
+
+app.delete("/api/learnings/:companyKey/:id", requireAuthApi, (req, res) => {
+  const companyKey = String(req.params.companyKey);
+  const id = parseInt(req.params.id, 10);
+  const learnings = readLearnings();
+  const list = learnings[companyKey] || [];
+  const item = list.find((x) => x.id === id);
+  if (!item) return res.status(404).json({ error: "not_found" });
+  if (item.order !== req.session.user.order && !req.session.user.admin) {
+    return res.status(403).json({ error: "not_owner" });
+  }
+  learnings[companyKey] = list.filter((x) => x.id !== id);
+  writeLearnings(learnings);
+  res.json(learnings);
 });
 
 // ---- Selos (presença por empresa → gamificação individualizada) ----

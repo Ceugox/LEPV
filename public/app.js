@@ -505,27 +505,56 @@
     syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
     if (company) renderCompanyDetail(company);
-    renderQuestionsPanel(key);
+    renderCollabPanel(QUESTIONS_PANEL, key);
+    renderCollabPanel(LEARNINGS_PANEL, key);
     renderAttendancePanel(key);
   }
 
-  // ---- Perguntas do grupo (Q&A colaborativo por empresa) ----
-  var questionsCache = null;
+  // ---- Painéis colaborativos por empresa (perguntas e aprendizados) ----
+  // Mesma mecânica do checklist, mas por empresa: lista compartilhada, cada um
+  // remove só o que criou (admin modera). Config distingue perguntas de
+  // aprendizados — inclusive o "portão" de quem pode postar.
+  var collabCaches = {};
 
-  function questionsListHtml(list, me) {
-    if (!list.length) {
-      return '<p class="empty-state">Nenhuma pergunta ainda. Puxe a fila: adicione a primeira.</p>';
-    }
+  var QUESTIONS_PANEL = {
+    elId: "questions-panel",
+    api: "/api/questions",
+    label: "Perguntas do grupo",
+    hint: "O roteiro coletivo do Q&amp;A desta visita — todo mundo vê, cada um leva 2 ou 3 pra fazer.",
+    empty: "Nenhuma pergunta ainda. Puxe a fila: adicione a primeira.",
+    placeholder: "Adicionar pergunta...",
+    mark: "?",
+    gate: null, // qualquer membro pode postar, antes ou depois da visita
+    lockedHint: "",
+  };
+
+  var LEARNINGS_PANEL = {
+    elId: "learnings-panel",
+    api: "/api/learnings",
+    label: "Aprendizados da visita",
+    hint: "O que vale levar de volta pra liga — registre enquanto está fresco.",
+    empty: "Nenhum aprendizado registrado ainda.",
+    placeholder: "Registrar aprendizado...",
+    mark: "—",
+    // Só posta quem já tem o selo desta empresa (presença marcada pelo admin).
+    gate: function (companyKey) {
+      return api("/api/badges").then(function (b) { return b.earned.indexOf(companyKey) !== -1; });
+    },
+    lockedHint: "Libera depois da visita, quando a presença for confirmada.",
+  };
+
+  function collabListHtml(list, me, opts) {
+    if (!list.length) return '<p class="empty-state">' + opts.empty + "</p>";
     return (
       '<ul class="questions-list">' +
       list
-        .map(function (q) {
-          var canDelete = me.admin || q.order === me.order;
+        .map(function (item) {
+          var canDelete = me.admin || item.order === me.order;
           return (
-            '<li data-id="' + q.id + '">' +
-              '<span class="q-mark">?</span>' +
-              '<span class="q-body">' + esc(q.text) + '<span class="q-by">' + esc(q.addedBy) + "</span></span>" +
-              (canDelete ? '<button class="del-btn" title="Remover pergunta">×</button>' : "") +
+            '<li data-id="' + item.id + '">' +
+              '<span class="q-mark">' + opts.mark + "</span>" +
+              '<span class="q-body">' + esc(item.text) + '<span class="q-by">' + esc(item.addedBy) + "</span></span>" +
+              (canDelete ? '<button class="del-btn" title="Remover">×</button>' : "") +
             "</li>"
           );
         })
@@ -534,38 +563,49 @@
     );
   }
 
-  function renderQuestionsPanel(companyKey) {
-    var panel = document.getElementById("questions-panel");
-    var ready = Promise.all([
+  function renderCollabPanel(opts, companyKey) {
+    var panel = document.getElementById(opts.elId);
+    Promise.all([
       meReady,
-      questionsCache ? Promise.resolve(questionsCache) : api("/api/questions"),
-    ]);
-    ready.then(function (results) {
+      collabCaches[opts.api] ? Promise.resolve(collabCaches[opts.api]) : api(opts.api),
+      opts.gate ? opts.gate(companyKey) : Promise.resolve(true),
+    ]).then(function (results) {
       var me = results[0];
-      questionsCache = results[1];
+      collabCaches[opts.api] = results[1];
+      var canPost = results[2] || me.admin;
       if (companyKey !== activeCompanyKey) return; // usuário já trocou de empresa
-      var list = questionsCache[companyKey] || [];
+      var list = collabCaches[opts.api][companyKey] || [];
+
+      if (!canPost && !list.length) {
+        panel.innerHTML = opts.lockedHint
+          ? '<div class="card"><p class="section-label">' + opts.label + '</p><p class="empty-state">' + opts.lockedHint + "</p></div>"
+          : "";
+        return;
+      }
+
       panel.innerHTML =
         '<div class="card">' +
-          '<p class="section-label">Perguntas do grupo</p>' +
-          '<p class="questions-hint">O roteiro coletivo do Q&amp;A desta visita — todo mundo vê, cada um leva 2 ou 3 pra fazer.</p>' +
-          '<div id="questions-list-box">' + questionsListHtml(list, me) + "</div>" +
-          '<div class="addbar">' +
-            '<input type="text" id="new-question" placeholder="Adicionar pergunta..." aria-label="Nova pergunta" maxlength="280">' +
-            '<button class="btn-primary" id="add-question-btn">Adicionar</button>' +
-          "</div>" +
+          '<p class="section-label">' + opts.label + "</p>" +
+          '<p class="questions-hint">' + opts.hint + "</p>" +
+          '<div class="collab-list-box">' + collabListHtml(list, me, opts) + "</div>" +
+          (canPost
+            ? '<div class="addbar">' +
+                '<input type="text" class="collab-input" placeholder="' + opts.placeholder + '" aria-label="' + opts.placeholder + '" maxlength="280">' +
+                '<button class="btn-primary collab-add">Adicionar</button>' +
+              "</div>"
+            : "") +
         "</div>";
 
       function refresh(updated) {
-        questionsCache = updated;
-        document.getElementById("questions-list-box").innerHTML = questionsListHtml(updated[companyKey] || [], me);
+        collabCaches[opts.api] = updated;
+        panel.querySelector(".collab-list-box").innerHTML = collabListHtml(updated[companyKey] || [], me, opts);
         wireDeletes();
       }
-      function addQuestion() {
-        var input = document.getElementById("new-question");
+      function addItem() {
+        var input = panel.querySelector(".collab-input");
         var text = input.value.trim();
         if (!text) return;
-        api("/api/questions", { method: "POST", body: JSON.stringify({ companyKey: companyKey, text: text }) }).then(function (updated) {
+        api(opts.api, { method: "POST", body: JSON.stringify({ companyKey: companyKey, text: text }) }).then(function (updated) {
           input.value = "";
           refresh(updated);
         });
@@ -574,15 +614,18 @@
         panel.querySelectorAll(".questions-list .del-btn").forEach(function (btn) {
           btn.addEventListener("click", function () {
             var li = btn.closest("li");
-            if (!window.confirm("Remover esta pergunta?")) return;
-            api("/api/questions/" + companyKey + "/" + li.dataset.id, { method: "DELETE" }).then(refresh);
+            if (!window.confirm("Remover este item?")) return;
+            api(opts.api + "/" + companyKey + "/" + li.dataset.id, { method: "DELETE" }).then(refresh);
           });
         });
       }
-      document.getElementById("add-question-btn").addEventListener("click", addQuestion);
-      document.getElementById("new-question").addEventListener("keydown", function (e) {
-        if (e.key === "Enter") addQuestion();
-      });
+      var addBtn = panel.querySelector(".collab-add");
+      if (addBtn) {
+        addBtn.addEventListener("click", addItem);
+        panel.querySelector(".collab-input").addEventListener("keydown", function (e) {
+          if (e.key === "Enter") addItem();
+        });
+      }
       wireDeletes();
     });
   }
@@ -650,7 +693,7 @@
 
   function loadCompanies() {
     attendanceCache = null; // presença pode ter mudado desde a última visita à aba
-    questionsCache = null; // outra pessoa pode ter adicionado perguntas
+    collabCaches = {}; // outra pessoa pode ter adicionado perguntas/aprendizados
     Promise.all([api("/api/companies"), api("/api/itinerary")]).then(function (results) {
       companiesData = results[0];
       companyVisits = buildCompanyVisits(results[1]);
