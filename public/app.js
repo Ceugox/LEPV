@@ -1132,6 +1132,10 @@
     });
   }
 
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  }
+
   var loaders = {
     resumo: loadMission,
     membros: loadMembers,
