@@ -155,6 +155,34 @@
   .cover .foot { border-top: none; color: rgba(255,255,255,0.4); }
 
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+
+  /* Fotos do hotel */
+  .photo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0 1.5mm; }
+  .photo-grid figure { break-inside: avoid; }
+  .photo-grid img {
+    display: block; width: 100%; height: 48mm; object-fit: cover;
+    border-radius: 1.5mm; border: 1px solid var(--line);
+  }
+  .photo-grid figcaption {
+    font-size: 7pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3); margin-top: 1.5mm;
+  }
+  .photo-src { font-size: 7pt; color: var(--ink-3); }
+
+  /* Previsão do tempo */
+  .wx { width: 100%; border-collapse: collapse; margin-top: 3mm; }
+  .wx th {
+    text-align: left; font-size: 7.5pt; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--ink-3); padding: 0 0 2mm; border-bottom: 1px solid var(--navy);
+  }
+  .wx td { padding: 2.4mm 0; border-bottom: 1px solid var(--line); font-size: 9.5pt; color: var(--ink-2); vertical-align: baseline; }
+  .wx .wd { font-family: "Barlow Condensed", sans-serif; text-transform: uppercase; font-weight: 700; font-size: 11pt; color: var(--navy); white-space: nowrap; }
+  .wx .wd small { font-family: "Inter", sans-serif; font-weight: 600; font-size: 8pt; color: var(--ink-3); margin-left: 1.5mm; letter-spacing: 0.04em; }
+  .wx .t { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .wx .t b { color: var(--navy); font-weight: 700; }
+  .wx .rain { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .wx .rain.wet { color: var(--red); font-weight: 700; }
+  .wx td:last-child, .wx th:last-child { text-align: right; }
 </style>
 </head>
 <body>
@@ -187,7 +215,7 @@
 
   <ul class="rows" style="margin-top:5mm;">
     <li><span class="n">01</span><span><span class="t">Traje social todos os dias.</span> Camisa social; calça de alfaiataria ou social; sapato social ou equivalente arrumado. Blazer soma autoridade — leve ao menos um. Nada de tênis esportivo, camiseta, bermuda ou jeans surrado, mesmo em startup: quem se veste acima do ambiente conduz a conversa.</span></li>
-    <li><span class="n">02</span><span><span class="t">Julho em São Paulo é frio.</span> Manhãs de 10–14°C, tardes amenas. O blazer ou um casaco sóbrio resolve a manhã e mantém o padrão visual do grupo nas fotos.</span></li>
+    <li><span class="n">02</span><span><span class="t">Vista-se em camadas.</span> Manhãs frias (14–18°C) e tardes que passam de 25°C nesta semana — o blazer ou um casaco sóbrio resolve a manhã, mantém o padrão do grupo e sai fácil à tarde. Previsão completa dia a dia na próxima página.</span></li>
     <li><span class="n">03</span><span><span class="t">Postura de visita.</span> Pontualidade absoluta (saídas do hotel no horário do app), celular no silencioso, perguntas específicas em vez de genéricas — 2 ou 3 preparadas por empresa rendem mais que dez improvisadas.</span></li>
   </ul>
 
@@ -205,9 +233,45 @@
   <div class="foot"><span>Guia do membro — Missão SP</span><span>02</span></div>
 </section>
 
+<!-- A BASE E A CIDADE -->
+<section class="page">
+  <div class="sec-head"><span class="eyebrow">A base e a cidade</span><span class="rule"></span><span class="idx">/02</span></div>
+  <h2 class="sec-title">Iguatemi Stay BT</h2>
+  <p class="lead">Nossa base da semana: studios modernos e completos na R. Butantã, 324 — Pinheiros, a 600 m da estação Faria Lima. Prédio residencial, sem lobby de hotel: cada unidade tem nome de cidade na porta (Berlim, Sarajevo, Amsterdam...). A alocação de quartos está no widget "Quartos" do app.</p>
+
+  <div class="photo-grid">
+    <figure><img src="img/stay-studio.jpg" alt="Studio com cama de casal, sofá e bancada"><figcaption>Studio completo</figcaption></figure>
+    <figure><img src="img/stay-cozinha.jpg" alt="Cozinha com lava-e-seca e geladeira"><figcaption>Cozinha equipada</figcaption></figure>
+    <figure><img src="img/stay-banheiro.jpg" alt="Banheiro com box de vidro"><figcaption>Banheiro</figcaption></figure>
+    <figure><img src="img/stay-porta.jpg" alt="Placa iluminada Berlim 9 na porta da unidade"><figcaption>Unidades por cidade</figcaption></figure>
+  </div>
+  <p class="photo-src">Fotos reais das unidades — galeria oficial do anúncio no Booking.com.</p>
+
+  <h3 class="sub" style="margin-top:7mm;">Avisos sobre São Paulo</h3>
+  <ul class="rows">
+    <li><span class="n">01</span><span><span class="t">Frio de manhã, calor à tarde.</span> Inverno paulistano é amplitude térmica: saídas do hotel com 14–18°C e tardes que passam de 25°C até quinta. Camadas resolvem — casaco cedo, sem ele à tarde.</span></li>
+    <li><span class="n">02</span><span><span class="t">Frente fria chega quinta.</span> Pancadas de chuva na quinta e na sexta — e a sexta esfria de verdade (máxima de 18°C). Guarda-chuva na bolsa a partir de quinta e casaco no dia da ENTER e da Tivita.</span></li>
+    <li><span class="n">03</span><span><span class="t">Trânsito conta como distância.</span> Em SP, 5 km podem levar 40 minutos no horário de pico — os horários de saída do app já embutem isso. Atraso individual vira atraso do grupo na portaria.</span></li>
+  </ul>
+
+  <h3 class="sub" style="margin-top:7mm;">Previsão dia a dia</h3>
+  <table class="wx">
+    <tr><th>Dia</th><th>Céu</th><th>Temperatura</th><th>Chance de chuva</th></tr>
+    <tr><td class="wd">Dom 19<small>Chegada</small></td><td>Céu limpo</td><td class="t">14° / <b>26°C</b></td><td class="rain">0%</td></tr>
+    <tr><td class="wd">Seg 20<small>NOMAD</small></td><td>Quase limpo</td><td class="t">17° / <b>27°C</b></td><td class="rain">0%</td></tr>
+    <tr><td class="wd">Ter 21<small>Mottu → Mirow</small></td><td>Nublado</td><td class="t">16° / <b>28°C</b></td><td class="rain">0%</td></tr>
+    <tr><td class="wd">Qua 22<small>Sharpi+Segura · Bain</small></td><td>Nublado</td><td class="t">18° / <b>29°C</b></td><td class="rain">8%</td></tr>
+    <tr><td class="wd">Qui 23<small>PAX · Revolut</small></td><td>Pancadas de chuva</td><td class="t">18° / <b>26°C</b></td><td class="rain wet">33%</td></tr>
+    <tr><td class="wd">Sex 24<small>ENTER · Tivita</small></td><td>Pancadas de chuva</td><td class="t">15° / <b>18°C</b></td><td class="rain wet">48%</td></tr>
+  </table>
+  <p class="photo-src" style="margin-top:2mm;">Previsão Open-Meteo para Pinheiros, consultada em 18/07 à tarde — confira no dia pelo app de sempre.</p>
+
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>03</span></div>
+</section>
+
 <!-- PREPARAÇÃO: CASES -->
 <section class="page">
-  <div class="sec-head"><span class="eyebrow">Preparação técnica</span><span class="rule"></span><span class="idx">/02</span></div>
+  <div class="sec-head"><span class="eyebrow">Preparação técnica</span><span class="rule"></span><span class="idx">/03</span></div>
   <h2 class="sec-title">Como se preparar para os cases</h2>
   <p class="lead" style="margin-bottom:6mm;">Três lentes cobrem as 12 visitas. Domine o vocabulário de cada uma para acompanhar a conversa e fazer perguntas no nível de quem recebe a gente.</p>
 
@@ -233,7 +297,7 @@
 
   <div class="callout"><span class="t">Oportunidade rara:</span> a visita à Mirow é conduzida por um ex-membro da LEPV. Pergunte sem filtro como a liga se conecta (ou não) com o dia a dia de consultoria.</div>
 
-  <div class="foot"><span>Guia do membro — Missão SP</span><span>03</span></div>
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>04</span></div>
 </section>
 
 <!-- CASE: MERCADO FINANCEIRO -->
@@ -255,7 +319,7 @@
       <dl><dt>Take rate</dt><dd>Percentual que a plataforma captura de cada transação que intermedia.</dd></dl>
     </div>
   </div>
-  <div class="foot"><span>Guia do membro — Missão SP</span><span>04</span></div>
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>05</span></div>
 </section>
 
 <!-- CASE: IA -->
@@ -278,12 +342,12 @@
     </div>
   </div>
 
-  <div class="foot"><span>Guia do membro — Missão SP</span><span>05</span></div>
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>06</span></div>
 </section>
 
 <!-- SITUANDO CADA VISITA -->
 <section class="page">
-  <div class="sec-head"><span class="eyebrow">Contexto por visita</span><span class="rule"></span><span class="idx">/03</span></div>
+  <div class="sec-head"><span class="eyebrow">Contexto por visita</span><span class="rule"></span><span class="idx">/04</span></div>
   <h2 class="sec-title">Situando cada visita</h2>
   <p class="lead" style="margin-bottom:6mm;">O essencial para não chegar cru: o que cada empresa é, o contexto de agora e a lente de case que se aplica.</p>
 
@@ -301,7 +365,7 @@
     <div class="visit"><span class="vtime">16:30–18:30</span><div class="vbody"><span class="vname">Mirow &amp; Co.</span><span class="vlens">Consultoria</span><p class="vdesc">Consultoria boutique de estratégia — visita conduzida por ex-membro da LEPV. <strong>Contexto:</strong> nicho e profundidade vs. escala das grandes. Revise Porter, cadeia de valor e SWOT; aproveite a mentoria direta.</p></div></div>
   </div>
 
-  <div class="foot"><span>Guia do membro — Missão SP</span><span>06</span></div>
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>07</span></div>
 </section>
 
 <!-- VISITAS: QUA -->
@@ -326,7 +390,7 @@
 
   <div class="callout"><span class="t">Fecho da semana:</span> o valor não está em nenhuma visita isolada, e sim na comparação — como a Bain estrutura um problema vs. a Mirow; como a Revolut trata risco vs. a NOMAD; como Sharpi, Segura, ENTER e Tivita vendem a mesma tese de IA para mundos diferentes. Registre os aprendizados na aba de cada empresa no app e garanta seu selo.</div>
 
-  <div class="foot"><span>Guia do membro — Missão SP</span><span>07</span></div>
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>08</span></div>
 </section>
 
 </body>
