@@ -178,6 +178,16 @@ app.get("/app.html", requireAuthPage, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "app.html"));
 });
 
+// Guia do membro (PDF) — só para quem está logado
+app.get("/guia.pdf", requireAuthPage, (req, res) => {
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": "inline; filename*=UTF-8''" + encodeURIComponent("Guia da Imersão — Missão SP") + ".pdf",
+    "Cache-Control": "private, max-age=3600",
+  });
+  res.sendFile(path.join(__dirname, "docs", "Guia-Imersao-SP.pdf"));
+});
+
 app.get("/api/members-public", (req, res) => {
   res.json(
     members.map((m) => ({

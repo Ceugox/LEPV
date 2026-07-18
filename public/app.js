@@ -233,6 +233,19 @@
           '<div class="chips">' + chipsHtml + "</div>" +
         "</div>";
 
+      var guideHtml =
+        '<div class="card">' +
+          '<p class="section-label">Guia do membro</p>' +
+          '<ul class="materials-list"><li>' +
+            '<span class="material-icon">PDF</span>' +
+            '<div class="material-main">' +
+              '<div class="material-title">Guia da imersão — traje, o que levar e preparação para os cases</div>' +
+              '<div class="material-meta">Fotos do Iguatemi Stay, previsão do tempo e contexto de cada visita</div>' +
+            "</div>" +
+            '<div class="material-actions"><a href="/guia.pdf" target="_blank" rel="noopener">Abrir ↗</a></div>' +
+          "</li></ul>" +
+        "</div>";
+
       var pioneerHtml = m.pioneering.length
         ? '<div class="card">' +
             '<p class="section-label">O que torna essa jornada pioneira</p>' +
@@ -271,7 +284,7 @@
         : "";
 
       var content = document.getElementById("mission-content");
-      content.innerHTML = nowHtml + heroHtml + pioneerHtml + prepareHtml + expectHtml;
+      content.innerHTML = nowHtml + heroHtml + guideHtml + pioneerHtml + prepareHtml + expectHtml;
       content.querySelectorAll("[data-goto]").forEach(function (btn) {
         btn.addEventListener("click", function () { activateTab(btn.dataset.goto); });
       });
