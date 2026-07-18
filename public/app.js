@@ -331,7 +331,7 @@
           ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
           : "";
       var company = stop.companyKey ? agendaCompaniesByKey[stop.companyKey] : null;
-      var logoHtml = company
+      var logoHtml = company && company.logo
         ? '<span class="stop-logo logoBg-' + (company.logoBg || "light") + '"><img src="' + company.logo + '" alt="' + company.name + '"></span>'
         : "";
       stopsHtml +=

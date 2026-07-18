@@ -2,12 +2,12 @@
   "title": "Missão da imersão",
   "summary": "De 19 a 24/07/2026, a LEPV leva 11 membros a São Paulo para uma imersão em empresas de tecnologia, mobilidade, educação e consultoria. O objetivo é entender de perto como fintechs, startups e grandes consultorias operam no dia a dia — cultura, processos e decisões — trazendo esse repertório de volta para a liga.",
   "objectives": [
-    "Visitar 9 empresas em 4 dias com agenda cheia (NOMAD, Mottu, Insper, Link, Mirow & Co., Sharpi, Bain & Company, Revolut, Segura)",
+    "Visitar 12 empresas em 5 dias com agenda cheia (NOMAD, Mottu, Insper, Link, Mirow & Co., Sharpi, Bain & Company, Revolut, Segura, PAX, ENTER, Tivita)",
     "Construir repertório prático sobre operação, cultura e crescimento em empresas de estágios muito diferentes",
     "Fortalecer a rede de contatos da liga em São Paulo",
     "Trazer aprendizados concretos para os projetos internos da LEPV"
   ],
-  "companies": ["NOMAD", "Mottu", "Insper", "Link", "Mirow & Co.", "Sharpi", "Bain & Company", "Revolut", "Segura"],
+  "companies": ["NOMAD", "Mottu", "Insper", "Link", "Mirow & Co.", "Sharpi", "Bain & Company", "Revolut", "Segura", "PAX", "ENTER", "Tivita"],
   "pioneering": [
     {
       "title": "Um espectro raro de estágios de empresa numa única semana",
@@ -92,6 +92,30 @@
       "points": [
         "Entenda o papel do corretor de seguros no Brasil e onde a IA entra pra tornar cotação, apólice e renovação menos manuais",
         "Pense em como uma insurtech B2B (vende pra corretor, não direto pro segurado) monetiza diferente de uma insurtech B2C"
+      ]
+    },
+    {
+      "companyKey": "pax",
+      "points": [
+        "Entenda o que é govtech: vender tecnologia para o setor público envolve licitações, ciclos de venda longos e relação com gestores — muito diferente de vender pra empresa",
+        "Pesquise a rodada recorde: US$ 40 mi de seed (Greenoaks e Benchmark, maio/2026), a maior já registrada no Brasil — pense no que justifica esse apetite dos fundos americanos",
+        "IA aplicada a segurança pública levanta debates reais de privacidade e vigilância — vale perguntar como a empresa trata esses limites"
+      ]
+    },
+    {
+      "companyKey": "enter",
+      "points": [
+        "Entenda o que é contencioso de massa: bancos, varejistas e companhias aéreas respondem a milhões de processos parecidos (consumidor e trabalhista) — é esse volume que a ENTER automatiza",
+        "Estude o modelo de IA com revisão humana (human-in-the-loop) em um domínio regulado como o jurídico — onde a máquina para e o advogado entra",
+        "A ENTER virou o primeiro unicórnio de IA da América Latina em maio/2026 (US$ 1,2 bi, Founders Fund) com só ~3 anos de vida — pergunte o que destravou esse crescimento"
+      ]
+    },
+    {
+      "companyKey": "tivita",
+      "points": [
+        "Entenda a dor do dono de clínica: gestão financeira, agendamento, faturamento e glosa de convênios são processos manuais que consomem a equipe — é aí que a Tivita entra",
+        "Compare com a Sharpi: as duas vendem automação com IA pra um comprador tradicional (indústria/distribuidor vs. clínica) — o desafio de adoção é parecido",
+        "Pesquise o modelo de agentes de IA verticais (a Tivita tem a Júlia e a Taís) versus software de gestão genérico — por que especializar por setor funciona"
       ]
     }
   ],
