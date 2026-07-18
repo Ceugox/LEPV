@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Guia do Membro — Missão SP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #081B33;
+    --navy-2: #123259;
+    --red: #D31E24;
+    --ink: #1F2937;
+    --ink-2: #4B5563;
+    --ink-3: #8A93A3;
+    --line: #DDE2EA;
+    --paper: #FFFFFF;
+    --wash: #F4F6F9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
+  body { font-family: "Inter", sans-serif; color: var(--ink); background: var(--paper); font-size: 10.5pt; }
+
+  .page {
+    width: 210mm; min-height: 297mm; padding: 18mm 16mm 16mm;
+    page-break-after: always; position: relative; background: var(--paper);
+  }
+  .page:last-child { page-break-after: auto; }
+
+  .display { font-family: "Barlow Condensed", sans-serif; text-transform: uppercase; }
+
+  .eyebrow {
+    font-size: 8pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.18em;
+    color: var(--ink-3);
+  }
+  .sec-head {
+    display: flex; align-items: center; gap: 12px; margin: 0 0 7mm;
+  }
+  .sec-head .rule { flex: 1; height: 1px; background: var(--line); }
+  .sec-head .idx { font-size: 9pt; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  h2.sec-title {
+    font-family: "Barlow Condensed", sans-serif; text-transform: uppercase;
+    font-size: 24pt; font-weight: 600; letter-spacing: -0.01em; line-height: 1;
+    color: var(--navy); margin: 0 0 5mm;
+  }
+  h3.sub {
+    font-family: "Barlow Condensed", sans-serif; text-transform: uppercase;
+    font-size: 14pt; font-weight: 600; letter-spacing: 0; line-height: 1.05;
+    color: var(--navy); margin: 0 0 2.5mm;
+  }
+  p.lead { font-size: 10.5pt; line-height: 1.6; color: var(--ink-2); max-width: 62ch; }
+
+  /* Capa */
+  .cover { background: var(--navy); color: #fff; display: flex; flex-direction: column; }
+  .cover::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                       linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+    background-size: 12mm 12mm;
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 30% 15%, black, transparent 75%);
+    mask-image: radial-gradient(ellipse 80% 70% at 30% 15%, black, transparent 75%);
+  }
+  .cover > * { position: relative; }
+  .cover .brand { display: flex; align-items: center; gap: 10px; }
+  .cover .brand img { width: 34px; height: 34px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.2); }
+  .cover .brand span { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 13pt; text-transform: uppercase; letter-spacing: 0.03em; }
+  .cover .brand .sp { color: #F04E4E; }
+  .cover .mid { margin-top: 58mm; }
+  .cover .kicker {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 8.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em;
+    color: rgba(255,255,255,0.65); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px; padding: 2.2mm 4.5mm; margin-bottom: 7mm;
+  }
+  .cover .kicker::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #F04E4E; }
+  .cover h1 {
+    font-family: "Barlow Condensed", sans-serif; text-transform: uppercase;
+    font-size: 46pt; font-weight: 600; line-height: 0.95; letter-spacing: -0.015em; color: #fff;
+  }
+  .cover h1 .accent { color: #F04E4E; }
+  .cover .sub { margin-top: 6mm; font-size: 11pt; color: rgba(255,255,255,0.62); line-height: 1.6; max-width: 58ch; }
+  .cover .stats {
+    margin-top: auto; display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid rgba(255,255,255,0.14);
+  }
+  .cover .stat { padding: 6mm 0 0; }
+  .cover .stat + .stat { border-left: 1px solid rgba(255,255,255,0.14); padding-left: 6mm; }
+  .cover .stat .n { font-family: "Barlow Condensed", sans-serif; font-weight: 600; font-size: 26pt; line-height: 1; font-variant-numeric: tabular-nums; }
+  .cover .stat .l { font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.14em; color: rgba(255,255,255,0.4); margin-top: 1.5mm; }
+
+  /* Linhas numeradas */
+  .rows { list-style: none; }
+  .rows li {
+    display: flex; gap: 5mm; align-items: baseline;
+    padding: 3.2mm 0; border-top: 1px solid var(--line);
+    font-size: 10pt; line-height: 1.55; color: var(--ink-2);
+  }
+  .rows li:last-child { border-bottom: 1px solid var(--line); }
+  .rows .n { flex: none; font-size: 8.5pt; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .rows .t { color: var(--navy); font-weight: 600; }
+
+  /* Glossário */
+  .gloss { columns: 2; column-gap: 8mm; }
+  .gloss dl { break-inside: avoid; padding: 2.4mm 0; border-top: 1px solid var(--line); }
+  .gloss dt { font-size: 9.5pt; font-weight: 700; color: var(--navy); }
+  .gloss dd { font-size: 9pt; line-height: 1.5; color: var(--ink-2); margin-top: 0.6mm; }
+
+  .case-block { margin-bottom: 7mm; break-inside: avoid; }
+  .case-block .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--red); margin-bottom: 2mm;
+  }
+  .case-block .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .steps { list-style: none; margin: 2.5mm 0 3.5mm; }
+  .steps li { display: flex; gap: 4mm; padding: 1.8mm 0; font-size: 9.5pt; line-height: 1.5; color: var(--ink-2); }
+  .steps .sn { flex: none; font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 10pt; color: var(--red); font-variant-numeric: tabular-nums; }
+  .steps .st { color: var(--navy); font-weight: 600; }
+
+  /* Agenda / visitas */
+  .day { margin-bottom: 6mm; break-inside: avoid; }
+  .day-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--navy); padding-bottom: 1.6mm; margin-bottom: 2.5mm;
+  }
+  .day-head .d { font-family: "Barlow Condensed", sans-serif; text-transform: uppercase; font-weight: 700; font-size: 13pt; color: var(--navy); }
+  .day-head .dt { font-size: 8.5pt; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .visit { display: flex; gap: 4mm; padding: 2.2mm 0; border-top: 1px solid var(--line); }
+  .visit:first-of-type { border-top: none; }
+  .visit .vtime { flex: none; width: 24mm; font-size: 8.5pt; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; padding-top: 0.5mm; }
+  .visit .vbody { flex: 1; min-width: 0; }
+  .visit .vname { font-family: "Barlow Condensed", sans-serif; text-transform: uppercase; font-weight: 700; font-size: 11pt; color: var(--navy); }
+  .visit .vlens {
+    display: inline-block; margin-left: 2mm; font-size: 7pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--red);
+  }
+  .visit .vdesc { font-size: 9pt; line-height: 1.5; color: var(--ink-2); margin-top: 0.8mm; }
+  .visit .vdesc strong { color: var(--ink); font-weight: 600; }
+
+  .callout {
+    background: var(--wash); border: 1px solid var(--line); border-radius: 2mm;
+    padding: 4mm 5mm; font-size: 9.5pt; line-height: 1.55; color: var(--ink-2); margin-top: 5mm;
+  }
+  .callout .t { font-weight: 700; color: var(--navy); }
+
+  .foot {
+    position: absolute; left: 16mm; right: 16mm; bottom: 8mm;
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid var(--line); padding-top: 2.5mm;
+    font-size: 7pt; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3);
+  }
+  .cover .foot { border-top: none; color: rgba(255,255,255,0.4); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; }
+</style>
+</head>
+<body>
+
+<!-- CAPA -->
+<section class="page cover">
+  <div class="brand">
+    <img src="../public/logo.png" alt="LEPV">
+    <span>LEPV <span class="sp">SP</span></span>
+  </div>
+  <div class="mid">
+    <p class="kicker">Missão SP · 19–24 de julho de 2026</p>
+    <h1>Guia do membro<br><span class="accent">da imersão</span></h1>
+    <p class="sub">Traje, o que levar e como se preparar tecnicamente para cada visita — consultoria, mercado financeiro e IA. Leia antes de domingo. Chegamos elegantes, saímos com repertório.</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="n">12</div><div class="l">Empresas</div></div>
+    <div class="stat"><div class="n">05</div><div class="l">Dias</div></div>
+    <div class="stat"><div class="n">11</div><div class="l">Membros</div></div>
+    <div class="stat"><div class="n">01</div><div class="l">Missão</div></div>
+  </div>
+  <div class="foot"><span>Liga de Empreendedorismo da Praia Vermelha</span><span>Engenharia. Tecnologia. Negócios.</span></div>
+</section>
+
+<!-- TRAJE + O QUE LEVAR -->
+<section class="page">
+  <div class="sec-head"><span class="eyebrow">Apresentação pessoal</span><span class="rule"></span><span class="idx">/01</span></div>
+  <h2 class="sec-title">Traje e postura</h2>
+  <p class="lead">Representamos a liga em 12 empresas — de startups a uma das maiores consultorias do mundo. O padrão é único para a semana inteira: <strong style="color:var(--navy)">traje social, sempre</strong>. Elegância e autoridade abrem portas antes da primeira pergunta.</p>
+
+  <ul class="rows" style="margin-top:5mm;">
+    <li><span class="n">01</span><span><span class="t">Traje social todos os dias.</span> Camisa social; calça de alfaiataria ou social; sapato social ou equivalente arrumado. Blazer soma autoridade — leve ao menos um. Nada de tênis esportivo, camiseta, bermuda ou jeans surrado, mesmo em startup: quem se veste acima do ambiente conduz a conversa.</span></li>
+    <li><span class="n">02</span><span><span class="t">Julho em São Paulo é frio.</span> Manhãs de 10–14°C, tardes amenas. O blazer ou um casaco sóbrio resolve a manhã e mantém o padrão visual do grupo nas fotos.</span></li>
+    <li><span class="n">03</span><span><span class="t">Postura de visita.</span> Pontualidade absoluta (saídas do hotel no horário do app), celular no silencioso, perguntas específicas em vez de genéricas — 2 ou 3 preparadas por empresa rendem mais que dez improvisadas.</span></li>
+  </ul>
+
+  <h3 class="sub" style="margin-top:8mm;">O que levar todos os dias</h3>
+  <ul class="rows">
+    <li><span class="n">01</span><span><span class="t">Bolsa ou mochila pequena e discreta.</span> Vamos receber brindes nas visitas — sem bolsa, você vira malabarista de canecas. Também carrega caderno e carregador.</span></li>
+    <li><span class="n">02</span><span><span class="t">Documento de identificação com foto.</span> Obrigatório: as portarias corporativas (Bain, Revolut, torres da Faria Lima) exigem documento físico para liberar o acesso. RG ou CNH, todos os dias, sem exceção.</span></li>
+    <li><span class="n">03</span><span><span class="t">Caderno e caneta.</span> Anotar à mão durante a conversa lê como interesse; digitar no celular lê como distração. Os aprendizados vão depois para a aba da empresa no app.</span></li>
+    <li><span class="n">04</span><span><span class="t">Celular carregado + carregador ou power bank.</span> Agenda, trajetos, mapas e selos passam pelo app. Bateria é infraestrutura da missão.</span></li>
+    <li><span class="n">05</span><span><span class="t">Garrafa de água e guarda-chuva compacto.</span> Dias longos, tempo instável de inverno.</span></li>
+  </ul>
+
+  <div class="callout"><span class="t">Regra de ouro:</span> se estiver em dúvida se algo é formal o suficiente, não é. O grupo inteiro no mesmo padrão constrói a imagem da liga — um destoando desconstrói.</div>
+
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>02</span></div>
+</section>
+
+<!-- PREPARAÇÃO: CASES -->
+<section class="page">
+  <div class="sec-head"><span class="eyebrow">Preparação técnica</span><span class="rule"></span><span class="idx">/02</span></div>
+  <h2 class="sec-title">Como se preparar para os cases</h2>
+  <p class="lead" style="margin-bottom:6mm;">Três lentes cobrem as 12 visitas. Domine o vocabulário de cada uma para acompanhar a conversa e fazer perguntas no nível de quem recebe a gente.</p>
+
+  <div class="case-block">
+    <p class="tag">Case de consultoria — Mirow &amp; Co. (ter) e Bain &amp; Company (qua)</p>
+    <h3 class="sub">Estruturar antes de responder</h3>
+    <ol class="steps">
+      <li><span class="sn">01</span><span><span class="st">Entenda o problema.</span> Reformule com suas palavras e confirme o objetivo antes de resolver ("o cliente quer crescer receita ou margem?").</span></li>
+      <li><span class="sn">02</span><span><span class="st">Estruture MECE.</span> Quebre o problema em partes mutuamente exclusivas e coletivamente exaustivas — sem sobreposição, sem buraco.</span></li>
+      <li><span class="sn">03</span><span><span class="st">Levante hipóteses.</span> Consultoria trabalha hypothesis-driven: chute educado primeiro, dado depois para confirmar ou matar.</span></li>
+      <li><span class="sn">04</span><span><span class="st">Faça as contas.</span> Market sizing top-down (mercado total → fatia) ou bottom-up (unidade → escala). Arredonde sem medo, explicite as premissas.</span></li>
+      <li><span class="sn">05</span><span><span class="st">Sintetize.</span> Recomendação primeiro, argumentos depois (pirâmide de Minto) — nunca o contrário.</span></li>
+    </ol>
+    <div class="gloss">
+      <dl><dt>MECE</dt><dd>Mutually Exclusive, Collectively Exhaustive — o padrão de qualidade de qualquer estrutura de análise.</dd></dl>
+      <dl><dt>Market sizing</dt><dd>Estimar o tamanho de um mercado (TAM/SAM/SOM) com premissas explícitas.</dd></dl>
+      <dl><dt>Due diligence</dt><dd>Investigação de uma empresa antes de investimento ou aquisição — grande linha de projetos da Bain com private equity.</dd></dl>
+      <dl><dt>5 Forças de Porter</dt><dd>Rivalidade, novos entrantes, substitutos, poder de fornecedores e de clientes — mede atratividade de um setor.</dd></dl>
+      <dl><dt>Benchmark</dt><dd>Comparação com referência de mercado ("qual o padrão do setor?").</dd></dl>
+      <dl><dt>Boutique vs. Big 3</dt><dd>Mirow = nicho e profundidade; Bain/McKinsey/BCG = escala global e múltiplas indústrias. Mesma profissão, modelos diferentes.</dd></dl>
+    </div>
+  </div>
+
+  <div class="callout"><span class="t">Oportunidade rara:</span> a visita à Mirow é conduzida por um ex-membro da LEPV. Pergunte sem filtro como a liga se conecta (ou não) com o dia a dia de consultoria.</div>
+
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>03</span></div>
+</section>
+
+<!-- CASE: MERCADO FINANCEIRO -->
+<section class="page">
+  <div class="case-block">
+    <p class="tag">Case de mercado financeiro — NOMAD (seg) e Revolut (qui)</p>
+    <h3 class="sub">Onde a fintech ganha dinheiro</h3>
+    <p class="lead" style="font-size:9.5pt;margin-bottom:2.5mm;">A pergunta-mestra das duas visitas: <strong style="color:var(--navy)">qual é a fonte de receita de cada produto?</strong> Conta em dólar vive de spread; superapp vive de interchange, assinatura e float. Quem entende a receita entende as decisões.</p>
+    <div class="gloss">
+      <dl><dt>Spread cambial</dt><dd>Diferença entre a cotação de compra e a repassada ao cliente — principal receita de contas em dólar como a NOMAD.</dd></dl>
+      <dl><dt>IOF</dt><dd>Imposto sobre operações financeiras; muda a competitividade entre cartão, remessa e conta internacional.</dd></dl>
+      <dl><dt>Interchange</dt><dd>Tarifa que o emissor do cartão recebe por transação — receita central de neobanks.</dd></dl>
+      <dl><dt>Float</dt><dd>Rendimento do dinheiro parado na conta enquanto não é gasto.</dd></dl>
+      <dl><dt>CDI / Selic</dt><dd>Taxas de referência do Brasil; "render 100% do CDI" é o benchmark de qualquer conta remunerada.</dd></dl>
+      <dl><dt>Licenças do BC</dt><dd>Instituição de Pagamento (IP), SCD, banco múltiplo — cada licença define o que a fintech pode ou não oferecer.</dd></dl>
+      <dl><dt>KYC / AML</dt><dd>Know Your Customer / Anti-Money Laundering — o custo regulatório de operar em dezenas de países, tema central para a Revolut.</dd></dl>
+      <dl><dt>CAC / LTV</dt><dd>Custo de adquirir um cliente vs. valor que ele gera na vida útil; a razão LTV/CAC resume a saúde do crescimento.</dd></dl>
+      <dl><dt>Superapp financeiro</dt><dd>Estratégia de concentrar câmbio, banking, investimento e cripto num app só — o modelo Revolut, vs. o foco da NOMAD.</dd></dl>
+      <dl><dt>Take rate</dt><dd>Percentual que a plataforma captura de cada transação que intermedia.</dd></dl>
+    </div>
+  </div>
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>04</span></div>
+</section>
+
+<!-- CASE: IA -->
+<section class="page">
+  <div class="case-block">
+    <p class="tag">Case de IA — Sharpi + Segura (qua), PAX (qui), ENTER e Tivita (sex)</p>
+    <h3 class="sub">IA vertical: máquina onde dá, humano onde importa</h3>
+    <p class="lead" style="font-size:9.5pt;margin-bottom:2.5mm;">As cinco empresas vendem o mesmo padrão para compradores diferentes: <strong style="color:var(--navy)">IA especializada num setor (vertical), com revisão humana nos pontos críticos</strong>. A pergunta-mestra: onde a máquina para e o humano entra — e por quê?</p>
+    <div class="gloss">
+      <dl><dt>LLM</dt><dd>Large Language Model — modelo de linguagem que alimenta os produtos (GPT, Claude, Gemini).</dd></dl>
+      <dl><dt>Agente de IA</dt><dd>Sistema que executa tarefas em passos (consulta sistemas, decide, age) em vez de só responder — ex.: Júlia e Taís, da Tivita.</dd></dl>
+      <dl><dt>IA vertical</dt><dd>Modelo/produto especializado num setor (jurídico, saúde, seguros) — mais precisão e defensibilidade que software genérico.</dd></dl>
+      <dl><dt>Human-in-the-loop</dt><dd>Revisão humana obrigatória em decisões sensíveis — como a ENTER usa advogados sobre o output da IA.</dd></dl>
+      <dl><dt>RAG</dt><dd>Retrieval-Augmented Generation — a IA consulta uma base (processos, apólices, B.O.s) antes de responder, reduzindo invenção.</dd></dl>
+      <dl><dt>Alucinação / guardrails</dt><dd>Resposta inventada com confiança / barreiras que limitam o que o sistema pode fazer. Em domínio regulado, é o tema nº 1.</dd></dl>
+      <dl><dt>Contencioso de massa</dt><dd>Milhões de processos repetitivos (consumidor, trabalhista) de bancos, varejo e aéreas — o volume que a ENTER automatiza.</dd></dl>
+      <dl><dt>Govtech</dt><dd>Vender tecnologia para o setor público: licitações, ciclos longos, relação com gestores — o mundo da PAX.</dd></dl>
+      <dl><dt>Glosa</dt><dd>Recusa de pagamento de convênio por erro de faturamento — dor central das clínicas que a Tivita ataca.</dd></dl>
+      <dl><dt>ARR / NRR</dt><dd>Receita recorrente anual / retenção líquida de receita — as métricas que definem se um SaaS de IA é saudável.</dd></dl>
+    </div>
+  </div>
+
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>05</span></div>
+</section>
+
+<!-- SITUANDO CADA VISITA -->
+<section class="page">
+  <div class="sec-head"><span class="eyebrow">Contexto por visita</span><span class="rule"></span><span class="idx">/03</span></div>
+  <h2 class="sec-title">Situando cada visita</h2>
+  <p class="lead" style="margin-bottom:6mm;">O essencial para não chegar cru: o que cada empresa é, o contexto de agora e a lente de case que se aplica.</p>
+
+  <div class="day">
+    <div class="day-head"><span class="d">Segunda</span><span class="dt">20/07</span></div>
+    <div class="visit"><span class="vtime">10:00–17:00</span><div class="vbody"><span class="vname">NOMAD</span><span class="vlens">Mercado financeiro</span><p class="vdesc">Fintech brasileira de conta, cartão e investimentos em dólar nos EUA. <strong>Contexto:</strong> compete com bancos tradicionais e fintechs de câmbio; receita ancorada em spread cambial. Estude remessas internacionais e a regulação do BC para instituições de pagamento.</p></div></div>
+    <div class="visit"><span class="vtime">19:30</span><div class="vbody"><span class="vname">Happy Hour — Alumni IME</span><span class="vlens">Networking</span><p class="vdesc">Pirajá Faria Lima. Networking com engenheiros que já estão no mercado — leve as perguntas de carreira que não couberam nas visitas.</p></div></div>
+  </div>
+
+  <div class="day">
+    <div class="day-head"><span class="d">Terça</span><span class="dt">21/07</span></div>
+    <div class="visit"><span class="vtime">09:00–11:30</span><div class="vbody"><span class="vname">Mottu</span><span class="vlens">Operações</span><p class="vdesc">Scale-up de aluguel de motos por assinatura para entregadores de app. <strong>Contexto:</strong> unit economics de ativo físico em escala — CAC, LTV, depreciação e manutenção de frota. Compare "vehicle-as-a-service" com financiamento tradicional.</p></div></div>
+    <div class="visit"><span class="vtime">12:30–13:30</span><div class="vbody"><span class="vname">Insper</span><span class="vlens">Educação</span><p class="vdesc">Escola de negócios de referência, forte ponte com o mercado financeiro. <strong>Contexto:</strong> o que uma instituição dessas espera de parcerias com ligas — pergunta direta a fazer.</p></div></div>
+    <div class="visit"><span class="vtime">14:00–15:00</span><div class="vbody"><span class="vname">Link</span><span class="vlens">Educação</span><p class="vdesc">Faculdade-aceleradora: acelerador próprio (Link Vector) e fundo (Link Capital) que investem em startups dos alunos. <strong>Contexto:</strong> mede sucesso pelo "Link ROI" — retorno dos empreendedores formados. Contraste com o modelo do Insper visto 1h antes.</p></div></div>
+    <div class="visit"><span class="vtime">16:30–18:30</span><div class="vbody"><span class="vname">Mirow &amp; Co.</span><span class="vlens">Consultoria</span><p class="vdesc">Consultoria boutique de estratégia — visita conduzida por ex-membro da LEPV. <strong>Contexto:</strong> nicho e profundidade vs. escala das grandes. Revise Porter, cadeia de valor e SWOT; aproveite a mentoria direta.</p></div></div>
+  </div>
+
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>06</span></div>
+</section>
+
+<!-- VISITAS: QUA -->
+<section class="page">
+  <div class="day">
+    <div class="day-head"><span class="d">Quarta</span><span class="dt">22/07</span></div>
+    <div class="visit"><span class="vtime">09:00–14:00</span><div class="vbody"><span class="vname">Sharpi + Segura</span><span class="vlens">IA</span><p class="vdesc">Duas early-stage recebendo juntas. <strong>Sharpi:</strong> IA para vendas B2B — pedidos de indústrias/distribuidores automatizados via WhatsApp (texto, áudio, foto). <strong>Segura:</strong> insurtech B2B para corretores — IA em cotação, apólice e renovação. Mesma tese: automação vendida a comprador tradicional; o desafio é adoção.</p></div></div>
+    <div class="visit"><span class="vtime">16:00–19:00</span><div class="vbody"><span class="vname">Bain &amp; Company</span><span class="vlens">Consultoria</span><p class="vdesc">Uma das três maiores consultorias do mundo. <strong>Contexto:</strong> estratégia corporativa, due diligence de private equity, transformação. Revise a estrutura de case (hipótese, estimativa, MECE) e compare mentalmente com a Mirow do dia anterior.</p></div></div>
+  </div>
+
+  <div class="day">
+    <div class="day-head"><span class="d">Quinta</span><span class="dt">23/07</span></div>
+    <div class="visit"><span class="vtime">09:30–11:30</span><div class="vbody"><span class="vname">PAX</span><span class="vlens">IA · Govtech</span><p class="vdesc">IA para segurança pública: cruza câmeras, boletins de ocorrência e bases criminais. <strong>Contexto:</strong> maior seed da história do Brasil — US$ 40 mi (Greenoaks e Benchmark, mai/2026). Vale perguntar sobre os limites de privacidade e vigilância — debate real do setor.</p></div></div>
+    <div class="visit"><span class="vtime">16:00–20:00</span><div class="vbody"><span class="vname">Revolut</span><span class="vlens">Mercado financeiro</span><p class="vdesc">Superapp financeiro global (câmbio → banking completo) operando em dezenas de países. <strong>Contexto:</strong> desafio regulatório multi-país (KYC/AML por jurisdição); compare com Nubank, N26 e Wise. Happy hour na sequência, mesmo local.</p></div></div>
+  </div>
+
+  <div class="day">
+    <div class="day-head"><span class="d">Sexta</span><span class="dt">24/07</span></div>
+    <div class="visit"><span class="vtime">09:00–12:00</span><div class="vbody"><span class="vname">ENTER</span><span class="vlens">IA · Legaltech</span><p class="vdesc">Automação de contencioso de massa com IA + revisão de advogados. <strong>Contexto:</strong> primeiro unicórnio de IA da América Latina — US$ 1,2 bi (Founders Fund, mai/2026) com ~3 anos de vida. Pergunta óbvia e boa: o que destravou esse crescimento?</p></div></div>
+    <div class="visit"><span class="vtime">14:00–16:00</span><div class="vbody"><span class="vname">Tivita</span><span class="vlens">IA · Healthtech</span><p class="vdesc">Gestão de clínicas com agentes de IA (Júlia e Taís): agendamento, faturamento, glosa de convênios. <strong>Contexto:</strong> R$ 32 mi captados (FinTech Collective). Compare com a Sharpi de quarta — mesma tese de IA vertical, comprador diferente.</p></div></div>
+  </div>
+
+  <div class="callout"><span class="t">Fecho da semana:</span> o valor não está em nenhuma visita isolada, e sim na comparação — como a Bain estrutura um problema vs. a Mirow; como a Revolut trata risco vs. a NOMAD; como Sharpi, Segura, ENTER e Tivita vendem a mesma tese de IA para mundos diferentes. Registre os aprendizados na aba de cada empresa no app e garanta seu selo.</div>
+
+  <div class="foot"><span>Guia do membro — Missão SP</span><span>07</span></div>
+</section>
+
+</body>
+</html>
