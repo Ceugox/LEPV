@@ -78,14 +78,16 @@
       b.setAttribute("tabindex", selected ? "0" : "-1");
     });
   }
-  function wireTablist(container) {
+  function wireTablist(container, vertical) {
     container.addEventListener("keydown", function (e) {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var keys = vertical ? ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"] : ["ArrowRight", "ArrowLeft"];
+      if (keys.indexOf(e.key) === -1) return;
       var tabs = Array.prototype.slice.call(container.querySelectorAll('[role="tab"]'));
       var idx = tabs.indexOf(document.activeElement);
       if (idx === -1) return;
       e.preventDefault();
-      var next = e.key === "ArrowRight" ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
+      var forward = e.key === "ArrowRight" || e.key === "ArrowDown";
+      var next = forward ? (idx + 1) % tabs.length : (idx - 1 + tabs.length) % tabs.length;
       tabs[next].focus();
       tabs[next].click();
     });
@@ -135,7 +137,7 @@
       ? '<span class="now-logo"><img src="' + nowLogo + '" alt=""></span>'
       : "";
     var mapHtml = isRealAddr(stop.addr)
-      ? '<a target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
+      ? '<a target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa ↗</a>'
       : "";
     return (
       '<div class="card now-card">' +
@@ -329,7 +331,7 @@
         '<span class="badge internal">interno</span>';
       var routeHtml =
         stop.addr && stop.addr !== "A definir" && stop.addr !== "Sem visita externa"
-          ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
+          ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa ↗</a>'
           : "";
       var company = stop.companyKey ? agendaCompaniesByKey[stop.companyKey] : null;
       // eventos sem empresa (ex: HH de networking) podem trazer logo no próprio stop
@@ -343,7 +345,8 @@
           '<div class="time num">' + stop.time + "</div>" +
           '<div class="rail"><span class="dot"></span>' +
             '<div class="stopcard">' +
-              '<div class="top">' + logoHtml + '<span class="company">' + stop.company + "</span>" + badgeHtml + "</div>" +
+              '<div class="top">' + logoHtml + '<span class="company">' + stop.company + "</span>" + badgeHtml +
+                '<span class="stop-idx num">/' + String(i + 1).padStart(2, "0") + "</span></div>" +
               '<div class="addr">' + stop.addr + "</div>" +
               '<div class="foot">' + routeHtml + "</div>" +
             "</div>" +
@@ -405,7 +408,7 @@
           '<div class="name">' + data.hotel.name + "</div>" +
           '<div class="addr">' + data.hotel.addr + "</div>" +
         "</div>" +
-        '<a class="btn-primary" style="text-decoration:none;" target="_blank" rel="noopener" href="' + mapsSearch(data.hotel.addr) + '">Ver no mapa</a>';
+        '<a class="btn-primary" style="text-decoration:none;" target="_blank" rel="noopener" href="' + mapsSearch(data.hotel.addr) + '">Ver no mapa ↗</a>';
 
       var picker = document.getElementById("daypicker");
       picker.innerHTML = data.days
@@ -480,7 +483,7 @@
         visit.status === "pending" ? '<span class="badge pending">' + (visit.statusLabel || "a confirmar") + "</span>" :
         '<span class="badge internal">interno</span>';
       var routeHtml = isRealAddr(visit.addr)
-        ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(visit.addr) + '">Ver no mapa →</a>'
+        ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(visit.addr) + '">Ver no mapa ↗</a>'
         : "";
       visitHtml =
         '<div class="company-visit">' +
@@ -504,7 +507,9 @@
     activeCompanyKey = key;
     var picker = document.getElementById("company-picker");
     picker.querySelectorAll(".company-chip").forEach(function (chip) {
-      chip.classList.toggle("active", chip.dataset.key === key);
+      var isActive = chip.dataset.key === key;
+      chip.classList.toggle("active", isActive);
+      if (!isActive) chip.style.borderColor = "transparent";
     });
     syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
@@ -851,7 +856,7 @@
           );
         })
         .join("");
-      wireTablist(picker);
+      wireTablist(picker, true);
       picker.querySelectorAll(".company-chip").forEach(function (chip) {
         var c = companiesData.find(function (x) { return x.key === chip.dataset.key; });
         chip.style.borderColor = "transparent";
