@@ -68,9 +68,10 @@
     },
     {
       "id": "qua22", "weekday": "Quarta-feira", "date": "22/07",
-      "note": "Janela de ~2h entre Sharpi e Bain — dá para almoçar com folga na região da Faria Lima antes de seguir.",
+      "note": "A Segura participa junto da visita à Sharpi, no mesmo horário e local. Janela de ~2h entre Sharpi e Bain — dá para almoçar com folga na região da Faria Lima antes de seguir.",
       "stops": [
         { "time": "09:00–14:00", "company": "Sharpi", "companyKey": "sharpi", "addr": "R. Cap. Antônio Rosa, 409 — Jardim Paulistano, São Paulo - SP, 01443-010", "status": "ok", "arrival": { "label": "~10–20 min de carro desde o hotel" } },
+        { "time": "09:00–14:00", "company": "Segura (junto com a Sharpi)", "companyKey": "segura", "addr": "R. Cap. Antônio Rosa, 409 — Jardim Paulistano, São Paulo - SP, 01443-010", "status": "ok", "arrival": { "label": "no mesmo local da Sharpi" } },
         { "time": "16:00–19:00", "company": "Bain & Company", "companyKey": "bain", "addr": "Av. Pres. Juscelino Kubitschek, 1909, Torre Norte — Vila Nova Conceição, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–30 min de carro (+ almoço no meio)" } }
       ],
       "returnToHotel": { "label": "~25–35 min de carro" },
