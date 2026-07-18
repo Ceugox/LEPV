@@ -2,7 +2,7 @@
 // Objetivo único: a agenda/trajetos continuarem legíveis com sinal ruim
 // (metrô, Marginal) usando a última resposta vista. Nada de cache-first —
 // deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v3";
+var CACHE = "lepv-sp-v4";
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();
