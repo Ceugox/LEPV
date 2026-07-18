@@ -293,11 +293,13 @@
       .join("");
   }
 
-  rosterBtn.addEventListener("click", function () {
+  function openRoster() {
     introStage.classList.add("hidden");
     rosterStage.classList.remove("hidden");
     loginCard.classList.add("wide");
-  });
+  }
+  rosterBtn.addEventListener("click", openRoster);
+  if (window.location.hash === "#participantes") openRoster();
 
   rosterBack.addEventListener("click", function () {
     rosterStage.classList.add("hidden");

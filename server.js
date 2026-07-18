@@ -170,8 +170,9 @@ function requireAdminApi(req, res, next) {
   return res.status(403).json({ error: "not_admin" });
 }
 
-app.get("/", requireAuthPage, (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, "app.html"));
+app.get("/", (req, res) => {
+  if (req.session.user) return res.sendFile(path.join(PUBLIC_DIR, "app.html"));
+  return res.sendFile(path.join(PUBLIC_DIR, "home.html"));
 });
 app.get("/app.html", requireAuthPage, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, "app.html"));
