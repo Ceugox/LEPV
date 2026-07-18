@@ -24,10 +24,10 @@
     },
     {
       "id": "seg20", "weekday": "Segunda-feira", "date": "20/07",
-      "note": "NOMAD em período quase integral — combine com o anfitrião um horário de almoço dentro da janela. À noite, happy hour com a Alumni IME às 19h30.",
+      "note": "NOMAD em período quase integral — combine com o anfitrião um horário de almoço dentro da janela. À noite, happy hour com a Alumni IME às 19h30 no Pirajá da Faria Lima.",
       "stops": [
         { "time": "10:00–17:00", "company": "NOMAD", "companyKey": "nomad", "addr": "R. Bela Cintra, 1149 — Consolação, São Paulo - SP", "status": "ok", "arrival": { "label": "~20–30 min de carro desde o hotel" } },
-        { "time": "19:30", "company": "Happy Hour — Alumni IME", "addr": "A definir", "status": "pending", "statusLabel": "confirmar local", "arrival": { "label": "janela de ~2h30 após a NOMAD pra descansar no hotel antes" } }
+        { "time": "19:30", "company": "Happy Hour — Alumni IME", "logo": "/logos/alumni-ime.png", "logoBg": "light", "addr": "Pirajá — Av. Brigadeiro Faria Lima, 64, Pinheiros, São Paulo - SP", "status": "ok", "arrival": { "label": "~5 min de carro (ou ~15 min a pé) desde o hotel, com folga pra descansar depois da NOMAD" } }
       ],
       "returnToHotel": { "label": "~20–30 min de carro" },
       "lunch": {

@@ -130,8 +130,9 @@
 
   function nowStopHtml(label, stop, companiesByKey, extraLine) {
     var company = stop.companyKey ? companiesByKey[stop.companyKey] : null;
-    var logoHtml = company && company.logo
-      ? '<span class="now-logo"><img src="' + company.logo + '" alt=""></span>'
+    var nowLogo = (company && company.logo) || stop.logo;
+    var logoHtml = nowLogo
+      ? '<span class="now-logo"><img src="' + nowLogo + '" alt=""></span>'
       : "";
     var mapHtml = isRealAddr(stop.addr)
       ? '<a target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
@@ -331,8 +332,11 @@
           ? '<a class="route" target="_blank" rel="noopener" href="' + mapsSearch(stop.addr) + '">Ver no mapa →</a>'
           : "";
       var company = stop.companyKey ? agendaCompaniesByKey[stop.companyKey] : null;
-      var logoHtml = company && company.logo
-        ? '<span class="stop-logo logoBg-' + (company.logoBg || "light") + '"><img src="' + company.logo + '" alt="' + company.name + '"></span>'
+      // eventos sem empresa (ex: HH de networking) podem trazer logo no próprio stop
+      var logoSrc = (company && company.logo) || stop.logo;
+      var logoBg = (company && company.logoBg) || stop.logoBg || "light";
+      var logoHtml = logoSrc
+        ? '<span class="stop-logo logoBg-' + logoBg + '"><img src="' + logoSrc + '" alt="' + ((company && company.name) || stop.company) + '"></span>'
         : "";
       stopsHtml +=
         '<div class="stop stagger-in" style="animation-delay:' + (i * 70) + 'ms">' +
