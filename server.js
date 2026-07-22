@@ -569,6 +569,33 @@ app.get("/api/pin-poll/all", requireAdminApi, (req, res) => {
   res.json(readPinPoll());
 });
 
+// Todos receberam o bóton fisicamente: registra a dívida de R$ 11 pra cada
+// membro (menos o pagador) que ainda não tem. Idempotente pelo id "pin-N" —
+// pode rodar quantas vezes quiser sem duplicar, e a enquete continua batendo
+// no mesmo id (quem responder depois não gera dívida em dobro).
+app.post("/api/pin-poll/register-all", requireAdminApi, (req, res) => {
+  const data = readExpenses();
+  const created = [], skipped = [];
+  for (const m of members) {
+    if (m.order === PIN_PAYER_ORDER) continue;
+    const id = "pin-" + m.order;
+    if (data.expenses.some((e) => e.id === id)) { skipped.push(m.order); continue; }
+    data.expenses.push({
+      id,
+      description: "Bóton LEPV " + String(m.order).padStart(2, "0") + "/11",
+      amountCents: PIN_PRICE_CENTS,
+      paidBy: PIN_PAYER_ORDER,
+      participants: [m.order],
+      createdAt: new Date().toISOString(),
+      createdBy: PIN_PAYER_ORDER,
+    });
+    created.push(m.order);
+  }
+  if (created.length) writeExpenses(data);
+  const balances = computeBalances(data.expenses);
+  res.json({ created, skipped, expenses: data.expenses, balances, settle: settleUp(balances) });
+});
+
 // ---- Perguntas do grupo (Q&A colaborativo por empresa) ----
 
 app.get("/api/questions", requireAuthApi, (req, res) => {

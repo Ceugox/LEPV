@@ -1359,6 +1359,17 @@
           "</div>" +
         "</div>";
 
+      var adminHtml = "";
+      if (me.admin) {
+        adminHtml =
+          '<div class="card"><p class="section-label">Admin · broches</p>' +
+            '<div class="exp-admin">' +
+              '<p class="note">Todos receberam o bóton? Registra a dívida de R$ 11,00 para cada membro que ainda não tem. Idempotente: não duplica quem já respondeu a enquete.</p>' +
+              '<button class="btn-primary reg-broches">Registrar broche de todos</button>' +
+            "</div>" +
+          "</div>";
+      }
+
       // Saldo por pessoa: líquido real com cada um (todo mundo que tem conta
       // com você aparece). "Você deve" (net < 0) e "Te devem" (net > 0).
       var net = pairwiseNet(data.expenses, me.order);
@@ -1441,7 +1452,20 @@
         feedHtml = '<div class="card"><p class="section-label">Despesas</p><div class="expense-feed">' + items + "</div></div>";
       }
 
-      container.innerHTML = heroHtml + formHtml + settleHtml + feedHtml;
+      container.innerHTML = heroHtml + formHtml + adminHtml + settleHtml + feedHtml;
+
+      var regBtn = container.querySelector(".reg-broches");
+      if (regBtn) {
+        regBtn.addEventListener("click", function () {
+          if (!window.confirm("Registrar a dívida de R$ 11,00 do bóton para todos os membros que ainda não têm?")) return;
+          regBtn.disabled = true;
+          api("/api/pin-poll/register-all", { method: "POST" }).then(function (res) {
+            var n = res && res.created ? res.created.length : 0;
+            window.alert(n === 0 ? "Todo mundo já tinha a dívida registrada — nada a fazer." : n + " dívida(s) de bóton registrada(s).");
+            loadExpenses();
+          });
+        });
+      }
 
       // pagador: seleção única
       container.querySelectorAll(".p-chip.pay").forEach(function (chip) {
