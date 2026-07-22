@@ -1281,6 +1281,16 @@
     var m = expenseMembers.find(function (x) { return x.order === order; });
     return m ? m.name.split(" ")[0] : "?";
   }
+  // Parte de um membro numa despesa — espelha splitEqual do servidor
+  // (base + resto distribuído por ordem crescente, soma sempre = total).
+  function shareOf(amountCents, participants, order) {
+    var sorted = participants.slice().sort(function (a, b) { return a - b; });
+    var idx = sorted.indexOf(order);
+    if (idx < 0) return 0;
+    var base = Math.floor(amountCents / sorted.length);
+    var remainder = amountCents % sorted.length;
+    return base + (idx < remainder ? 1 : 0);
+  }
 
   function loadExpenses() {
     Promise.all([meReady, api("/api/expenses"), expenseMembers ? Promise.resolve(expenseMembers) : api("/api/members")]).then(function (results) {
@@ -1327,23 +1337,43 @@
           "</div>" +
         "</div>";
 
+      // Acerto pessoal: fatia do plano de mínimo de transações que envolve você.
+      // "Você deve" (você paga) e "Te devem" (recebe) — somam ao seu saldo.
+      var myDebts = data.settle.filter(function (s) { return s.from === me.order; });
+      var myCredits = data.settle.filter(function (s) { return s.to === me.order; });
       var settleHtml = "";
-      if (data.settle.length) {
-        var rows = data.settle
-          .map(function (s) {
-            var canMark = s.from === me.order;
-            return (
-              '<div class="settle-row">' +
-                '<span class="sp">' + firstName(s.from) + ' <span class="arrow">→</span> ' + firstName(s.to) +
-                  ' <span class="sv num">' + fmtBRL(s.amountCents) + "</span></span>" +
-                (canMark ? '<button class="mark-paid" data-to="' + s.to + '" data-cents="' + s.amountCents + '">Paguei via Pix</button>' : "") +
-              "</div>"
-            );
-          })
-          .join("");
+      if (myDebts.length || myCredits.length) {
+        var groups = "";
+        if (myDebts.length) {
+          var debtRows = myDebts
+            .map(function (s) {
+              return (
+                '<div class="settle-row">' +
+                  '<span class="sp">Você <span class="arrow">→</span> ' + firstName(s.to) +
+                    ' <span class="sv num">' + fmtBRL(s.amountCents) + "</span></span>" +
+                  '<button class="mark-paid" data-to="' + s.to + '" data-cents="' + s.amountCents + '">Paguei via Pix</button>' +
+                "</div>"
+              );
+            })
+            .join("");
+          groups += '<p class="settle-group-label owe">Você deve</p><div class="settle-list">' + debtRows + "</div>";
+        }
+        if (myCredits.length) {
+          var creditRows = myCredits
+            .map(function (s) {
+              return (
+                '<div class="settle-row">' +
+                  '<span class="sp">' + firstName(s.from) + ' <span class="arrow">→</span> Você' +
+                    ' <span class="sv num">' + fmtBRL(s.amountCents) + "</span></span>" +
+                "</div>"
+              );
+            })
+            .join("");
+          groups += '<p class="settle-group-label receive">Te devem</p><div class="settle-list">' + creditRows + "</div>";
+        }
         settleHtml =
-          '<div class="card"><p class="section-label">Acerto final (mínimo de transações)</p>' +
-            '<div class="settle-list">' + rows + "</div>" +
+          '<div class="card"><p class="section-label">Seus acertos (menor número de Pix)</p>' +
+            groups +
           "</div>";
       }
 
@@ -1363,10 +1393,16 @@
                 "</div>"
               );
             }
+            var inSplit = e.participants.indexOf(me.order) >= 0;
+            var meta = "pago por " + firstName(e.paidBy) + " · dividido entre " + e.participants.length;
+            if (e.createdBy !== e.paidBy) meta += " · lançado por " + firstName(e.createdBy);
+            var shareHtml = inSplit
+              ? '<div class="ei-share">sua parte <span class="num">' + fmtBRL(shareOf(e.amountCents, e.participants, me.order)) + "</span></div>"
+              : '<div class="ei-share muted">você não entrou no rateio</div>';
             return (
               '<div class="expense-item">' +
                 '<div class="ei-main"><div class="ei-desc">' + esc(e.description) + "</div>" +
-                  '<div class="ei-meta">pago por ' + firstName(e.paidBy) + " · dividido entre " + e.participants.length + "</div></div>" +
+                  '<div class="ei-meta">' + meta + "</div>" + shareHtml + "</div>" +
                 '<span class="ei-value num">' + fmtBRL(e.amountCents) + "</span>" + delHtml +
               "</div>"
             );
