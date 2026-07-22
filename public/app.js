@@ -1291,6 +1291,28 @@
     var remainder = amountCents % sorted.length;
     return base + (idx < remainder ? 1 : 0);
   }
+  // Saldo líquido entre você e cada pessoa (não o acerto consolidado de mínimo
+  // de Pix). net[P] > 0: P te deve; < 0: você deve P. A soma = seu saldo global.
+  function pairwiseNet(expenses, myOrder) {
+    var net = {};
+    function add(order, cents) {
+      if (order === myOrder) return;
+      net[order] = (net[order] || 0) + cents;
+    }
+    expenses.forEach(function (e) {
+      if (e.type === "settlement") {
+        if (e.from === myOrder) add(e.to, e.amountCents);
+        else if (e.to === myOrder) add(e.from, -e.amountCents);
+        return;
+      }
+      if (e.paidBy === myOrder) {
+        e.participants.forEach(function (p) { add(p, shareOf(e.amountCents, e.participants, p)); });
+      } else if (e.participants.indexOf(myOrder) >= 0) {
+        add(e.paidBy, -shareOf(e.amountCents, e.participants, myOrder));
+      }
+    });
+    return net;
+  }
 
   function loadExpenses() {
     Promise.all([meReady, api("/api/expenses"), expenseMembers ? Promise.resolve(expenseMembers) : api("/api/members")]).then(function (results) {
@@ -1337,34 +1359,42 @@
           "</div>" +
         "</div>";
 
-      // Acerto pessoal: fatia do plano de mínimo de transações que envolve você.
-      // "Você deve" (você paga) e "Te devem" (recebe) — somam ao seu saldo.
-      var myDebts = data.settle.filter(function (s) { return s.from === me.order; });
-      var myCredits = data.settle.filter(function (s) { return s.to === me.order; });
+      // Saldo por pessoa: líquido real com cada um (todo mundo que tem conta
+      // com você aparece). "Você deve" (net < 0) e "Te devem" (net > 0).
+      var net = pairwiseNet(data.expenses, me.order);
+      var iOwe = [], oweMe = [];
+      Object.keys(net).forEach(function (k) {
+        var order = parseInt(k, 10), cents = net[k];
+        if (cents < 0) iOwe.push({ order: order, cents: -cents });
+        else if (cents > 0) oweMe.push({ order: order, cents: cents });
+      });
+      var byCents = function (a, b) { return b.cents - a.cents; };
+      iOwe.sort(byCents);
+      oweMe.sort(byCents);
       var settleHtml = "";
-      if (myDebts.length || myCredits.length) {
+      if (iOwe.length || oweMe.length) {
         var groups = "";
-        if (myDebts.length) {
-          var debtRows = myDebts
-            .map(function (s) {
+        if (iOwe.length) {
+          var debtRows = iOwe
+            .map(function (r) {
               return (
                 '<div class="settle-row">' +
-                  '<span class="sp">Você <span class="arrow">→</span> ' + firstName(s.to) +
-                    ' <span class="sv num">' + fmtBRL(s.amountCents) + "</span></span>" +
-                  '<button class="mark-paid" data-to="' + s.to + '" data-cents="' + s.amountCents + '">Paguei via Pix</button>' +
+                  '<span class="sp">Você <span class="arrow">→</span> ' + firstName(r.order) +
+                    ' <span class="sv num">' + fmtBRL(r.cents) + "</span></span>" +
+                  '<button class="mark-paid" data-to="' + r.order + '" data-cents="' + r.cents + '">Paguei via Pix</button>' +
                 "</div>"
               );
             })
             .join("");
           groups += '<p class="settle-group-label owe">Você deve</p><div class="settle-list">' + debtRows + "</div>";
         }
-        if (myCredits.length) {
-          var creditRows = myCredits
-            .map(function (s) {
+        if (oweMe.length) {
+          var creditRows = oweMe
+            .map(function (r) {
               return (
                 '<div class="settle-row">' +
-                  '<span class="sp">' + firstName(s.from) + ' <span class="arrow">→</span> Você' +
-                    ' <span class="sv num">' + fmtBRL(s.amountCents) + "</span></span>" +
+                  '<span class="sp">' + firstName(r.order) + ' <span class="arrow">→</span> Você' +
+                    ' <span class="sv num">' + fmtBRL(r.cents) + "</span></span>" +
                 "</div>"
               );
             })
@@ -1372,7 +1402,7 @@
           groups += '<p class="settle-group-label receive">Te devem</p><div class="settle-list">' + creditRows + "</div>";
         }
         settleHtml =
-          '<div class="card"><p class="section-label">Seus acertos (menor número de Pix)</p>' +
+          '<div class="card"><p class="section-label">Saldo por pessoa</p>' +
             groups +
           "</div>";
       }
