@@ -430,7 +430,17 @@ app.get("/api/expenses", requireAuthApi, (req, res) => {
   const data = readExpenses();
   const expenses = [...data.expenses].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const balances = computeBalances(data.expenses);
-  res.json({ expenses, balances, settle: settleUp(balances) });
+  res.json({ expenses, balances, settle: settleUp(balances), closed: data.closed === true });
+});
+
+// Fecha (trava) ou reabre as contas. Contas fechadas congelam os números:
+// nenhuma despesa/acerto novo entra e nada é removido até o admin reabrir.
+app.post("/api/expenses/close", requireAdminApi, (req, res) => {
+  const data = readExpenses();
+  data.closed = Boolean(req.body.closed);
+  writeExpenses(data);
+  const balances = computeBalances(data.expenses);
+  res.json({ closed: data.closed, expenses: data.expenses, balances, settle: settleUp(balances) });
 });
 
 app.post("/api/expenses", requireAuthApi, (req, res) => {
@@ -449,6 +459,7 @@ app.post("/api/expenses", requireAuthApi, (req, res) => {
     return res.status(400).json({ error: "invalid_participants" });
   }
   const data = readExpenses();
+  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
 
   // Duas pessoas registrando o mesmo Uber/almoço é o erro mais provável do
   // grupo: mesmo valor + mesmos participantes em menos de 15 min vira aviso.
@@ -489,7 +500,7 @@ app.post("/api/expenses", requireAuthApi, (req, res) => {
   });
   writeExpenses(data);
   const balances = computeBalances(data.expenses);
-  res.json({ expenses: data.expenses, balances, settle: settleUp(balances) });
+  res.json({ expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
 });
 
 // Registrar um Pix feito: quem paga é sempre o usuário logado.
@@ -500,6 +511,7 @@ app.post("/api/expenses/settle", requireAuthApi, (req, res) => {
   if (!membersByOrder.has(to) || to === from) return res.status(400).json({ error: "invalid_recipient" });
   if (!Number.isInteger(amountCents) || amountCents <= 0) return res.status(400).json({ error: "invalid_amount" });
   const data = readExpenses();
+  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
   data.expenses.push({
     id: "e" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
     type: "settlement",
@@ -511,11 +523,12 @@ app.post("/api/expenses/settle", requireAuthApi, (req, res) => {
   });
   writeExpenses(data);
   const balances = computeBalances(data.expenses);
-  res.json({ expenses: data.expenses, balances, settle: settleUp(balances) });
+  res.json({ expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
 });
 
 app.delete("/api/expenses/:id", requireAuthApi, (req, res) => {
   const data = readExpenses();
+  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
   const item = data.expenses.find((e) => e.id === req.params.id);
   if (!item) return res.status(404).json({ error: "not_found" });
   if (item.createdBy !== req.session.user.order && !req.session.user.admin) {
@@ -524,7 +537,7 @@ app.delete("/api/expenses/:id", requireAuthApi, (req, res) => {
   data.expenses = data.expenses.filter((e) => e.id !== req.params.id);
   writeExpenses(data);
   const balances = computeBalances(data.expenses);
-  res.json({ expenses: data.expenses, balances, settle: settleUp(balances) });
+  res.json({ expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
 });
 
 // ---- Enquete do bóton limitado ----
@@ -549,7 +562,9 @@ app.post("/api/pin-poll", requireAuthApi, (req, res) => {
 
   if (want && order !== PIN_PAYER_ORDER) {
     const data = readExpenses();
-    if (!data.expenses.some((e) => e.id === "pin-" + order)) {
+    // Contas fechadas congelam os números — a resposta fica registrada na
+    // enquete, mas a dívida do bóton não entra até o admin reabrir.
+    if (!data.closed && !data.expenses.some((e) => e.id === "pin-" + order)) {
       data.expenses.push({
         id: "pin-" + order,
         description: "Bóton LEPV " + String(order).padStart(2, "0") + "/11",
@@ -575,6 +590,7 @@ app.get("/api/pin-poll/all", requireAdminApi, (req, res) => {
 // no mesmo id (quem responder depois não gera dívida em dobro).
 app.post("/api/pin-poll/register-all", requireAdminApi, (req, res) => {
   const data = readExpenses();
+  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
   const created = [], skipped = [];
   for (const m of members) {
     if (m.order === PIN_PAYER_ORDER) continue;
@@ -593,7 +609,7 @@ app.post("/api/pin-poll/register-all", requireAdminApi, (req, res) => {
   }
   if (created.length) writeExpenses(data);
   const balances = computeBalances(data.expenses);
-  res.json({ created, skipped, expenses: data.expenses, balances, settle: settleUp(balances) });
+  res.json({ created, skipped, expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
 });
 
 // ---- Perguntas do grupo (Q&A colaborativo por empresa) ----

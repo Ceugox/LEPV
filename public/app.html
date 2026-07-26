@@ -445,6 +445,28 @@
   .chips-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft); margin: 0 0 2px; }
   .exp-admin { display: flex; flex-direction: column; gap: 10px; }
   .exp-admin .note { font-size: 12px; color: var(--graphite-soft); margin: 0; }
+  .exp-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .exp-admin-actions > * { flex: 1; min-width: 130px; }
+  .btn-secondary {
+    border: 1px solid var(--line-strong); background: var(--white); border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 700; color: var(--graphite); padding: 10px 12px; cursor: pointer;
+    font-family: var(--font-body);
+  }
+  .btn-secondary:hover { border-color: var(--red-2); color: #fff; }
+  .export-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .export-text {
+    width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--font-body);
+    font-size: 12.5px; line-height: 1.5; color: var(--graphite); background: rgba(0,0,0,0.18);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px;
+  }
+
+  /* Banner de contas fechadas */
+  .closed-banner { display: flex; flex-direction: column; gap: 6px; }
+  .closed-banner .cb-badge {
+    align-self: flex-start; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #fff; background: var(--red); padding: 4px 10px; border-radius: 999px;
+  }
+  .closed-banner .note { font-size: 12.5px; color: var(--graphite-soft); margin: 0; }
 
   .settle-list { display: flex; flex-direction: column; }
   .settle-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin: 14px 0 4px; }
@@ -452,10 +474,11 @@
   .settle-group-label.owe { color: var(--red-2); }
   .settle-group-label.receive { color: var(--good); }
   .settle-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    display: flex; flex-direction: column; gap: 7px;
     padding: 11px 2px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--graphite);
   }
   .settle-row:first-child { border-top: none; }
+  .settle-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .settle-row .sp { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
   .settle-row .sp .arrow { color: var(--red-2); }
   .settle-row .sv { font-weight: 800; white-space: nowrap; }
@@ -465,6 +488,18 @@
     font-family: var(--font-body); white-space: nowrap;
   }
   .settle-row .mark-paid:hover { border-color: var(--good); }
+  .settle-pix { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .settle-pix .pix-label {
+    font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--graphite-soft);
+  }
+  .settle-pix .pix-key { font-size: 12.5px; font-weight: 700; color: var(--graphite); font-variant-numeric: tabular-nums; }
+  .settle-pix .copy-pix {
+    border: 1px solid var(--line-strong); background: var(--white); border-radius: var(--radius-sm);
+    font-size: 10.5px; font-weight: 700; color: var(--red-2); padding: 3px 8px; cursor: pointer;
+    font-family: var(--font-body);
+  }
+  .settle-pix .copy-pix:hover { border-color: var(--red-2); }
 
   .expense-feed { display: flex; flex-direction: column; }
   .expense-item {

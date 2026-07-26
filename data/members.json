@@ -1,13 +1,13 @@
 [
   { "order": 1, "name": "Marcell Parra", "photo": "/members/1.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Tech", "Mercado Financeiro"], "admin": true },
-  { "order": 2, "name": "Plácido Tavares Gomes", "photo": "/members/2.png", "course": "Engenharia Básico", "year": "1º ano", "interests": ["Tech", "Fitness", "IA"] },
-  { "order": 3, "name": "Clara Alencar", "photo": "/members/3.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Tech"] },
-  { "order": 4, "name": "Raimundo Costa Filho", "photo": "/members/4.png", "course": "Engenharia Básico (Computação)", "year": "2º ano", "interests": ["IA", "Tech", "Consultoria", "Mercado Financeiro"] },
+  { "order": 2, "name": "Plácido Tavares Gomes", "photo": "/members/2.png", "course": "Engenharia Básico", "year": "1º ano", "interests": ["Tech", "Fitness", "IA"], "pix": "92982016396" },
+  { "order": 3, "name": "Clara Alencar", "photo": "/members/3.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Tech"], "pix": "21982161514" },
+  { "order": 4, "name": "Raimundo Costa Filho", "photo": "/members/4.png", "course": "Engenharia Básico (Computação)", "year": "2º ano", "interests": ["IA", "Tech", "Consultoria", "Mercado Financeiro"], "pix": "04162624354" },
   { "order": 5, "name": "Ludmila Ribeiro", "photo": "/members/5.png", "course": "Engenharia Química", "year": "3º ano", "interests": [] },
-  { "order": 6, "name": "Ruan Pablo Rodrigues", "photo": "/members/6.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Mercado Financeiro", "Matemática", "Infra", "Tech"] },
+  { "order": 6, "name": "Ruan Pablo Rodrigues", "photo": "/members/6.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Mercado Financeiro", "Matemática", "Infra", "Tech"], "pix": "73988766763" },
   { "order": 7, "name": "Caroline Alves", "photo": "/members/7.png", "course": "Engenharia Química", "year": "1º ano", "interests": [] },
-  { "order": 8, "name": "Alexandro Souza Jr.", "photo": "/members/8.png", "course": "", "year": "2º ano", "interests": ["IA", "Tech", "Consultoria"] },
+  { "order": 8, "name": "Alexandro Souza Jr.", "photo": "/members/8.png", "course": "", "year": "2º ano", "interests": ["IA", "Tech", "Consultoria"], "pix": "18034626716" },
   { "order": 9, "name": "Fellipe Vieira", "photo": "/members/9.png", "course": "Engenharia Básico", "year": "1º ano", "interests": ["Mercado Financeiro", "Consultoria", "Tech"] },
   { "order": 10, "name": "Ana Luisa Rozado", "photo": "/members/10.png", "course": "", "year": "", "interests": [] },
-  { "order": 11, "name": "Pedro Teixeira", "photo": "/members/11.png", "course": "", "year": "2º ano", "interests": ["Tech", "Consulting", "Applied Math", "IA", "Venture Capital"] }
+  { "order": 11, "name": "Pedro Teixeira", "photo": "/members/11.png", "course": "", "year": "2º ano", "interests": ["Tech", "Consulting", "Applied Math", "IA", "Venture Capital"], "pix": "20639960758" }
 ]

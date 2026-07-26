@@ -1314,12 +1314,66 @@
     return net;
   }
 
+  function fullName(order) {
+    var m = expenseMembers.find(function (x) { return x.order === order; });
+    return m ? m.name : "?";
+  }
+  function pixKey(order) {
+    var m = expenseMembers.find(function (x) { return x.order === order; });
+    return m && m.pix ? String(m.pix) : "";
+  }
+  // Texto do acerto final pronto pra colar no grupo — usa o plano de mínimo de
+  // Pix (data.settle) com a chave de quem recebe.
+  function buildSettlementExport(settle) {
+    var lines = ["LEPV · Missão SP — Acerto final", ""];
+    if (!settle || !settle.length) {
+      lines.push("Contas zeradas — ninguém deve nada. 🎉");
+      return lines.join("\n");
+    }
+    lines.push("Plano de pagamento (menor número de Pix):", "");
+    settle.forEach(function (p) {
+      lines.push("• " + fullName(p.from) + " paga " + fmtBRL(p.amountCents) + " para " + fullName(p.to));
+      var pix = pixKey(p.to);
+      lines.push(pix ? "   Pix: " + pix : "   (Pix não cadastrado — peça a chave)");
+    });
+    lines.push("", "Feitos esses Pix, as contas da viagem zeram.");
+    return lines.join("\n");
+  }
+  function copyToClipboard(text, alertOnDone) {
+    function done() { if (alertOnDone) window.alert("Copiado!"); }
+    function fallback() {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        done();
+      } catch (e) { /* silencioso */ }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+  }
+
   function loadExpenses() {
     Promise.all([meReady, api("/api/expenses"), expenseMembers ? Promise.resolve(expenseMembers) : api("/api/members")]).then(function (results) {
       var me = results[0], data = results[1];
       expenseMembers = results[2];
       var container = document.getElementById("expenses-content");
       var myBalance = data.balances[String(me.order)] || 0;
+      var closed = data.closed === true;
+
+      function pixOf(order) {
+        var m = expenseMembers.find(function (x) { return x.order === order; });
+        return m && m.pix ? String(m.pix) : "";
+      }
 
       var heroClass = myBalance < 0 ? "owe" : myBalance > 0 ? "receive" : "even";
       var heroValue = myBalance < 0 ? "Você deve " + fmtBRL(-myBalance) : myBalance > 0 ? "Te devem " + fmtBRL(myBalance) : "Contas em dia";
@@ -1334,6 +1388,12 @@
           })(data.expenses.filter(function (e) { return e.type !== "settlement"; }).length) + "</span>" +
         "</div></div>";
 
+      var closedBanner = closed
+        ? '<div class="card closed-banner"><span class="cb-badge">Contas fechadas</span>' +
+            '<p class="note">O acerto foi congelado. Ninguém consegue registrar despesas ou marcar Pix.' +
+            (me.admin ? " Reabra abaixo se precisar ajustar." : " Fale com o Marcell se algo estiver errado.") + "</p></div>"
+        : "";
+
       var payerChips = expenseMembers
         .map(function (m) {
           return '<button type="button" class="p-chip pay' + (m.order === me.order ? " on" : "") + '" data-order="' + m.order + '">' + m.name.split(" ")[0] + "</button>";
@@ -1344,7 +1404,7 @@
           return '<button type="button" class="p-chip split on" data-order="' + m.order + '">' + m.name.split(" ")[0] + "</button>";
         })
         .join("");
-      var formHtml =
+      var formHtml = closed ? "" :
         '<div class="card"><p class="section-label">Adicionar despesa</p>' +
           '<div class="expense-form">' +
             '<div class="row2">' +
@@ -1361,11 +1421,33 @@
 
       var adminHtml = "";
       if (me.admin) {
+        var brochesBlock = closed ? "" :
+          '<div class="exp-admin">' +
+            '<p class="note">Todos receberam o bóton? Registra a dívida de R$ 11,00 para cada membro que ainda não tem. Idempotente: não duplica quem já respondeu a enquete.</p>' +
+            '<button class="btn-primary reg-broches">Registrar broche de todos</button>' +
+          "</div>";
         adminHtml =
-          '<div class="card"><p class="section-label">Admin · broches</p>' +
+          (brochesBlock ? '<div class="card"><p class="section-label">Admin · broches</p>' + brochesBlock + "</div>" : "") +
+          '<div class="card"><p class="section-label">Admin · fechamento</p>' +
             '<div class="exp-admin">' +
-              '<p class="note">Todos receberam o bóton? Registra a dívida de R$ 11,00 para cada membro que ainda não tem. Idempotente: não duplica quem já respondeu a enquete.</p>' +
-              '<button class="btn-primary reg-broches">Registrar broche de todos</button>' +
+              '<p class="note">' +
+                (closed
+                  ? "As contas estão <strong>fechadas</strong> (congeladas). Exporte o acerto para o grupo ou reabra para ajustar."
+                  : "Exporte o acerto final para compartilhar no grupo. Feche as contas para congelar os números depois que todo mundo confirmar as despesas.") +
+              "</p>" +
+              '<div class="exp-admin-actions">' +
+                '<button class="btn-primary exp-export">Exportar acerto final</button>' +
+                (closed
+                  ? '<button class="btn-secondary exp-reopen">Reabrir contas</button>'
+                  : '<button class="btn-secondary exp-close">Fechar contas</button>') +
+              "</div>" +
+              '<div class="export-panel" hidden>' +
+                '<textarea class="export-text" readonly rows="10"></textarea>' +
+                '<div class="exp-admin-actions">' +
+                  '<button class="btn-primary export-copy">Copiar</button>' +
+                  '<button class="btn-secondary export-share">Compartilhar</button>' +
+                "</div>" +
+              "</div>" +
             "</div>" +
           "</div>";
       }
@@ -1388,11 +1470,23 @@
         if (iOwe.length) {
           var debtRows = iOwe
             .map(function (r) {
+              var pix = pixOf(r.order);
+              var pixHtml = pix
+                ? '<div class="settle-pix"><span class="pix-label">Pix</span>' +
+                    '<span class="pix-key">' + esc(pix) + "</span>" +
+                    '<button class="copy-pix" data-pix="' + esc(pix) + '" title="Copiar Pix">Copiar</button></div>'
+                : "";
+              var actionHtml = closed
+                ? ""
+                : '<button class="mark-paid" data-to="' + r.order + '" data-cents="' + r.cents + '">Paguei via Pix</button>';
               return (
                 '<div class="settle-row">' +
-                  '<span class="sp">Você <span class="arrow">→</span> ' + firstName(r.order) +
-                    ' <span class="sv num">' + fmtBRL(r.cents) + "</span></span>" +
-                  '<button class="mark-paid" data-to="' + r.order + '" data-cents="' + r.cents + '">Paguei via Pix</button>' +
+                  '<div class="settle-row-top">' +
+                    '<span class="sp">Você <span class="arrow">→</span> ' + firstName(r.order) +
+                      ' <span class="sv num">' + fmtBRL(r.cents) + "</span></span>" +
+                    actionHtml +
+                  "</div>" +
+                  pixHtml +
                 "</div>"
               );
             })
@@ -1424,7 +1518,7 @@
       } else {
         var items = data.expenses
           .map(function (e) {
-            var canDelete = e.createdBy === me.order || me.admin;
+            var canDelete = !closed && (e.createdBy === me.order || me.admin);
             var delHtml = canDelete ? '<button class="del-btn" data-id="' + e.id + '" title="Remover">×</button>' : "";
             if (e.type === "settlement") {
               return (
@@ -1452,7 +1546,7 @@
         feedHtml = '<div class="card"><p class="section-label">Despesas</p><div class="expense-feed">' + items + "</div></div>";
       }
 
-      container.innerHTML = heroHtml + formHtml + adminHtml + settleHtml + feedHtml;
+      container.innerHTML = heroHtml + closedBanner + formHtml + adminHtml + settleHtml + feedHtml;
 
       var regBtn = container.querySelector(".reg-broches");
       if (regBtn) {
@@ -1466,6 +1560,60 @@
           });
         });
       }
+
+      // Fechar / reabrir contas (admin)
+      var closeBtn = container.querySelector(".exp-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", function () {
+          if (!window.confirm("Fechar as contas? Ninguém vai conseguir registrar despesas ou marcar Pix até você reabrir.")) return;
+          closeBtn.disabled = true;
+          api("/api/expenses/close", { method: "POST", body: JSON.stringify({ closed: true }) }).then(loadExpenses);
+        });
+      }
+      var reopenBtn = container.querySelector(".exp-reopen");
+      if (reopenBtn) {
+        reopenBtn.addEventListener("click", function () {
+          reopenBtn.disabled = true;
+          api("/api/expenses/close", { method: "POST", body: JSON.stringify({ closed: false }) }).then(loadExpenses);
+        });
+      }
+
+      // Exportar acerto final (admin): texto pronto pra colar no grupo, com Pix.
+      var exportBtn = container.querySelector(".exp-export");
+      if (exportBtn) {
+        exportBtn.addEventListener("click", function () {
+          var text = buildSettlementExport(data.settle);
+          var panel = container.querySelector(".export-panel");
+          var ta = container.querySelector(".export-text");
+          ta.value = text;
+          panel.hidden = false;
+          ta.rows = Math.min(20, text.split("\n").length + 1);
+          copyToClipboard(text);
+          ta.focus();
+          ta.setSelectionRange(0, 0);
+        });
+        container.querySelector(".export-copy").addEventListener("click", function () {
+          copyToClipboard(container.querySelector(".export-text").value, true);
+        });
+        container.querySelector(".export-share").addEventListener("click", function () {
+          var text = container.querySelector(".export-text").value;
+          if (navigator.share) {
+            navigator.share({ title: "LEPV · Acerto final", text: text }).catch(function () {});
+          } else {
+            copyToClipboard(text, true);
+          }
+        });
+      }
+
+      // Copiar chave Pix de uma linha de acerto
+      container.querySelectorAll(".copy-pix").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          copyToClipboard(btn.dataset.pix, true);
+          var old = btn.textContent;
+          btn.textContent = "Copiado!";
+          setTimeout(function () { btn.textContent = old; }, 1500);
+        });
+      });
 
       // pagador: seleção única
       container.querySelectorAll(".p-chip.pay").forEach(function (chip) {
