@@ -1,5 +1,5 @@
 [
-  { "order": 1, "name": "Marcell Parra", "photo": "/members/1.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Tech", "Mercado Financeiro"], "admin": true },
+  { "order": 1, "name": "Marcell Parra", "photo": "/members/1.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Tech", "Mercado Financeiro"], "admin": true, "pix": "13543433440" },
   { "order": 2, "name": "Plácido Tavares Gomes", "photo": "/members/2.png", "course": "Engenharia Básico", "year": "1º ano", "interests": ["Tech", "Fitness", "IA"], "pix": "92982016396" },
   { "order": 3, "name": "Clara Alencar", "photo": "/members/3.png", "course": "Engenharia da Computação", "year": "4º ano", "interests": ["IA", "Tech"], "pix": "21982161514" },
   { "order": 4, "name": "Raimundo Costa Filho", "photo": "/members/4.png", "course": "Engenharia Básico (Computação)", "year": "2º ano", "interests": ["IA", "Tech", "Consultoria", "Mercado Financeiro"], "pix": "04162624354" },
