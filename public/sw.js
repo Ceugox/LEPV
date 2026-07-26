@@ -1,8 +1,8 @@
 // Service worker mínimo: network-first com fallback pro cache.
-// Objetivo único: a agenda/trajetos continuarem legíveis com sinal ruim
-// (metrô, Marginal) usando a última resposta vista. Nada de cache-first —
-// deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v4";
+// Nasceu pra agenda/trajetos sobreviverem ao sinal ruim do metrô; hoje serve
+// pro acervo continuar legível offline usando a última resposta vista.
+// Nada de cache-first — deploy novo sempre vence quando há rede.
+var CACHE = "lepv-sp-v5";
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();

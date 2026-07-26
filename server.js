@@ -596,7 +596,9 @@ app.delete("/api/questions/:companyKey/:id", requireAuthApi, (req, res) => {
   res.json(questions);
 });
 
-// ---- Aprendizados pós-visita (memória coletiva por empresa) ----
+// ---- Aprendizados (o acervo da imersão: memória coletiva por empresa) ----
+
+const LEARNING_MAX = 600; // um "ponto" é um parágrafo, não um ensaio
 
 app.get("/api/learnings", requireAuthApi, (req, res) => {
   res.json(readLearnings());
@@ -604,21 +606,43 @@ app.get("/api/learnings", requireAuthApi, (req, res) => {
 
 app.post("/api/learnings", requireAuthApi, (req, res) => {
   const companyKey = String(req.body.companyKey || "");
-  const text = String(req.body.text || "").trim();
+  const text = String(req.body.text || "").trim().slice(0, LEARNING_MAX);
   if (!text) return res.status(400).json({ error: "empty_text" });
   if (!readJson("companies.json").some((c) => c.key === companyKey)) {
     return res.status(400).json({ error: "invalid_company" });
   }
-  // Só registra aprendizado quem já tem o selo da visita (presença marcada);
-  // o admin pode sempre, pra anotar em nome do grupo.
-  const attended = (readAttendance()[companyKey] || []).includes(req.session.user.order);
-  if (!attended && !req.session.user.admin) {
-    return res.status(403).json({ error: "not_attended" });
-  }
+  // A imersão acabou: o acervo é aberto a todos os membros. O selo continua
+  // sendo o registro de quem esteve lá, mas não é mais portão de contribuição —
+  // quem não foi também aprendeu com o relato dos outros.
   const learnings = readLearnings();
   if (!(companyKey in learnings)) learnings[companyKey] = [];
   const nextId = Object.values(learnings).flat().reduce((max, l) => Math.max(max, l.id), 0) + 1;
-  learnings[companyKey].push({ id: nextId, text, addedBy: req.session.user.name, order: req.session.user.order });
+  learnings[companyKey].push({
+    id: nextId,
+    text,
+    addedBy: req.session.user.name,
+    order: req.session.user.order,
+    createdAt: new Date().toISOString(),
+  });
+  writeLearnings(learnings);
+  res.json(learnings);
+});
+
+// Editar o próprio ponto — acervo é texto que amadurece; ninguém precisa
+// apagar e reescrever pra corrigir uma frase.
+app.put("/api/learnings/:companyKey/:id", requireAuthApi, (req, res) => {
+  const companyKey = String(req.params.companyKey);
+  const id = parseInt(req.params.id, 10);
+  const text = String(req.body.text || "").trim().slice(0, LEARNING_MAX);
+  if (!text) return res.status(400).json({ error: "empty_text" });
+  const learnings = readLearnings();
+  const item = (learnings[companyKey] || []).find((x) => x.id === id);
+  if (!item) return res.status(404).json({ error: "not_found" });
+  if (item.order !== req.session.user.order && !req.session.user.admin) {
+    return res.status(403).json({ error: "not_owner" });
+  }
+  item.text = text;
+  item.editedAt = new Date().toISOString();
   writeLearnings(learnings);
   res.json(learnings);
 });
@@ -636,6 +660,57 @@ app.delete("/api/learnings/:companyKey/:id", requireAuthApi, (req, res) => {
   learnings[companyKey] = list.filter((x) => x.id !== id);
   writeLearnings(learnings);
   res.json(learnings);
+});
+
+// ---- Acervo da imersão (visão consolidada do legado) ----
+
+// Um único payload com tudo que a aba Legado precisa: empresas com contagem de
+// aprendizados e de selos, números do grupo e ranking de quem mais registrou.
+// Contagem de presença é agregada (quantos), nunca nominal — quem esteve em
+// cada visita continua sendo coisa do painel de presença do admin.
+app.get("/api/legacy", requireAuthApi, (req, res) => {
+  const companies = readJson("companies.json");
+  const itinerary = readJson("itinerary.json");
+  const attendance = readAttendance();
+  const learnings = readLearnings();
+  const all = Object.values(learnings).flat();
+
+  const byOrder = new Map();
+  all.forEach((l) => {
+    const cur = byOrder.get(l.order) || { order: l.order, name: l.addedBy, count: 0 };
+    cur.count += 1;
+    byOrder.set(l.order, cur);
+  });
+
+  const days = itinerary.days || [];
+  res.json({
+    edition: {
+      title: "1ª Imersão LEPV",
+      city: "São Paulo",
+      start: days.length ? days[0].date : null,
+      end: days.length ? days[days.length - 1].date : null,
+      year: 2026,
+    },
+    companies: companies.map((c) => ({
+      key: c.key,
+      name: c.name,
+      color: c.color,
+      logo: c.logo,
+      logoBg: c.logoBg,
+      blurb: c.blurb,
+      learnings: (learnings[c.key] || []).length,
+      attendees: (attendance[c.key] || []).length,
+      // O usuário logado esteve nessa visita? (o selo dele, não o dos outros)
+      mine: (attendance[c.key] || []).includes(req.session.user.order),
+    })),
+    totals: {
+      companies: companies.length,
+      members: members.length,
+      learnings: all.length,
+      contributors: byOrder.size,
+    },
+    contributors: Array.from(byOrder.values()).sort((a, b) => b.count - a.count),
+  });
 });
 
 // ---- Selos (presença por empresa → gamificação individualizada) ----

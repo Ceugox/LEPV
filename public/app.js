@@ -34,41 +34,25 @@
     });
   });
 
-  // ---- Quartos (widget flutuante, visível em todas as abas) ----
-  var roomFab = document.getElementById("room-fab");
-  var roomPanel = document.getElementById("room-panel");
-  var roomBackdrop = document.getElementById("room-backdrop");
-  var roomClose = document.getElementById("room-close");
-
-  function openRoomPanel() {
-    roomPanel.classList.add("open");
-    roomBackdrop.classList.add("open");
-    roomFab.setAttribute("aria-expanded", "true");
+  // ---- Quartos (alocação do hotel — hoje é registro, mora no Arquivo) ----
+  // Durante a viagem isso era um botão flutuante em todas as abas; acabou a
+  // viagem, virou uma ficha do arquivo como qualquer outro bastidor.
+  function loadRooms() {
+    api("/api/itinerary").then(function (data) {
+      var el = document.getElementById("room-list");
+      if (!el) return;
+      if (!data.hotel.rooms || !data.hotel.rooms.length) {
+        el.innerHTML = '<p class="empty-state">Sem alocação registrada.</p>';
+        return;
+      }
+      el.innerHTML = data.hotel.rooms
+        .map(function (r) {
+          var itemsHtml = r.members.map(function (m) { return "<li>" + m + "</li>"; }).join("");
+          return '<div class="room-group"><p class="rlabel">' + r.label + '</p><ul>' + itemsHtml + "</ul></div>";
+        })
+        .join("");
+    }).catch(function () {});
   }
-  function closeRoomPanel() {
-    roomPanel.classList.remove("open");
-    roomBackdrop.classList.remove("open");
-    roomFab.setAttribute("aria-expanded", "false");
-  }
-  roomFab.addEventListener("click", function () {
-    roomPanel.classList.contains("open") ? closeRoomPanel() : openRoomPanel();
-  });
-  roomClose.addEventListener("click", closeRoomPanel);
-  roomBackdrop.addEventListener("click", closeRoomPanel);
-
-  api("/api/itinerary").then(function (data) {
-    var el = document.getElementById("room-list");
-    if (!data.hotel.rooms || !data.hotel.rooms.length) {
-      el.innerHTML = '<p class="empty-state">Sem alocação definida.</p>';
-      return;
-    }
-    el.innerHTML = data.hotel.rooms
-      .map(function (r) {
-        var itemsHtml = r.members.map(function (m) { return "<li>" + m + "</li>"; }).join("");
-        return '<div class="room-group"><p class="rlabel">' + r.label + '</p><ul>' + itemsHtml + "</ul></div>";
-      })
-      .join("");
-  }).catch(function () {});
 
   // ---- Tabs (compartilhado por nav principal, seletores de dia e de empresa) ----
   function syncTabState(container) {
@@ -175,7 +159,17 @@
         "</div>"
       );
     }
-    if (today0 > last) return "";
+    // Imersão encerrada: o card de "agora" dá lugar ao registro do que foi.
+    if (today0 > last) {
+      return (
+        '<div class="card now-card">' +
+          '<p class="now-label">Missão cumprida</p>' +
+          '<div class="now-title">' + days[0].date + " a " + days[days.length - 1].date + " — São Paulo</div>" +
+          '<div class="now-later">A agenda abaixo é o registro do que foi construído. O que cada um levou de volta está na aba Legado.</div>' +
+          '<div class="now-foot"><button type="button" data-goto="legado">Ver o legado →</button></div>' +
+        "</div>"
+      );
+    }
 
     var today = days.find(function (d) { return dayDate(d).getTime() === today0.getTime(); });
     if (!today) return "";
@@ -235,11 +229,11 @@
 
       var guideHtml =
         '<div class="card">' +
-          '<p class="section-label">Guia do membro</p>' +
+          '<p class="section-label">Guia da imersão (registro)</p>' +
           '<ul class="materials-list"><li>' +
             '<span class="material-icon">PDF</span>' +
             '<div class="material-main">' +
-              '<div class="material-title">Guia da imersão — traje, o que levar e preparação para os cases</div>' +
+              '<div class="material-title">Guia entregue aos membros antes da viagem</div>' +
               '<div class="material-meta">Fotos do Iguatemi Stay, previsão do tempo e contexto de cada visita</div>' +
             "</div>" +
             '<div class="material-actions"><a href="/guia.pdf" target="_blank" rel="noopener">Abrir ↗</a></div>' +
@@ -259,7 +253,7 @@
 
       var prepareHtml = m.prepare.length
         ? '<div class="card">' +
-            '<p class="section-label">Prepare-se: o que estudar antes de cada visita</p>' +
+            '<p class="section-label">Contexto de cada empresa que visitamos</p>' +
             '<div class="prepare-grid">' +
               m.prepare.map(function (p, i) {
                 var c = companiesByKey[p.companyKey];
@@ -278,7 +272,7 @@
 
       var expectHtml = m.expectations.length
         ? '<div class="card">' +
-            '<p class="section-label">O que esperar das visitas</p>' +
+            '<p class="section-label">O que buscávamos em cada visita</p>' +
             '<ul class="objectives">' + m.expectations.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>" +
           "</div>"
         : "";
@@ -678,9 +672,9 @@
   var QUESTIONS_PANEL = {
     elId: "questions-panel",
     api: "/api/questions",
-    label: "Perguntas do grupo",
-    hint: "O roteiro coletivo do Q&amp;A desta visita — todo mundo vê, cada um leva 2 ou 3 pra fazer.",
-    empty: "Nenhuma pergunta ainda. Puxe a fila: adicione a primeira.",
+    label: "Perguntas levadas à visita",
+    hint: "O roteiro de Q&amp;A que o grupo montou para esta empresa. Fica como registro — e ainda dá pra somar o que ficou sem resposta.",
+    empty: "Nenhuma pergunta registrada para esta visita.",
     placeholder: "Adicionar pergunta...",
     mark: "?",
     gate: null, // qualquer membro pode postar, antes ou depois da visita
@@ -690,16 +684,15 @@
   var LEARNINGS_PANEL = {
     elId: "learnings-panel",
     api: "/api/learnings",
-    label: "Aprendizados da visita",
-    hint: "O que vale levar de volta pra liga — registre enquanto está fresco.",
-    empty: "Nenhum aprendizado registrado ainda.",
+    label: "Aprendizados desta visita",
+    hint: "A memória coletiva da imersão — o que vale levar de volta pra liga. Tudo aparece consolidado na aba Legado.",
+    empty: "Nenhum aprendizado registrado desta visita ainda.",
     placeholder: "Registrar aprendizado...",
     mark: "—",
-    // Só posta quem já tem o selo desta empresa (presença marcada pelo admin).
-    gate: function (companyKey) {
-      return api("/api/badges").then(function (b) { return b.earned.indexOf(companyKey) !== -1; });
-    },
-    lockedHint: "Libera depois da visita, quando a presença for confirmada.",
+    // Sem portão: a imersão acabou e o acervo é do grupo inteiro. O selo
+    // continua marcando quem esteve lá, mas não restringe quem contribui.
+    gate: null,
+    lockedHint: "",
   };
 
   function collabListHtml(list, me, opts) {
@@ -1055,7 +1048,8 @@
     var ribbonW = SAFE_W, ribbonH = 24, ribbonY = 112;
     var ribbonFill = unlocked ? company.color : "#9AA3B2";
     var ribbonTextColor = unlocked ? ribbonTextFor(company) : "#FFFFFF";
-    var statusText = unlocked ? "SELO CONFIRMADO" : "A CONQUISTAR";
+    // Pós-imersão não há mais o que "conquistar": ou a presença foi registrada, ou não.
+    var statusText = unlocked ? "SELO CONFIRMADO" : "SEM REGISTRO";
 
     return (
       '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">' +
@@ -1607,11 +1601,260 @@
     });
   }
 
+  // ---- Legado: o acervo da imersão ----
+  // A viagem acabou; o que fica é isto. Consolida os aprendizados de todas as
+  // empresas em um lugar só e deixa qualquer membro somar o ponto dele — sem
+  // depender de qual visita ele pegou (o selo registra presença, não permissão).
+  var LEARNING_MAX = 600;
+  var legacyState = { filter: "all", company: "", draft: "", editing: null };
+
+  function legacyDate(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+  }
+
+  function learningItemHtml(item, company, me) {
+    var mine = item.order === me.order;
+    var canEdit = mine || me.admin;
+    var when = legacyDate(item.editedAt || item.createdAt);
+    var editing = legacyState.editing === item.id;
+    var body = editing
+      ? '<textarea class="learn-edit" maxlength="' + LEARNING_MAX + '">' + esc(item.text) + "</textarea>" +
+        '<div class="learn-edit-foot">' +
+          '<button class="btn-primary edit-save">Salvar</button>' +
+          '<button class="btn-ghost edit-cancel">Cancelar</button>' +
+        "</div>"
+      : '<div class="lt-text">' + esc(item.text) + "</div>" +
+        '<div class="lt-meta">' +
+          '<span class="who">' + esc(item.addedBy) + "</span>" +
+          (when ? '<span class="sep">·</span><span>' + when + (item.editedAt ? " (editado)" : "") + "</span>" : "") +
+          (mine ? '<span class="mine-tag">seu ponto</span>' : "") +
+        "</div>";
+
+    return (
+      '<li data-id="' + item.id + '" data-company="' + company.key + '" style="--lg-color:' + company.color + '">' +
+        '<div class="lt">' + body + "</div>" +
+        (canEdit && !editing
+          ? '<div class="lt-actions">' +
+              (mine ? '<button class="edit" title="Editar">Editar</button>' : "") +
+              '<button class="del" title="Remover">×</button>' +
+            "</div>"
+          : "") +
+      "</li>"
+    );
+  }
+
+  function legacyGroupHtml(company, list, me) {
+    var logoHtml = company.logo
+      ? '<span class="lgroup-logo' + (company.logoBg === "dark" ? " dark" : "") + '"><img src="' + company.logo + '" alt=""></span>'
+      : '<span class="lgroup-logo" style="background:' + company.color + '"></span>';
+    var meta = company.attendees
+      ? company.attendees + (company.attendees === 1 ? " membro esteve na visita" : " membros estiveram na visita")
+      : "Visita registrada no roteiro";
+    return (
+      '<div class="card lgroup">' +
+        '<div class="lgroup-head">' +
+          logoHtml +
+          "<div><div class=\"lgroup-name\">" + company.name + '</div><div class="lgroup-meta">' + meta + "</div></div>" +
+          '<span class="lgroup-count' + (list.length ? " has" : "") + '">' + list.length + (list.length === 1 ? " ponto" : " pontos") + "</span>" +
+        "</div>" +
+        (list.length
+          ? '<ul class="learn-list">' + list.map(function (i) { return learningItemHtml(i, company, me); }).join("") + "</ul>"
+          : '<p class="empty-state">Ninguém registrou nada desta visita ainda. Seja o primeiro.</p>') +
+      "</div>"
+    );
+  }
+
+  function renderLegacy(me, legacy, learnings) {
+    var content = document.getElementById("legacy-content");
+    var t = legacy.totals;
+    var ed = legacy.edition;
+    var period = ed.start && ed.end ? ed.start + " a " + ed.end + " de " + ed.year : "";
+
+    var heroHtml =
+      '<div class="card now-card legacy-hero">' +
+        '<p class="now-label">Imersão concluída</p>' +
+        '<h2 class="lh-title">' + ed.title + " — " + ed.city + "</h2>" +
+        '<p class="lh-sub">' + (period ? period + ". " : "") +
+          "Este app deixou de ser roteiro de viagem e virou o acervo da liga: o que cada um levou de volta de cada empresa, registrado por quem viveu. Adicione o seu ponto — é isso que sobra da imersão." +
+        "</p>" +
+        '<div class="stat-grid">' +
+          '<div class="stat"><div class="sn">' + t.companies + '</div><div class="sl">Empresas</div></div>' +
+          '<div class="stat"><div class="sn">' + t.members + '</div><div class="sl">Membros</div></div>' +
+          '<div class="stat accent"><div class="sn">' + t.learnings + '</div><div class="sl">Aprendizados</div></div>' +
+          '<div class="stat"><div class="sn">' + t.contributors + "/" + t.members + '</div><div class="sl">Contribuíram</div></div>' +
+        "</div>" +
+      "</div>";
+
+    var optionsHtml = legacy.companies
+      .map(function (c) {
+        return '<option value="' + c.key + '"' + (c.key === legacyState.company ? " selected" : "") + ">" + c.name + (c.mine ? " — você esteve lá" : "") + "</option>";
+      })
+      .join("");
+
+    var formHtml =
+      '<div class="card" id="contrib-card">' +
+        '<p class="section-label">Adicione seu ponto ao acervo</p>' +
+        '<div class="contrib-form">' +
+          '<select id="contrib-company" aria-label="Empresa"><option value="">Escolha a empresa...</option>' + optionsHtml + "</select>" +
+          '<textarea id="contrib-text" maxlength="' + LEARNING_MAX + '" placeholder="O que dessa visita você leva para o que constrói? Uma ideia por ponto." aria-label="Aprendizado">' + esc(legacyState.draft) + "</textarea>" +
+          '<div class="contrib-foot">' +
+            '<span class="contrib-count" id="contrib-count">' + legacyState.draft.length + "/" + LEARNING_MAX + "</span>" +
+            '<button class="btn-primary" id="contrib-send">Registrar no acervo</button>' +
+          "</div>" +
+        "</div>" +
+      "</div>";
+
+    var mineCount = Object.keys(learnings).reduce(function (n, k) {
+      return n + learnings[k].filter(function (i) { return i.order === me.order; }).length;
+    }, 0);
+
+    var filtersHtml =
+      '<div class="legacy-filters">' +
+        '<button class="lfilter' + (legacyState.filter === "all" ? " active" : "") + '" data-filter="all">Tudo <span class="n">' + t.learnings + "</span></button>" +
+        '<button class="lfilter' + (legacyState.filter === "mine" ? " active" : "") + '" data-filter="mine">Meus pontos <span class="n">' + mineCount + "</span></button>" +
+        legacy.companies
+          .map(function (c) {
+            var n = (learnings[c.key] || []).length;
+            return (
+              '<button class="lfilter' + (legacyState.filter === c.key ? " active" : "") + '" data-filter="' + c.key + '">' +
+                '<span class="dot" style="background:' + c.color + '"></span>' + c.name + '<span class="n">' + n + "</span>" +
+              "</button>"
+            );
+          })
+          .join("") +
+      "</div>";
+
+    var groups = legacy.companies
+      .filter(function (c) {
+        if (legacyState.filter === "all" || legacyState.filter === "mine") return true;
+        return c.key === legacyState.filter;
+      })
+      .map(function (c) {
+        var list = (learnings[c.key] || []).slice();
+        if (legacyState.filter === "mine") list = list.filter(function (i) { return i.order === me.order; });
+        // Nas visões amplas, empresa sem nada registrado não vira ruído.
+        if (!list.length && legacyState.filter !== c.key) return "";
+        return legacyGroupHtml(c, list, me);
+      })
+      .filter(Boolean)
+      .join("");
+
+    if (!groups) {
+      groups =
+        '<div class="card"><div class="legacy-empty">' +
+          '<div class="le-mark">“</div>' +
+          '<div class="le-title">' + (legacyState.filter === "mine" ? "Você ainda não registrou nada" : "O acervo começa com o primeiro ponto") + "</div>" +
+          '<p class="le-text">' +
+            (legacyState.filter === "mine"
+              ? "Escolha uma empresa acima e escreva o que ficou daquela visita para você."
+              : "Foram seis dias e doze empresas. Alguma coisa mudou de ideia em cada um — escreva antes que vire só lembrança.") +
+          "</p>" +
+        "</div></div>";
+    }
+
+    var contribHtml = legacy.contributors.length
+      ? '<div class="card">' +
+          '<p class="section-label">Quem construiu o acervo</p>' +
+          '<div class="contrib-list">' +
+            legacy.contributors
+              .map(function (c, i) {
+                var pct = Math.round((c.count / legacy.contributors[0].count) * 100);
+                return (
+                  '<div class="contrib-row">' +
+                    '<span class="cr-pos">' + (i + 1) + "</span>" +
+                    '<span class="cr-name">' + esc(c.name) + "</span>" +
+                    '<span class="cr-bar"><span style="width:' + pct + '%"></span></span>' +
+                    '<span class="cr-n">' + c.count + "</span>" +
+                  "</div>"
+                );
+              })
+              .join("") +
+          "</div>" +
+        "</div>"
+      : "";
+
+    content.innerHTML = heroHtml + formHtml + filtersHtml + groups + contribHtml;
+    wireLegacy(me);
+  }
+
+  function wireLegacy(me) {
+    var content = document.getElementById("legacy-content");
+    var select = document.getElementById("contrib-company");
+    var textarea = document.getElementById("contrib-text");
+    var counter = document.getElementById("contrib-count");
+
+    select.addEventListener("change", function () { legacyState.company = select.value; });
+    textarea.addEventListener("input", function () {
+      legacyState.draft = textarea.value;
+      counter.textContent = textarea.value.length + "/" + LEARNING_MAX;
+      counter.classList.toggle("over", textarea.value.length >= LEARNING_MAX);
+    });
+
+    document.getElementById("contrib-send").addEventListener("click", function () {
+      var key = select.value;
+      var text = textarea.value.trim();
+      if (!key) return window.alert("Escolha de qual empresa é esse aprendizado.");
+      if (!text) return window.alert("Escreva o ponto antes de registrar.");
+      api("/api/learnings", { method: "POST", body: JSON.stringify({ companyKey: key, text: text }) }).then(function (res) {
+        if (res && res.error) return window.alert("Não deu pra registrar agora. Tente de novo.");
+        legacyState.draft = "";
+        legacyState.company = key; // provável que a próxima anotação seja da mesma visita
+        loadLegacy();
+      });
+    });
+
+    content.querySelectorAll(".lfilter").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        legacyState.filter = btn.dataset.filter;
+        legacyState.editing = null;
+        loadLegacy();
+      });
+    });
+
+    content.querySelectorAll(".learn-list li").forEach(function (li) {
+      var id = parseInt(li.dataset.id, 10);
+      var key = li.dataset.company;
+      var editBtn = li.querySelector(".edit");
+      var delBtn = li.querySelector(".del");
+      var saveBtn = li.querySelector(".edit-save");
+      var cancelBtn = li.querySelector(".edit-cancel");
+
+      if (editBtn) editBtn.addEventListener("click", function () { legacyState.editing = id; loadLegacy(); });
+      if (cancelBtn) cancelBtn.addEventListener("click", function () { legacyState.editing = null; loadLegacy(); });
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function () {
+          var text = li.querySelector(".learn-edit").value.trim();
+          if (!text) return window.alert("O ponto não pode ficar vazio.");
+          api("/api/learnings/" + key + "/" + id, { method: "PUT", body: JSON.stringify({ text: text }) }).then(function (res) {
+            if (res && res.error) return window.alert("Não deu pra salvar a edição.");
+            legacyState.editing = null;
+            loadLegacy();
+          });
+        });
+      }
+      if (delBtn) {
+        delBtn.addEventListener("click", function () {
+          if (!window.confirm("Remover este ponto do acervo?")) return;
+          api("/api/learnings/" + key + "/" + id, { method: "DELETE" }).then(function () { loadLegacy(); });
+        });
+      }
+    });
+  }
+
+  function loadLegacy() {
+    Promise.all([meReady, api("/api/legacy"), api("/api/learnings")]).then(function (r) {
+      renderLegacy(r[0], r[1], r[2]);
+    });
+  }
+
   // ---- Checklist (server-persisted, compartilhado entre todos os membros) ----
   function renderChecklist(items) {
     var listEl = document.getElementById("checklist-items");
     if (!items.length) {
-      listEl.innerHTML = '<p class="empty-state">Nenhuma pendência. Adicione uma abaixo.</p>';
+      listEl.innerHTML = '<p class="empty-state">Nenhum combinado registrado.</p>';
       return;
     }
     listEl.innerHTML = items
@@ -1707,15 +1950,16 @@
   }
 
   var loaders = {
+    legado: loadLegacy,
     resumo: loadMission,
     membros: loadMembers,
     agenda: loadAgenda,
     empresas: loadCompanies,
-    trajetos: loadRoutes,
     selos: loadBadges,
     despesas: loadExpenses,
-    checklist: loadChecklist,
+    // Arquivo reúne o que era operação da viagem: trajetos, quartos e combinados.
+    arquivo: function () { loadRoutes(); loadRooms(); loadChecklist(); },
   };
 
-  activateTab("resumo");
+  activateTab("legado");
 })();

@@ -1,7 +1,7 @@
 {
-  "name": "LEPV SP — Missão Empreendedora",
+  "name": "LEPV SP — Acervo da 1ª Imersão",
   "short_name": "LEPV SP",
-  "description": "Logística da imersão da LEPV em São Paulo, 19–24 de julho de 2026.",
+  "description": "O acervo da 1ª imersão da LEPV em São Paulo (19–24 de julho de 2026): selos das visitas e os aprendizados registrados por cada membro.",
   "lang": "pt-BR",
   "start_url": "/",
   "display": "standalone",
