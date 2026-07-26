@@ -1270,13 +1270,6 @@
   function fmtBRL(cents) {
     return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
-  function parseBRL(text) {
-    var clean = String(text).replace(/[^\d.,-]/g, "").replace(/\./g, "").replace(",", ".");
-    // aceita também "48.70" digitado com ponto decimal (sem milhar)
-    if (/^\d+\.\d{1,2}$/.test(String(text).trim())) clean = String(text).trim();
-    var value = parseFloat(clean);
-    return isNaN(value) ? null : Math.round(value * 100);
-  }
   function firstName(order) {
     var m = expenseMembers.find(function (x) { return x.order === order; });
     return m ? m.name.split(" ")[0] : "?";
@@ -1390,34 +1383,15 @@
 
       var closedBanner = closed
         ? '<div class="card closed-banner"><span class="cb-badge">Contas fechadas</span>' +
-            '<p class="note">O acerto foi congelado. Ninguém consegue registrar despesas ou marcar Pix.' +
+            '<p class="note">O acerto foi congelado. Ninguém consegue marcar novos Pix.' +
             (me.admin ? " Reabra abaixo se precisar ajustar." : " Fale com o Marcell se algo estiver errado.") + "</p></div>"
         : "";
 
-      var payerChips = expenseMembers
-        .map(function (m) {
-          return '<button type="button" class="p-chip pay' + (m.order === me.order ? " on" : "") + '" data-order="' + m.order + '">' + m.name.split(" ")[0] + "</button>";
-        })
-        .join("");
-      var splitChips = expenseMembers
-        .map(function (m) {
-          return '<button type="button" class="p-chip split on" data-order="' + m.order + '">' + m.name.split(" ")[0] + "</button>";
-        })
-        .join("");
-      var formHtml = closed ? "" :
-        '<div class="card"><p class="section-label">Adicionar despesa</p>' +
-          '<div class="expense-form">' +
-            '<div class="row2">' +
-              '<input type="text" inputmode="decimal" class="exp-amount" placeholder="R$ 0,00" aria-label="Valor">' +
-              '<input type="text" class="exp-desc" placeholder="Uber, almoço, mercado..." aria-label="Descrição" maxlength="80">' +
-            "</div>" +
-            '<p class="chips-label">Quem pagou</p>' +
-            '<div class="payer-chips">' + payerChips + "</div>" +
-            '<p class="chips-label">Dividir entre <button type="button" class="split-all" style="border:none;background:none;color:var(--red);font-weight:700;cursor:pointer;font-size:11px;">todos / ninguém</button></p>' +
-            '<div class="split-chips">' + splitChips + "</div>" +
-            '<button class="btn-primary exp-add">Registrar despesa</button>' +
-          "</div>" +
-        "</div>";
+      // Despesas encerradas: não há mais cadastro de novas despesas. O histórico
+      // fica intacto e cada um só registra os Pix que fizer ("Paguei via Pix",
+      // no saldo por pessoa abaixo).
+      var infoHtml = closed ? "" :
+        '<div class="card"><p class="note" style="margin:0;">As despesas da viagem foram encerradas — não dá mais para adicionar novas. Confira seu saldo e toque em <strong>“Paguei via Pix”</strong> a cada acerto que você fizer.</p></div>';
 
       var adminHtml = "";
       if (me.admin) {
@@ -1432,8 +1406,8 @@
             '<div class="exp-admin">' +
               '<p class="note">' +
                 (closed
-                  ? "As contas estão <strong>fechadas</strong> (congeladas). Exporte o acerto para o grupo ou reabra para ajustar."
-                  : "Exporte o acerto final para compartilhar no grupo. Feche as contas para congelar os números depois que todo mundo confirmar as despesas.") +
+                  ? "As contas estão <strong>fechadas</strong> (congeladas). Exporte o acerto para o grupo ou reabra para liberar os Pix."
+                  : "Exporte o acerto final para compartilhar no grupo. Feche as contas para travar os Pix depois que todo mundo tiver acertado.") +
               "</p>" +
               '<div class="exp-admin-actions">' +
                 '<button class="btn-primary exp-export">Exportar acerto final</button>' +
@@ -1514,7 +1488,7 @@
 
       var feedHtml;
       if (!data.expenses.length) {
-        feedHtml = '<div class="card"><p class="section-label">Despesas</p><p class="empty-state">Nenhuma despesa ainda. Registre a primeira acima.</p></div>';
+        feedHtml = '<div class="card"><p class="section-label">Despesas</p><p class="empty-state">Nenhuma despesa registrada.</p></div>';
       } else {
         var items = data.expenses
           .map(function (e) {
@@ -1546,7 +1520,7 @@
         feedHtml = '<div class="card"><p class="section-label">Despesas</p><div class="expense-feed">' + items + "</div></div>";
       }
 
-      container.innerHTML = heroHtml + closedBanner + formHtml + adminHtml + settleHtml + feedHtml;
+      container.innerHTML = heroHtml + closedBanner + infoHtml + adminHtml + settleHtml + feedHtml;
 
       var regBtn = container.querySelector(".reg-broches");
       if (regBtn) {
@@ -1565,7 +1539,7 @@
       var closeBtn = container.querySelector(".exp-close");
       if (closeBtn) {
         closeBtn.addEventListener("click", function () {
-          if (!window.confirm("Fechar as contas? Ninguém vai conseguir registrar despesas ou marcar Pix até você reabrir.")) return;
+          if (!window.confirm("Fechar as contas? Ninguém vai conseguir marcar novos Pix até você reabrir.")) return;
           closeBtn.disabled = true;
           api("/api/expenses/close", { method: "POST", body: JSON.stringify({ closed: true }) }).then(loadExpenses);
         });
@@ -1612,52 +1586,6 @@
           var old = btn.textContent;
           btn.textContent = "Copiado!";
           setTimeout(function () { btn.textContent = old; }, 1500);
-        });
-      });
-
-      // pagador: seleção única
-      container.querySelectorAll(".p-chip.pay").forEach(function (chip) {
-        chip.addEventListener("click", function () {
-          container.querySelectorAll(".p-chip.pay").forEach(function (c) { c.classList.remove("on"); });
-          chip.classList.add("on");
-        });
-      });
-      // participantes: toggle individual + atalho todos/ninguém
-      container.querySelectorAll(".p-chip.split").forEach(function (chip) {
-        chip.addEventListener("click", function () { chip.classList.toggle("on"); });
-      });
-      container.querySelector(".split-all").addEventListener("click", function () {
-        var chips = container.querySelectorAll(".p-chip.split");
-        var allOn = Array.prototype.every.call(chips, function (c) { return c.classList.contains("on"); });
-        chips.forEach(function (c) { c.classList.toggle("on", !allOn); });
-      });
-
-      container.querySelector(".exp-add").addEventListener("click", function () {
-        var cents = parseBRL(container.querySelector(".exp-amount").value);
-        var desc = container.querySelector(".exp-desc").value.trim();
-        var payer = container.querySelector(".p-chip.pay.on");
-        var participants = Array.prototype.map.call(
-          container.querySelectorAll(".p-chip.split.on"),
-          function (c) { return parseInt(c.dataset.order, 10); }
-        );
-        if (!cents || cents <= 0) return window.alert("Informe o valor (ex: 48,70).");
-        if (!desc) return window.alert("Descreva a despesa.");
-        if (!payer) return window.alert("Selecione quem pagou.");
-        if (!participants.length) return window.alert("Selecione entre quem dividir.");
-        var payload = { description: desc, amountCents: cents, paidBy: parseInt(payer.dataset.order, 10), participants: participants };
-        api("/api/expenses", { method: "POST", body: JSON.stringify(payload) }).then(function (res) {
-          if (res && res.error === "possible_duplicate") {
-            var d = res.duplicate;
-            var mins = Math.max(1, Math.round((Date.now() - new Date(d.createdAt).getTime()) / 60000));
-            var ok = window.confirm(
-              "Parece duplicada: \"" + d.description + "\" (" + fmtBRL(d.amountCents) + ", mesmos participantes) foi registrada por " +
-              firstName(d.createdBy) + " há " + mins + " min.\n\nRegistrar essa nova despesa mesmo assim?"
-            );
-            if (!ok) return;
-            payload.force = true;
-            return api("/api/expenses", { method: "POST", body: JSON.stringify(payload) }).then(loadExpenses);
-          }
-          loadExpenses();
         });
       });
 

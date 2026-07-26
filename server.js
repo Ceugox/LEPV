@@ -443,64 +443,11 @@ app.post("/api/expenses/close", requireAdminApi, (req, res) => {
   res.json({ closed: data.closed, expenses: data.expenses, balances, settle: settleUp(balances) });
 });
 
+// Cadastro de despesas encerrado: a viagem acabou, o histórico está fechado.
+// O saldo continua sendo acertado via Pix (POST /api/expenses/settle). Rota
+// mantida só para responder de forma clara a clientes antigos em cache.
 app.post("/api/expenses", requireAuthApi, (req, res) => {
-  const description = String(req.body.description || "").trim();
-  const amountCents = parseInt(req.body.amountCents, 10);
-  const paidBy = parseInt(req.body.paidBy, 10);
-  const participants = Array.isArray(req.body.participants)
-    ? [...new Set(req.body.participants.map((p) => parseInt(p, 10)))]
-    : [];
-  if (!description) return res.status(400).json({ error: "empty_description" });
-  if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > 10_000_000) {
-    return res.status(400).json({ error: "invalid_amount" });
-  }
-  if (!membersByOrder.has(paidBy)) return res.status(400).json({ error: "invalid_payer" });
-  if (!participants.length || participants.some((p) => !membersByOrder.has(p))) {
-    return res.status(400).json({ error: "invalid_participants" });
-  }
-  const data = readExpenses();
-  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
-
-  // Duas pessoas registrando o mesmo Uber/almoço é o erro mais provável do
-  // grupo: mesmo valor + mesmos participantes em menos de 15 min vira aviso.
-  // O cliente pode insistir com force=true (falso positivo é possível).
-  const sortedParticipants = participants.sort((a, b) => a - b);
-  if (req.body.force !== true) {
-    const cutoff = Date.now() - 15 * 60 * 1000;
-    const duplicate = data.expenses.find(
-      (e) =>
-        e.type !== "settlement" &&
-        e.amountCents === amountCents &&
-        new Date(e.createdAt).getTime() >= cutoff &&
-        e.participants.length === sortedParticipants.length &&
-        e.participants.every((p, i) => p === sortedParticipants[i])
-    );
-    if (duplicate) {
-      return res.status(409).json({
-        error: "possible_duplicate",
-        duplicate: {
-          description: duplicate.description,
-          amountCents: duplicate.amountCents,
-          paidBy: duplicate.paidBy,
-          createdAt: duplicate.createdAt,
-          createdBy: duplicate.createdBy,
-        },
-      });
-    }
-  }
-
-  data.expenses.push({
-    id: "e" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
-    description,
-    amountCents,
-    paidBy,
-    participants: sortedParticipants,
-    createdAt: new Date().toISOString(),
-    createdBy: req.session.user.order,
-  });
-  writeExpenses(data);
-  const balances = computeBalances(data.expenses);
-  res.json({ expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
+  return res.status(403).json({ error: "expense_creation_disabled" });
 });
 
 // Registrar um Pix feito: quem paga é sempre o usuário logado.
