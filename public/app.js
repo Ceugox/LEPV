@@ -374,7 +374,33 @@
         (day.note ? '<p class="day-note">' + day.note + "</p>" : "") +
         '<div class="timeline">' + stopsHtml + "</div>" +
       "</div>" +
+      '<div id="day-gallery"></div>' +
       renderLunch(day.lunch);
+
+    renderDayGallery(day.id);
+  }
+
+  // Registro fotográfico do dia, abaixo da timeline do roteiro.
+  var activeDayId = null;
+
+  function renderDayGallery(dayId) {
+    activeDayId = dayId;
+    if (!document.getElementById("day-gallery")) return;
+    galleryReady().then(function (g) {
+      if (dayId !== activeDayId) return; // trocou de dia enquanto carregava
+      var day = g.days.find(function (d) { return d.day === dayId; });
+      if (!day) return; // domingo de chegada não tem registro
+      var items = daySet(g, day);
+      var el = document.getElementById("day-gallery");
+      if (!items.length || !el) return;
+      el.innerHTML =
+        '<div class="card">' +
+          '<p class="section-label">O que registramos neste dia</p>' +
+          '<p class="questions-hint">' + items.length + (items.length === 1 ? " mídia" : " mídias") + ". Toque para ampliar.</p>" +
+          thumbStripHtml(items) +
+        "</div>";
+      wireThumbs(el, items);
+    });
   }
 
   function renderLunch(lunch) {
@@ -521,6 +547,7 @@
     syncTabState(picker);
     var company = companiesData.find(function (c) { return c.key === key; });
     if (company) renderCompanyDetail(company);
+    renderGalleryPanel(key);
     renderMaterialsPanel(key);
     renderCollabPanel(QUESTIONS_PANEL, key);
     renderCollabPanel(LEARNINGS_PANEL, key);
@@ -1601,6 +1628,135 @@
     });
   }
 
+  // ---- Galeria da imersão (mídias no Drive da liga) ----
+  // Nada é re-hospedado: o endpoint de miniatura do Google transcodifica HEIC
+  // e gera pôster para vídeo, então tudo aparece sem gastar volume. Só as capas
+  // vivem no repo, para o que mais aparece não depender do Drive.
+  var galleryData = null;
+
+  function galleryReady() {
+    if (galleryData) return Promise.resolve(galleryData);
+    return api("/api/gallery").then(function (g) { galleryData = g; return g; });
+  }
+  function driveThumb(id, width) {
+    return "https://drive.google.com/thumbnail?id=" + id + "&sz=w" + width;
+  }
+  function drivePreview(id) {
+    return "https://drive.google.com/file/d/" + id + "/preview";
+  }
+  // Conjunto do dia: capa (quando é arte de recap, não repetida na lista),
+  // tudo das empresas visitadas naquele dia e os extras.
+  function daySet(g, day) {
+    var items = [];
+    (day.companies || []).forEach(function (key) {
+      var c = g.companies[key];
+      if (c && !c.mirrorOf) items = items.concat(c.items);
+    });
+    items = items.concat(day.extras || []);
+    if (day.cover && !items.some(function (i) { return i.id === day.cover; })) {
+      items.unshift({ id: day.cover, type: "photo", caption: day.label + " — " + day.weekday + " " + day.date });
+    }
+    return items;
+  }
+
+  // ---- Lightbox ----
+  var lb = null, lbItems = [], lbIndex = 0;
+
+  function buildLightbox() {
+    lb = document.createElement("div");
+    lb.className = "lightbox";
+    lb.innerHTML =
+      '<button class="lb-close" aria-label="Fechar">×</button>' +
+      '<button class="lb-nav lb-prev" aria-label="Anterior">‹</button>' +
+      '<figure class="lb-stage"><div class="lb-media"></div><figcaption class="lb-cap"></figcaption></figure>' +
+      '<button class="lb-nav lb-next" aria-label="Próxima">›</button>';
+    document.body.appendChild(lb);
+    lb.querySelector(".lb-close").addEventListener("click", closeLightbox);
+    lb.querySelector(".lb-prev").addEventListener("click", function (e) { e.stopPropagation(); stepLightbox(-1); });
+    lb.querySelector(".lb-next").addEventListener("click", function (e) { e.stopPropagation(); stepLightbox(1); });
+    lb.addEventListener("click", function (e) { if (e.target === lb || e.target.classList.contains("lb-stage")) closeLightbox(); });
+    document.addEventListener("keydown", function (e) {
+      if (!lb.classList.contains("open")) return;
+      if (e.key === "Escape") closeLightbox();
+      if (e.key === "ArrowLeft") stepLightbox(-1);
+      if (e.key === "ArrowRight") stepLightbox(1);
+    });
+  }
+  function renderLightbox() {
+    var item = lbItems[lbIndex];
+    var media = lb.querySelector(".lb-media");
+    media.innerHTML = item.type === "video"
+      ? '<iframe src="' + drivePreview(item.id) + '" allow="autoplay" allowfullscreen></iframe>'
+      : '<img class="' + (item.rotated ? "rotated" : "") + '" src="' + driveThumb(item.id, 1600) + '" alt="' + esc(item.caption || "") + '">';
+    lb.querySelector(".lb-cap").innerHTML =
+      '<span class="lb-text">' + esc(item.caption || "") + "</span>" +
+      '<span class="lb-count">' + (lbIndex + 1) + " / " + lbItems.length + "</span>";
+    lb.querySelector(".lb-prev").style.visibility = lbItems.length > 1 ? "visible" : "hidden";
+    lb.querySelector(".lb-next").style.visibility = lbItems.length > 1 ? "visible" : "hidden";
+  }
+  function stepLightbox(delta) {
+    lbIndex = (lbIndex + delta + lbItems.length) % lbItems.length;
+    renderLightbox();
+  }
+  function openLightbox(items, index) {
+    if (!items.length) return;
+    if (!lb) buildLightbox();
+    lbItems = items;
+    lbIndex = index || 0;
+    renderLightbox();
+    lb.classList.add("open");
+    document.body.classList.add("lb-lock");
+  }
+  function closeLightbox() {
+    lb.classList.remove("open");
+    lb.querySelector(".lb-media").innerHTML = ""; // corta o áudio de vídeo aberto
+    document.body.classList.remove("lb-lock");
+  }
+
+  // Tira de miniaturas reutilizável; devolve o HTML e liga os cliques depois.
+  function thumbStripHtml(items) {
+    return (
+      '<div class="thumb-strip">' +
+      items
+        .map(function (item, i) {
+          return (
+            '<button class="thumb" data-i="' + i + '" title="' + esc(item.caption || "") + '">' +
+              '<img loading="lazy" class="' + (item.rotated ? "rotated" : "") + '" src="' + driveThumb(item.id, 400) + '" alt="' + esc(item.caption || "") + '">' +
+              (item.type === "video" ? '<span class="thumb-play">▶</span>' : "") +
+            "</button>"
+          );
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+  function wireThumbs(root, items) {
+    root.querySelectorAll(".thumb").forEach(function (btn) {
+      btn.addEventListener("click", function () { openLightbox(items, parseInt(btn.dataset.i, 10)); });
+    });
+  }
+
+  // Galeria da empresa (aba Empresas, acima dos aprendizados)
+  function renderGalleryPanel(companyKey) {
+    var panel = document.getElementById("gallery-panel");
+    galleryReady().then(function (g) {
+      if (companyKey !== activeCompanyKey) return;
+      var c = g.companies[companyKey];
+      if (!c || !c.items.length) { panel.innerHTML = ""; return; }
+      var count = c.items.length;
+      panel.innerHTML =
+        '<div class="card">' +
+          '<p class="section-label">Registro da visita</p>' +
+          '<p class="questions-hint">' +
+            (c.note ? esc(c.note) + " " : "") +
+            count + (count === 1 ? " mídia" : " mídias") + " desta visita. Toque para ampliar." +
+          "</p>" +
+          thumbStripHtml(c.items) +
+        "</div>";
+      wireThumbs(panel, c.items);
+    });
+  }
+
   // ---- Legado: o acervo da imersão ----
   // A viagem acabou; o que fica é isto. Consolida os aprendizados de todas as
   // empresas em um lugar só e deixa qualquer membro somar o ponto dele — sem
@@ -1667,7 +1823,7 @@
     );
   }
 
-  function renderLegacy(me, legacy, learnings) {
+  function renderLegacy(me, legacy, learnings, gallery) {
     var content = document.getElementById("legacy-content");
     var t = legacy.totals;
     var ed = legacy.edition;
@@ -1685,6 +1841,31 @@
           '<div class="stat"><div class="sn">' + t.members + '</div><div class="sl">Membros</div></div>' +
           '<div class="stat accent"><div class="sn">' + t.learnings + '</div><div class="sl">Aprendizados</div></div>' +
           '<div class="stat"><div class="sn">' + t.contributors + "/" + t.members + '</div><div class="sl">Contribuíram</div></div>' +
+        "</div>" +
+      "</div>";
+
+    // Álbum: uma capa por dia, cada uma abre o conjunto daquele dia.
+    var totalMedia = Object.keys(gallery.companies).reduce(function (n, k) {
+      return n + (gallery.companies[k].mirrorOf ? 0 : gallery.companies[k].items.length);
+    }, 0) + gallery.days.reduce(function (n, d) { return n + (d.extras || []).length; }, 0);
+
+    var albumHtml =
+      '<div class="card">' +
+        '<p class="section-label">O álbum da viagem</p>' +
+        '<p class="questions-hint">' + totalMedia + " fotos e vídeos, dia a dia. Toque em um dia para percorrer.</p>" +
+        '<div class="album-grid">' +
+          gallery.days
+            .map(function (d) {
+              return (
+                '<button class="album-day" data-day="' + d.day + '">' +
+                  '<img loading="lazy" src="/gallery/day-' + d.day + '.jpg" alt="' + d.label + '">' +
+                  '<span class="ad-shade"></span>' +
+                  '<span class="ad-meta"><span class="ad-n">' + d.label + "</span>" +
+                  '<span class="ad-d">' + d.weekday + " " + d.date + "</span></span>" +
+                "</button>"
+              );
+            })
+            .join("") +
         "</div>" +
       "</div>";
 
@@ -1776,12 +1957,19 @@
         "</div>"
       : "";
 
-    content.innerHTML = heroHtml + formHtml + filtersHtml + groups + contribHtml;
-    wireLegacy(me);
+    content.innerHTML = heroHtml + albumHtml + formHtml + filtersHtml + groups + contribHtml;
+    wireLegacy(me, gallery);
   }
 
-  function wireLegacy(me) {
+  function wireLegacy(me, gallery) {
     var content = document.getElementById("legacy-content");
+
+    content.querySelectorAll(".album-day").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var day = gallery.days.find(function (d) { return d.day === btn.dataset.day; });
+        if (day) openLightbox(daySet(gallery, day), 0);
+      });
+    });
     var select = document.getElementById("contrib-company");
     var textarea = document.getElementById("contrib-text");
     var counter = document.getElementById("contrib-count");
@@ -1845,8 +2033,8 @@
   }
 
   function loadLegacy() {
-    Promise.all([meReady, api("/api/legacy"), api("/api/learnings")]).then(function (r) {
-      renderLegacy(r[0], r[1], r[2]);
+    Promise.all([meReady, api("/api/legacy"), api("/api/learnings"), galleryReady()]).then(function (r) {
+      renderLegacy(r[0], r[1], r[2], r[3]);
     });
   }
 

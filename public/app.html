@@ -730,6 +730,85 @@
   .contrib-row .cr-bar { flex: none; width: 74px; height: 4px; border-radius: 2px; background: var(--offwhite); overflow: hidden; }
   .contrib-row .cr-bar span { display: block; height: 100%; background: var(--red); }
 
+  /* ---- Álbum da viagem (capas por dia) ---- */
+  .album-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  @media (min-width: 700px) { .album-grid { grid-template-columns: repeat(5, 1fr); gap: 10px; } }
+  .album-day {
+    position: relative; display: block; padding: 0; border: 1px solid var(--line);
+    border-radius: var(--radius-md); overflow: hidden; cursor: pointer; background: var(--offwhite);
+    aspect-ratio: 3 / 4; transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+  .album-day:first-child { grid-column: span 2; aspect-ratio: 16 / 10; }
+  @media (min-width: 700px) { .album-day:first-child { grid-column: auto; aspect-ratio: 3 / 4; } }
+  .album-day:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+  .album-day img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .album-day .ad-shade {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(4,12,26,0.92) 0%, rgba(4,12,26,0.35) 45%, transparent 75%);
+  }
+  .album-day .ad-meta { position: absolute; left: 10px; right: 10px; bottom: 9px; text-align: left; }
+  .album-day .ad-n {
+    display: block; font-family: var(--font-display); font-weight: 800; font-size: 14px;
+    text-transform: uppercase; letter-spacing: 0.04em; color: #fff; line-height: 1.1;
+  }
+  .album-day .ad-d { display: block; font-size: 10.5px; color: rgba(255,255,255,0.62); margin-top: 2px; }
+
+  /* Tira de miniaturas (galeria da empresa) */
+  .thumb-strip {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  @media (min-width: 560px) { .thumb-strip { grid-template-columns: repeat(5, 1fr); } }
+  .thumb {
+    position: relative; padding: 0; border: 1px solid var(--line); background: var(--offwhite);
+    border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; aspect-ratio: 1;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .thumb:hover { transform: scale(1.03); border-color: var(--line-strong); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb img.rotated { transform: rotate(180deg); }
+  .thumb-play {
+    position: absolute; right: 5px; bottom: 4px; font-size: 9px; color: #fff;
+    background: rgba(4,12,26,0.72); border-radius: 3px; padding: 2px 5px; line-height: 1;
+  }
+
+  /* Lightbox */
+  body.lb-lock { overflow: hidden; }
+  .lightbox {
+    position: fixed; inset: 0; z-index: 70; display: none;
+    background: rgba(3,9,20,0.94); align-items: center; justify-content: center;
+    padding: 48px 12px 12px;
+  }
+  .lightbox.open { display: flex; }
+  .lb-stage { margin: 0; max-width: 1100px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .lb-media { width: 100%; display: flex; align-items: center; justify-content: center; }
+  .lb-media img {
+    max-width: 100%; max-height: calc(100vh - 150px); object-fit: contain;
+    border-radius: var(--radius-sm); display: block;
+  }
+  .lb-media img.rotated { transform: rotate(180deg); }
+  .lb-media iframe {
+    width: min(100%, 900px); aspect-ratio: 9 / 16; max-height: calc(100vh - 150px);
+    border: 0; border-radius: var(--radius-sm); background: #000;
+  }
+  @media (min-width: 700px) { .lb-media iframe { aspect-ratio: 16 / 9; } }
+  .lb-cap {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; justify-content: center;
+    font-size: 13px; color: rgba(255,255,255,0.75); text-align: center; max-width: 60ch;
+  }
+  .lb-cap .lb-count { font-size: 11px; color: rgba(255,255,255,0.45); font-variant-numeric: tabular-nums; }
+  .lb-close, .lb-nav {
+    position: absolute; border: none; background: rgba(255,255,255,0.10); color: #fff;
+    cursor: pointer; border-radius: 50%; width: 44px; height: 44px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease;
+  }
+  .lb-close:hover, .lb-nav:hover { background: rgba(255,255,255,0.20); }
+  .lb-close { top: 12px; right: 12px; font-size: 24px; }
+  .lb-nav { top: 50%; transform: translateY(-50%); font-size: 28px; }
+  .lb-prev { left: 10px; }
+  .lb-next { right: 10px; }
+  @media (min-width: 700px) { .lb-prev { left: 24px; } .lb-next { right: 24px; } }
+
   /* Arquivo */
   .archive-head {
     font-family: var(--font-display); font-weight: 800; font-size: 15px; text-transform: uppercase;
@@ -854,6 +933,7 @@
       <div class="card company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
       </div>
+      <div id="gallery-panel"></div>
       <div id="materials-panel"></div>
       <div id="questions-panel"></div>
       <div id="learnings-panel"></div>

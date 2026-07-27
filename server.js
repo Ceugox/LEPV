@@ -242,6 +242,13 @@ app.get("/api/itinerary", requireAuthApi, (req, res) => {
   res.json(readJson("itinerary.json"));
 });
 
+// Galeria: seleção curada das fotos/vídeos da viagem. Só os IDs — as mídias
+// ficam no Drive da liga e são servidas pelas miniaturas do Google (o endpoint
+// transcodifica HEIC e gera pôster de vídeo). As capas moram em /gallery.
+app.get("/api/gallery", requireAuthApi, (req, res) => {
+  res.json(readJson("gallery.json"));
+});
+
 app.get("/api/companies", requireAuthApi, (req, res) => {
   res.json(readJson("companies.json"));
 });

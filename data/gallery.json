@@ -1,0 +1,783 @@
+{
+  "drive": "https://drive.google.com/drive/folders/1n_fk5w7-h9FujPHLvn_qOoTyyjvsbeeJ",
+  "note": "Seleção curada: cada item foi visualmente revisado antes de entrar. Material com dado interno de empresa parceira ficou de fora.",
+  "days": [
+    {
+      "day": "seg20",
+      "label": "Dia 1",
+      "weekday": "Segunda",
+      "date": "20/07",
+      "cover": "10pNlyaud57MdyDZTLeFf_Ci62sQA8y_0",
+      "companies": [
+        "nomad"
+      ],
+      "extras": [
+        {
+          "id": "13wt2iNdE5i7T7h5gEae7D1yDReXQhq80",
+          "type": "photo",
+          "caption": "Igreja e ônibus na Av. Paulista, próximo à sede da NOMAD",
+          "rotated": false
+        },
+        {
+          "id": "1JgT7RIGSP9nBsG1PVoJY7mccfRZ9wMwR",
+          "type": "photo",
+          "caption": "Catracas e elevadores no saguão do prédio da NOMAD",
+          "rotated": false
+        },
+        {
+          "id": "1BYwjlkqtcancUGpk2Bfbb2OSiygLPDzl",
+          "type": "video",
+          "caption": "Vista do terraço com igreja histórica e céu de fim de tarde",
+          "rotated": false
+        },
+        {
+          "id": "1YovriOA1RZekkrxHavkXMAO4fe_aGU-4",
+          "type": "photo",
+          "caption": "Happy hour com a Alumni IME, no Pirajá da Faria Lima",
+          "rotated": false
+        }
+      ]
+    },
+    {
+      "day": "ter21",
+      "label": "Dia 2",
+      "weekday": "Terça",
+      "date": "21/07",
+      "cover": "1Bvv7zHtwKSBu5yWuaCulMQ-CuHdE9ajX",
+      "companies": [
+        "mottu",
+        "insper",
+        "link",
+        "mirow"
+      ],
+      "extras": []
+    },
+    {
+      "day": "qua22",
+      "label": "Dia 3",
+      "weekday": "Quarta",
+      "date": "22/07",
+      "cover": "1c5rijxw3elk5cQuICYw3BAvw4MBvCWyk",
+      "companies": [
+        "sharpi",
+        "bain",
+        "segura"
+      ],
+      "extras": [
+        {
+          "id": "1KnIVRHPqOw3DBpWoT8R26ci2qw0RcLhk",
+          "type": "photo",
+          "caption": "Mesa de café da manhã com salgados e bolo",
+          "rotated": false
+        },
+        {
+          "id": "19PDcHZkjMIPXb9VuFBgK9qk6Ckdhz3-L",
+          "type": "video",
+          "caption": "Deslocamento até a Bain & Company",
+          "rotated": false
+        }
+      ]
+    },
+    {
+      "day": "qui23",
+      "label": "Dia 4",
+      "weekday": "Quinta",
+      "date": "23/07",
+      "cover": "13T3fW5zcjJpMi0Tcb4fETmnCJ6j1JdLJ",
+      "companies": [
+        "pax",
+        "revolut"
+      ],
+      "extras": [
+        {
+          "id": "1VQD3gs0GRvmhISe-IYqpqzhaRKh6dRl9",
+          "type": "video",
+          "caption": "Deslocamento a pe entre as visitas do dia",
+          "rotated": false
+        }
+      ]
+    },
+    {
+      "day": "sex24",
+      "label": "Dia 5",
+      "weekday": "Sexta",
+      "date": "24/07",
+      "cover": "17H-DMObrft8_yftbtdRJm9eq4DYf4kIl",
+      "companies": [
+        "enter",
+        "tivita"
+      ],
+      "extras": []
+    }
+  ],
+  "companies": {
+    "nomad": {
+      "day": "seg20",
+      "cover": "1tlCjwuTRHsGj_LpdJTmTQoIY0VkO97Vw",
+      "items": [
+        {
+          "id": "1tlCjwuTRHsGj_LpdJTmTQoIY0VkO97Vw",
+          "type": "photo",
+          "caption": "Grupo reunido no terraço, letreiro amarelo da NOMAD ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "16KyZbwC6O5ZI-uZYz46kC13wmVHcEEsc",
+          "type": "photo",
+          "caption": "Outro ângulo do grupo no terraço, igreja e prédios ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1UBRiAm1KNxmw-ArYgGFrIws61wCvzkwn",
+          "type": "photo",
+          "caption": "Equipe reunida na sala de reunião da NOMAD, tela ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "14_OvJyTzaH5tZEZsDIbVmfjwpH70esg4",
+          "type": "photo",
+          "caption": "Escritório da NOMAD, letreiro iluminado na parede de madeira",
+          "rotated": false
+        },
+        {
+          "id": "1QHkQp4XQ4L2Ol96X_iipgH3JP0fyMO5w",
+          "type": "photo",
+          "caption": "Letreiro amarelo da NOMAD no terraço, sem pessoas",
+          "rotated": false
+        },
+        {
+          "id": "19pWxqyB_HMs9hDeRMIgfsQnBfuWMfaJL",
+          "type": "photo",
+          "caption": "Squeeze e caderno personalizados da NOMAD sobre a mesa",
+          "rotated": false
+        },
+        {
+          "id": "1dGsFboY6VnfZODH53IX15uP9FSIQFMHC",
+          "type": "video",
+          "caption": "Palestrante escreve no flipchart durante a apresentação",
+          "rotated": false
+        },
+        {
+          "id": "1I6HfyJINfc8acPbfHFehmvS580Pyh8Q2",
+          "type": "photo",
+          "caption": "Palestrante conduz apresentação para o grupo na sala",
+          "rotated": false
+        }
+      ]
+    },
+    "mottu": {
+      "day": "ter21",
+      "cover": "1TZ_BneS4i-elKKUwKi048EznhHXHimlX",
+      "items": [
+        {
+          "id": "1r4eEgVaZpkyhsBmN2VQ2pQAJjr_vIz17",
+          "type": "photo",
+          "caption": "Fachada da Mottu com logo e número do prédio",
+          "rotated": false
+        },
+        {
+          "id": "1IYNtDccsFLPhP4y5R06boMmrkf9s9JVq",
+          "type": "video",
+          "caption": "Fachada iluminada com mural grande da marca",
+          "rotated": false
+        },
+        {
+          "id": "1GV-AiCgCxSl22XbJ41hZ2Cf5SCEeuvbj",
+          "type": "photo",
+          "caption": "Galpão amplo com centenas de motos organizadas",
+          "rotated": false
+        },
+        {
+          "id": "1OEExDoqEGYNN5XcOJ8cuMKq4pRmwGAL1",
+          "type": "photo",
+          "caption": "Logo verde suspenso sobre o galpão de motos",
+          "rotated": false
+        },
+        {
+          "id": "1Ji4w_EVe-mEZEtp8YAlkQnE1wU1M58AR",
+          "type": "photo",
+          "caption": "Showroom com moto customizada e frase de valores na parede",
+          "rotated": false
+        },
+        {
+          "id": "1X4hHlijky8zDmNzR4hWlUL9kWVE7rhkZ",
+          "type": "photo",
+          "caption": "Grupo observa a operação do galpão por dentro",
+          "rotated": false
+        },
+        {
+          "id": "1tsjv6l4bS2WLf_xGz8-5DigRYnbTHk-z",
+          "type": "photo",
+          "caption": "Parede com manifesto da empresa e moto em destaque",
+          "rotated": false
+        },
+        {
+          "id": "1IHQDoIB81GbwjBuC-XWMeO1PSjG1vB8f",
+          "type": "photo",
+          "caption": "Foto de grupo no galpão de motos",
+          "rotated": false
+        },
+        {
+          "id": "1603bcUuGvyVE7i108U9AFF-XDF3Q_W3M",
+          "type": "photo",
+          "caption": "Visitante caminha entre fileiras de motos estacionadas",
+          "rotated": false
+        },
+        {
+          "id": "1PqlisPOF7rObZq3mHzb1xseeWyIuXJoN",
+          "type": "photo",
+          "caption": "Vista ampla do galpão com estrutura metálica e motos",
+          "rotated": false
+        }
+      ]
+    },
+    "insper": {
+      "day": "ter21",
+      "cover": "1Dz-kgDNP_DDRTUuzYLKUGjSGTDiG7b10",
+      "items": [
+        {
+          "id": "1vsdekzdtarWitqM8BCwku5Dih0qzNG7Q",
+          "type": "photo",
+          "caption": "Totem de entrada do prédio do Insper",
+          "rotated": false
+        },
+        {
+          "id": "1GQmkylHMOMz68RMViFYPZ1WnNSN6p-vP",
+          "type": "photo",
+          "caption": "Placa do Centro de Dados e Inteligência Artificial",
+          "rotated": false
+        },
+        {
+          "id": "1sKX22GKT6l57wAlALs2skEZYrICu8O98",
+          "type": "photo",
+          "caption": "Foto de grupo dos participantes no saguão",
+          "rotated": true
+        },
+        {
+          "id": "15Lc6MRCGF419jdsGm_OZwjZP87KOYGEJ",
+          "type": "photo",
+          "caption": "Oficina com carro de competição off-road exposto",
+          "rotated": false
+        },
+        {
+          "id": "14KFkUaVYyO_60RetzA7chkRZmRJMaJ3V",
+          "type": "photo",
+          "caption": "Outro ângulo da oficina com o carro de competição",
+          "rotated": false
+        },
+        {
+          "id": "190_a42-cC1WeTZfgMncFjrVkmt3LtjH8",
+          "type": "photo",
+          "caption": "Anfiteatro vazio com cadeiras em degraus",
+          "rotated": false
+        },
+        {
+          "id": "1WWhVG24wqjZ7OjAxNFDqq2Rsh12ldwqL",
+          "type": "photo",
+          "caption": "Corredor com laboratórios e área de estar",
+          "rotated": false
+        }
+      ]
+    },
+    "link": {
+      "day": "ter21",
+      "cover": "18b6oJtX5T51gwgik3T_st_vStejAQw1N",
+      "items": [
+        {
+          "id": "1NRq9uI72MCKJE0IvO2CMh5zKfI8HkF_N",
+          "type": "photo",
+          "caption": "Vitrine da loja da escola com roupas de marca",
+          "rotated": false
+        },
+        {
+          "id": "1euAQI95XyESPN6P-o18Ii1StCpPOnnQS",
+          "type": "photo",
+          "caption": "Painel interativo Signal or Noise no saguão",
+          "rotated": false
+        },
+        {
+          "id": "191dPyPp3eGdiivbSWJwKDK25_TuzV6Op",
+          "type": "photo",
+          "caption": "Selo da Link School na parede",
+          "rotated": false
+        },
+        {
+          "id": "1CDg1a3jHI7X6hFTX3x09z3aitCI-ZXkc",
+          "type": "photo",
+          "caption": "Selfie de grupo no elevador grafitado com a marca",
+          "rotated": false
+        },
+        {
+          "id": "10HzLDHXJMgzNsqMei_k-R3nvm7lCMp8U",
+          "type": "photo",
+          "caption": "Letreiro da Link na frente do prédio",
+          "rotated": false
+        },
+        {
+          "id": "1AF9g7KUCYtvhvz2qMW9neaCtd9P2Dnxj",
+          "type": "photo",
+          "caption": "Grupo em frente ao letreiro da Link",
+          "rotated": true
+        },
+        {
+          "id": "1-aaGsWN3WLynmqWs_jdaceilqVWFfh4s",
+          "type": "photo",
+          "caption": "Saguão com escadaria e área de convivência",
+          "rotated": false
+        }
+      ]
+    },
+    "mirow": {
+      "day": "ter21",
+      "cover": "1V8DFR8zKRQPH6f8rVP_xroNAQ1fL6aF_",
+      "items": [
+        {
+          "id": "1lpmeWpYPciI-Wxhr6Yzmzfn22A3H5fnK",
+          "type": "photo",
+          "caption": "Recepção decorada reúne parte da equipe",
+          "rotated": false
+        },
+        {
+          "id": "1VHnk9fkSnsElpibbuaQtxIFFvpv8buF5",
+          "type": "video",
+          "caption": "Sócio conversa com o grupo sob decoração de festa",
+          "rotated": false
+        },
+        {
+          "id": "1w3VDZ7wl-ED8l_ovCs1sW2SCoiSm102G",
+          "type": "photo",
+          "caption": "Corredor com mural de fotos históricas da empresa",
+          "rotated": false
+        },
+        {
+          "id": "1sT8g24LWCVjH76f1_gi1LW53u1qmJBNy",
+          "type": "photo",
+          "caption": "Recepção com o letreiro Mirow & Co.",
+          "rotated": false
+        },
+        {
+          "id": "1Bvv7zHtwKSBu5yWuaCulMQ-CuHdE9ajX",
+          "type": "photo",
+          "caption": "Foto de grupo dos participantes na recepção",
+          "rotated": false
+        },
+        {
+          "id": "1Jd3FXhqyOojjGfDNrfoLVWNedcxbX0kH",
+          "type": "photo",
+          "caption": "Equipe em dinâmica de trabalho com vista da cidade",
+          "rotated": false
+        }
+      ]
+    },
+    "sharpi": {
+      "day": "qua22",
+      "cover": "1jhSRBfwwkCTsdd9eNVYsLzgb-_fXVg5H",
+      "items": [
+        {
+          "id": "1jhSRBfwwkCTsdd9eNVYsLzgb-_fXVg5H",
+          "type": "photo",
+          "caption": "Grupo reunido no terraço com o horizonte de São Paulo ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1Vyip35GKoayHxJaqXBj7oJrvfp58yhMW",
+          "type": "photo",
+          "caption": "Roda de conversa na cozinha compartilhada, com vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1y-xEzN1_8cuTzXpp16bKR50tL4eI8Oj7",
+          "type": "photo",
+          "caption": "Roda de conversa no terraço, skyline de São Paulo ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1zhHs7wL-9vefoExlIQuwm13AndVgUroC",
+          "type": "photo",
+          "caption": "Participante com notebook durante a roda de conversa no terraço",
+          "rotated": false
+        },
+        {
+          "id": "1kjMQoG57XdPMvv21QSgKv0h_spO0IAY-",
+          "type": "photo",
+          "caption": "Conversa próxima no terraço, prédios da cidade ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1hQ6ppg7XGIkab3nKSpoXnk9fnW5wxeHk",
+          "type": "photo",
+          "caption": "Dois participantes em conversa, skyline ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1s-La5GnaZ_cH5KFBspGS5WSdgXS-UGCf",
+          "type": "photo",
+          "caption": "Terraço com poltronas e vista panorâmica da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1Zo4xX4C8zTKFDfY9yqwILhIDDpJtnSum",
+          "type": "photo",
+          "caption": "Terraço vazio com churrasqueira e vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1cZM4EA1e415QQR1TKDE59pEHPkVl_o3x",
+          "type": "photo",
+          "caption": "Roda de conversa ampla no terraço com vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "12eypu7oLGhYqpikQmPrysODjUP3ZWwIv",
+          "type": "video",
+          "caption": "Vídeo da roda de conversa com os fundadores das startups",
+          "rotated": false
+        }
+      ]
+    },
+    "bain": {
+      "day": "qua22",
+      "cover": "1xNcn0sX9xcBC7cTjDIvG95mFcYPA-jMs",
+      "items": [
+        {
+          "id": "1xNcn0sX9xcBC7cTjDIvG95mFcYPA-jMs",
+          "type": "photo",
+          "caption": "Grupo reunido junto ao letreiro da Bain & Company",
+          "rotated": false
+        },
+        {
+          "id": "1SkcDRXbry67KUHNZ3hm5ztu8uI5nwfB9",
+          "type": "photo",
+          "caption": "Corredor com a frase 'Bain and You Begins Here'",
+          "rotated": false
+        },
+        {
+          "id": "1XE0yuGOR9xcp8dPSNsRzP3_-3w0IXS45",
+          "type": "photo",
+          "caption": "Painel interativo com fios conectando palavras sobre a Bain",
+          "rotated": false
+        },
+        {
+          "id": "1H0hSLyjD2-ln0Bqv-uouwwPKcL1S8GhH",
+          "type": "photo",
+          "caption": "Mural 'O que a Bain significa para você' no corredor",
+          "rotated": false
+        },
+        {
+          "id": "1n4I5pbQ7w8qbQiFpAYuj6UOJgdMr8hQJ",
+          "type": "photo",
+          "caption": "Parede com o lema 'Uma Bainie nunca deixa outra Bainie falhar'",
+          "rotated": false
+        },
+        {
+          "id": "1p8bZcpDRLTvXLpICrZ7pbw35FjIrlCQB",
+          "type": "photo",
+          "caption": "Parede com a frase 'Bold ideas. Extraordinary teams.'",
+          "rotated": false
+        },
+        {
+          "id": "1Ox9QM1iPZub_6Mmz3ut9o9moHbBak_8P",
+          "type": "photo",
+          "caption": "Parede vermelha com a frase 'Act boldly'",
+          "rotated": false
+        },
+        {
+          "id": "1pXTMhVseIpBPpPGr51dkIbLfWQVoP8J_",
+          "type": "photo",
+          "caption": "Grupo caminhando pelo espaço colaborativo do escritório",
+          "rotated": false
+        },
+        {
+          "id": "1EOTokUpNvMP4-8yRQbG_7wv2uF7cb1B0",
+          "type": "photo",
+          "caption": "Recepção com tela de boas-vindas ao hub de inovação",
+          "rotated": false
+        },
+        {
+          "id": "1TNv6Tf62hrQgHowuI5Gy938WePf-nYEw",
+          "type": "video",
+          "caption": "Lounge com poltronas coloridas e vista para o jardim",
+          "rotated": false
+        }
+      ]
+    },
+    "pax": {
+      "day": "qui23",
+      "cover": "1t8eZ5-DUPT-X5bT1ZhwRhygGLY7Xmy1o",
+      "items": [
+        {
+          "id": "1t8eZ5-DUPT-X5bT1ZhwRhygGLY7Xmy1o",
+          "type": "photo",
+          "caption": "Grupo reunido junto ao letreiro da Pax",
+          "rotated": false
+        },
+        {
+          "id": "1ozOlkdDxlrfwtuYGHLBZkI2GK1PUJ1q0",
+          "type": "photo",
+          "caption": "Sofa e logo da Pax na recepcao",
+          "rotated": false
+        },
+        {
+          "id": "1cGeGemNtxSrWnrLH9TRZ9X9_YJDyOVrh",
+          "type": "photo",
+          "caption": "Corredor com a frase 'Every day matters' na parede",
+          "rotated": false
+        },
+        {
+          "id": "17QcmO40C4y3m2Mbr8BjyVy7dkyW94q1m",
+          "type": "photo",
+          "caption": "Grupo caminha rumo a recepcao da Pax",
+          "rotated": false
+        },
+        {
+          "id": "19saZQzRq-f3snrrOe0mB8p-HgfFLe2a_",
+          "type": "photo",
+          "caption": "Camera CCTV antiga exposta na sede da Pax",
+          "rotated": false
+        }
+      ]
+    },
+    "revolut": {
+      "day": "qui23",
+      "cover": "1l5wmop07zCNlVyf8jKCSHZPBT_KQM14C",
+      "items": [
+        {
+          "id": "1l5wmop07zCNlVyf8jKCSHZPBT_KQM14C",
+          "type": "photo",
+          "caption": "Grupo na recepcao, letreiro Revolut iluminado",
+          "rotated": false
+        },
+        {
+          "id": "1-taXpU5E5zX7BrwWkkUWhMQosIJWIJR-",
+          "type": "photo",
+          "caption": "Grupo acompanha explicacao em sala de reuniao",
+          "rotated": false
+        },
+        {
+          "id": "1_-jsV4ETM3FtMV6hGlvxZ56nkRa5sPf0",
+          "type": "video",
+          "caption": "Mesa de cafe da tarde com vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1d6xBm6wuGVobE4Cbk9UC5JdPa16S4eQP",
+          "type": "video",
+          "caption": "Grupo sentado a mesa durante apresentacao",
+          "rotated": false
+        },
+        {
+          "id": "1vKNHeLb7TxjizbCJwFA9H-kcRKh33vQ0",
+          "type": "photo",
+          "caption": "Observando o display do Revolut X na parede",
+          "rotated": false
+        },
+        {
+          "id": "1iLnbtoEiwKM0UFuIxsc5mzEuAmO2NlL4",
+          "type": "photo",
+          "caption": "Placa da sala de reuniao 'Meeting Room Real'",
+          "rotated": false
+        }
+      ]
+    },
+    "enter": {
+      "day": "sex24",
+      "cover": "1eg7qGqUn0skVv63Z-4nFy679fyStQsc0",
+      "items": [
+        {
+          "id": "1eg7qGqUn0skVv63Z-4nFy679fyStQsc0",
+          "type": "photo",
+          "caption": "Grupo na parede de logos de clientes da ENTER",
+          "rotated": false
+        },
+        {
+          "id": "1T9zf905Nf3dxKWCZGhdg0PVCQKXI14CV",
+          "type": "photo",
+          "caption": "Grupo junto ao logo retroiluminado da ENTER",
+          "rotated": false
+        },
+        {
+          "id": "1LiGJN0RaXen1jtVAZA3qdh8FZNg2rxP0",
+          "type": "photo",
+          "caption": "Café da manhã com vista da cidade, roda de conversa",
+          "rotated": false
+        },
+        {
+          "id": "1aTr0qqSWLmTDzWGcNXHGJ4f936U7c-Rz",
+          "type": "video",
+          "caption": "Mesa de brinde com bolos e equipe da ENTER",
+          "rotated": false
+        },
+        {
+          "id": "1KLZhIYySxoyZYkCFgY0grYccRhZxa3hu",
+          "type": "video",
+          "caption": "Sala de reunião com vista da janela, grupo atento",
+          "rotated": false
+        },
+        {
+          "id": "1LIY3rrcnHDdUhlAX1VhMrwkaGwGJkUCG",
+          "type": "photo",
+          "caption": "Mezanino industrial do escritório da ENTER",
+          "rotated": false
+        },
+        {
+          "id": "173iSq_Z2O4Cj5KQsRTpThqY3_7Gn6U0O",
+          "type": "photo",
+          "caption": "Logo da ENTER retroiluminado no corredor",
+          "rotated": false
+        },
+        {
+          "id": "15GT9E4eeZy6Au2ZGvL1TudHZzyhbgfj-",
+          "type": "photo",
+          "caption": "Parede com logos de clientes da ENTER",
+          "rotated": false
+        },
+        {
+          "id": "1QSxLSp9MNiUA_RLlrCdZum0RD7huWlSj",
+          "type": "photo",
+          "caption": "Vista aérea do escritório, tela ENTER e parceiro",
+          "rotated": false
+        },
+        {
+          "id": "1Fqx4Pp9zEeopIrKtpEAexSQuN9r9yBmi",
+          "type": "video",
+          "caption": "Vista de cima dos andares do escritório ENTER",
+          "rotated": false
+        }
+      ]
+    },
+    "tivita": {
+      "day": "sex24",
+      "cover": "17K3v-xpfbEa-LTdQ9TkHKQAAAuezx8-g",
+      "items": [
+        {
+          "id": "17K3v-xpfbEa-LTdQ9TkHKQAAAuezx8-g",
+          "type": "video",
+          "caption": "Logo da tivita na persiana, vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1FIvJxGYMMY8w8eYH-IjFPjbhk8WCaEfE",
+          "type": "photo",
+          "caption": "Tela e banner da tivita na área de trabalho",
+          "rotated": false
+        },
+        {
+          "id": "1JB0Xme4XSX7lmYs8siN-q7vhs4AmuxKW",
+          "type": "photo",
+          "caption": "Sala Inspira, tela de boas-vindas da tivita",
+          "rotated": false
+        },
+        {
+          "id": "1ZNSf2FGIyZOpUa1UHZmqj31ryNHXNwBc",
+          "type": "video",
+          "caption": "Grupo sentado na sala Inspira",
+          "rotated": false
+        },
+        {
+          "id": "1JN8mJoi6roIwDPOcBrA1_ybBHUX8y2cd",
+          "type": "photo",
+          "caption": "Bolinha antiestresse de brinde da tivita",
+          "rotated": false
+        },
+        {
+          "id": "146o1Gj4Sig9Pxm7Uawxq-oqeowOBRxMT",
+          "type": "photo",
+          "caption": "Recepção iluminada da tivita",
+          "rotated": false
+        },
+        {
+          "id": "1EsKay8uF6K_HbN6lESo8d5UyziGfDlFK",
+          "type": "photo",
+          "caption": "Lobby do prédio compartilhado com startups",
+          "rotated": false
+        },
+        {
+          "id": "1xJfoAchDouShF_qno7nUY9qfYyEdVElV",
+          "type": "video",
+          "caption": "Grupo caminhando pelo espaço da tivita",
+          "rotated": false
+        },
+        {
+          "id": "1-WRB3VOjwpetNd-XuW-Af2jHx6BlgzlH",
+          "type": "photo",
+          "caption": "Mesa de reunião com café da manhã",
+          "rotated": false
+        },
+        {
+          "id": "12TY4ol8BnD6DFn0KYeKK0FYc9_39Pbl9",
+          "type": "video",
+          "caption": "Apresentação em sala de reunião da tivita",
+          "rotated": false
+        }
+      ]
+    },
+    "segura": {
+      "day": "qua22",
+      "cover": "1jhSRBfwwkCTsdd9eNVYsLzgb-_fXVg5H",
+      "mirrorOf": "sharpi",
+      "note": "Visita conjunta com a Sharpi — o registro é o mesmo.",
+      "items": [
+        {
+          "id": "1jhSRBfwwkCTsdd9eNVYsLzgb-_fXVg5H",
+          "type": "photo",
+          "caption": "Grupo reunido no terraço com o horizonte de São Paulo ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1Vyip35GKoayHxJaqXBj7oJrvfp58yhMW",
+          "type": "photo",
+          "caption": "Roda de conversa na cozinha compartilhada, com vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1y-xEzN1_8cuTzXpp16bKR50tL4eI8Oj7",
+          "type": "photo",
+          "caption": "Roda de conversa no terraço, skyline de São Paulo ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1zhHs7wL-9vefoExlIQuwm13AndVgUroC",
+          "type": "photo",
+          "caption": "Participante com notebook durante a roda de conversa no terraço",
+          "rotated": false
+        },
+        {
+          "id": "1kjMQoG57XdPMvv21QSgKv0h_spO0IAY-",
+          "type": "photo",
+          "caption": "Conversa próxima no terraço, prédios da cidade ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1hQ6ppg7XGIkab3nKSpoXnk9fnW5wxeHk",
+          "type": "photo",
+          "caption": "Dois participantes em conversa, skyline ao fundo",
+          "rotated": false
+        },
+        {
+          "id": "1s-La5GnaZ_cH5KFBspGS5WSdgXS-UGCf",
+          "type": "photo",
+          "caption": "Terraço com poltronas e vista panorâmica da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1Zo4xX4C8zTKFDfY9yqwILhIDDpJtnSum",
+          "type": "photo",
+          "caption": "Terraço vazio com churrasqueira e vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "1cZM4EA1e415QQR1TKDE59pEHPkVl_o3x",
+          "type": "photo",
+          "caption": "Roda de conversa ampla no terraço com vista da cidade",
+          "rotated": false
+        },
+        {
+          "id": "12eypu7oLGhYqpikQmPrysODjUP3ZWwIv",
+          "type": "video",
+          "caption": "Vídeo da roda de conversa com os fundadores das startups",
+          "rotated": false
+        }
+      ]
+    }
+  }
+}
