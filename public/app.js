@@ -788,6 +788,164 @@
     });
   }
 
+  // ---- Aulas da liga (aba Materiais) ----
+
+  function lessonMaterialsHtml(lesson, me) {
+    var list = lesson.materials || [];
+    if (!list.length) {
+      return '<p class="empty-state">Nenhum material nesta aula ainda.</p>';
+    }
+    return (
+      '<ul class="materials-list">' +
+        list.map(function (m) {
+          var isPdf = m.type === "pdf";
+          var iconHtml = isPdf
+            ? '<span class="material-icon">PDF</span>'
+            : '<span class="material-icon link">LINK</span>';
+          var metaBits = [isPdf ? "PDF · " + formatBytes(m.size) : "Link externo"];
+          if (m.addedBy) metaBits.push("por " + m.addedBy);
+          var actionsHtml = isPdf
+            ? '<a target="_blank" rel="noopener" href="/api/lessons/materials/' + m.id + '/file">Abrir</a>' +
+              '<a href="/api/lessons/materials/' + m.id + '/file?dl=1">Baixar</a>'
+            : '<a target="_blank" rel="noopener" href="' + esc(m.url) + '">Abrir</a>';
+          return (
+            '<li data-id="' + esc(m.id) + '">' +
+              iconHtml +
+              '<div class="material-main"><div class="material-title">' + esc(m.title) + '</div><div class="material-meta">' + esc(metaBits.join(" · ")) + "</div></div>" +
+              '<div class="material-actions">' + actionsHtml +
+                (me.director ? '<button class="del-btn" title="Remover material">×</button>' : "") +
+              "</div>" +
+            "</li>"
+          );
+        }).join("") +
+      "</ul>"
+    );
+  }
+
+  function renderLessons(me, lessons) {
+    var content = document.getElementById("lessons-content");
+
+    var createHtml = me.director
+      ? '<div class="card">' +
+          '<p class="section-label">Nova aula (diretoria)</p>' +
+          '<div class="meeting-new">' +
+            '<input type="text" id="new-lesson-title" placeholder="Título (ex.: Aula 03 — Precificação)" maxlength="100">' +
+            '<input type="date" id="new-lesson-date">' +
+            '<button type="button" class="btn-primary" id="new-lesson-btn">Criar aula</button>' +
+          "</div>" +
+          '<div class="meeting-new" style="margin-top:8px;">' +
+            '<input type="text" id="new-lesson-desc" placeholder="Descrição (opcional)" maxlength="300" style="flex:1 1 100%;">' +
+          "</div>" +
+        "</div>"
+      : "";
+
+    var listHtml = lessons.length
+      ? lessons.map(function (l) {
+          var adminHtml = me.director
+            ? '<div class="material-admin">' +
+                '<input type="text" class="mat-title" placeholder="Título do material" aria-label="Título do material" maxlength="120">' +
+                '<div class="row2">' +
+                  '<input type="file" class="mat-file" accept="application/pdf" aria-label="Arquivo PDF">' +
+                  '<button class="btn-primary mat-upload">Enviar PDF</button>' +
+                "</div>" +
+                '<div class="row2">' +
+                  '<input type="url" class="mat-url" placeholder="ou cole um link (vídeo, slides...)" aria-label="URL do material">' +
+                  '<button class="btn-primary mat-add-link">Adicionar link</button>' +
+                "</div>" +
+              "</div>"
+            : "";
+          return (
+            '<div class="card lesson-card" data-lesson="' + esc(l.id) + '">' +
+              '<div class="lesson-head">' +
+                '<span class="ldate num">' + fmtDateBR(l.date) + "</span>" +
+                '<span class="ltitle">' + esc(l.title) + "</span>" +
+                (me.director ? '<button class="del-lesson" title="Remover aula">×</button>' : "") +
+              "</div>" +
+              (l.description ? '<p class="lesson-desc">' + esc(l.description) + "</p>" : "") +
+              '<div class="lesson-materials" style="margin-top:10px;">' + lessonMaterialsHtml(l, me) + "</div>" +
+              adminHtml +
+            "</div>"
+          );
+        }).join("")
+      : '<div class="card"><p class="empty-state">Nenhuma aula cadastrada ainda.' + (me.director ? " Crie a primeira acima." : "") + "</p></div>";
+
+    content.innerHTML = createHtml + listHtml;
+
+    if (!me.director) return;
+
+    document.getElementById("new-lesson-btn").addEventListener("click", function () {
+      var title = document.getElementById("new-lesson-title").value.trim();
+      if (!title) return window.alert("Dê um título à aula.");
+      api("/api/lessons", {
+        method: "POST",
+        body: JSON.stringify({
+          title: title,
+          date: document.getElementById("new-lesson-date").value,
+          description: document.getElementById("new-lesson-desc").value,
+        }),
+      }).then(function () { loadLessons(); });
+    });
+
+    content.querySelectorAll(".lesson-card").forEach(function (cardEl) {
+      var lessonId = cardEl.dataset.lesson;
+
+      var delLesson = cardEl.querySelector(".del-lesson");
+      if (delLesson) {
+        delLesson.addEventListener("click", function () {
+          if (!window.confirm("Remover esta aula e todos os materiais dela?")) return;
+          api("/api/lessons/" + lessonId, { method: "DELETE" }).then(function () { loadLessons(); });
+        });
+      }
+
+      cardEl.querySelectorAll(".materials-list .del-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (!window.confirm("Remover este material para todo mundo?")) return;
+          var li = btn.closest("li");
+          api("/api/lessons/" + lessonId + "/materials/" + li.dataset.id, { method: "DELETE" }).then(function () { loadLessons(); });
+        });
+      });
+
+      var uploadBtn = cardEl.querySelector(".mat-upload");
+      uploadBtn.addEventListener("click", function () {
+        var title = cardEl.querySelector(".mat-title").value.trim();
+        var file = cardEl.querySelector(".mat-file").files[0];
+        if (!title) return window.alert("Dê um título ao material.");
+        if (!file) return window.alert("Escolha um arquivo PDF.");
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = "Enviando...";
+        fetch("/api/lessons/" + lessonId + "/materials/upload?title=" + encodeURIComponent(title), {
+          method: "POST",
+          headers: { "Content-Type": "application/pdf" },
+          body: file,
+        })
+          .then(function (r) { if (!r.ok) throw new Error("upload failed"); return r.json(); })
+          .then(function () { loadLessons(); })
+          .catch(function () {
+            window.alert("Falha no envio — confira se o arquivo é um PDF de até 25 MB.");
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = "Enviar PDF";
+          });
+      });
+
+      cardEl.querySelector(".mat-add-link").addEventListener("click", function () {
+        var title = cardEl.querySelector(".mat-title").value.trim();
+        var url = cardEl.querySelector(".mat-url").value.trim();
+        if (!title) return window.alert("Dê um título ao material.");
+        if (!/^https?:\/\//i.test(url)) return window.alert("Cole um link começando com http(s)://");
+        api("/api/lessons/" + lessonId + "/materials/link", {
+          method: "POST",
+          body: JSON.stringify({ title: title, url: url }),
+        }).then(function () { loadLessons(); });
+      });
+    });
+  }
+
+  function loadLessons() {
+    Promise.all([meReady, api("/api/lessons")]).then(function (r) {
+      renderLessons(r[0], r[1].lessons);
+    });
+  }
+
   // ---- Agenda ----
   var itineraryData = null;
   var activeDayId = null;
@@ -2616,6 +2774,7 @@
     inicio: loadInicio,
     membros: loadMembers,
     reunioes: loadMeetings,
+    materiais: loadLessons,
     legado: loadLegacy,
     resumo: loadMission,
     agenda: loadAgenda,

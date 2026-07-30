@@ -157,6 +157,23 @@ function sniffImage(buf) {
   return null;
 }
 
+// Aulas da liga e seus materiais — diretor cadastra a aula, qualquer diretor
+// anexa material (PDF no volume, link). Todo membro lê. Mesmo padrão dos
+// materiais da imersão, mas por aula em vez de por empresa.
+const LESSONS_PATH = path.join(STORAGE_DIR, "lessons.json");
+const LESSON_FILES_DIR = path.join(STORAGE_DIR, "lesson-materials");
+function readLessons() {
+  return JSON.parse(fs.readFileSync(LESSONS_PATH, "utf8"));
+}
+function writeLessons(value) {
+  fs.writeFileSync(LESSONS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+}
+if (!fs.existsSync(LESSONS_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeLessons({ lessons: [] });
+}
+fs.mkdirSync(LESSON_FILES_DIR, { recursive: true });
+
 // Códigos de presença sem caracteres ambíguos (sem 0/O, 1/I/L).
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function generateCode(len) {
@@ -1304,6 +1321,138 @@ app.post("/api/presence/:token", (req, res) => {
         ? "Presença registrada! Você já participou de " + visits + " reuniões — que tal virar membro? Peça acesso na página inicial ou fale com a diretoria."
         : "Presença registrada! Bem-vindo(a) à LEPV.",
   });
+});
+
+// ---- Aulas da liga e materiais por aula ----
+
+function findLesson(data, id) {
+  return data.lessons.find((l) => l.id === id);
+}
+function findLessonMaterial(data, materialId) {
+  for (const lesson of data.lessons) {
+    const item = (lesson.materials || []).find((m) => m.id === materialId);
+    if (item) return { lesson, item };
+  }
+  return null;
+}
+
+app.get("/api/lessons", requireAuthApi, (req, res) => {
+  const data = readLessons();
+  const lessons = [...data.lessons].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  res.json({ lessons });
+});
+
+app.post("/api/lessons", requireDirectorApi, (req, res) => {
+  const title = String(req.body.title || "").trim().slice(0, 100);
+  if (!title) return res.status(400).json({ error: "empty_title", message: "Dê um título à aula." });
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || ""))
+    ? String(req.body.date)
+    : new Date().toISOString().slice(0, 10);
+  const description = String(req.body.description || "").trim().slice(0, 300);
+  const data = readLessons();
+  const lesson = {
+    id: "a" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    title,
+    date,
+    description,
+    materials: [],
+    createdBy: req.session.user.order,
+    createdByName: req.session.user.name,
+    createdAt: new Date().toISOString(),
+  };
+  data.lessons.push(lesson);
+  writeLessons(data);
+  res.json({ ok: true, lesson });
+});
+
+app.delete("/api/lessons/:id", requireDirectorApi, (req, res) => {
+  const data = readLessons();
+  const lesson = findLesson(data, req.params.id);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  for (const m of lesson.materials || []) {
+    if (m.file) fs.unlink(path.join(LESSON_FILES_DIR, m.file), () => {});
+  }
+  data.lessons = data.lessons.filter((l) => l.id !== req.params.id);
+  writeLessons(data);
+  res.json({ ok: true, lessons: data.lessons });
+});
+
+// Upload de PDF para uma aula — corpo cru, mesmo contrato do upload da imersão.
+app.post(
+  "/api/lessons/:id/materials/upload",
+  requireDirectorApi,
+  express.raw({ type: ["application/pdf", "application/octet-stream"], limit: "25mb" }),
+  (req, res) => {
+    const title = String(req.query.title || "").trim().slice(0, 120);
+    if (!title) return res.status(400).json({ error: "empty_title" });
+    const data = readLessons();
+    const lesson = findLesson(data, req.params.id);
+    if (!lesson) return res.status(404).json({ error: "not_found" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      return res.status(400).json({ error: "empty_file" });
+    }
+    if (req.body.subarray(0, 5).toString("latin1") !== "%PDF-") {
+      return res.status(400).json({ error: "not_a_pdf" });
+    }
+    const id = "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+    const file = lesson.id + "-" + id + ".pdf";
+    fs.writeFileSync(path.join(LESSON_FILES_DIR, file), req.body);
+    lesson.materials.push({
+      id,
+      type: "pdf",
+      title,
+      file,
+      size: req.body.length,
+      addedBy: req.session.user.name,
+      addedAt: new Date().toISOString(),
+    });
+    writeLessons(data);
+    res.json({ ok: true, lesson });
+  }
+);
+
+app.post("/api/lessons/:id/materials/link", requireDirectorApi, (req, res) => {
+  const title = String(req.body.title || "").trim().slice(0, 120);
+  const url = String(req.body.url || "").trim();
+  if (!title) return res.status(400).json({ error: "empty_title" });
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "invalid_url" });
+  const data = readLessons();
+  const lesson = findLesson(data, req.params.id);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  lesson.materials.push({
+    id: "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    type: "link",
+    title,
+    url,
+    addedBy: req.session.user.name,
+    addedAt: new Date().toISOString(),
+  });
+  writeLessons(data);
+  res.json({ ok: true, lesson });
+});
+
+app.get("/api/lessons/materials/:id/file", requireAuthApi, (req, res) => {
+  const found = findLessonMaterial(readLessons(), req.params.id);
+  if (!found || found.item.type !== "pdf") return res.status(404).json({ error: "not_found" });
+  const disposition = req.query.dl === "1" ? "attachment" : "inline";
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": disposition + "; filename*=UTF-8''" + encodeURIComponent(found.item.title) + ".pdf",
+    "Cache-Control": "private, max-age=3600",
+  });
+  res.sendFile(path.join(LESSON_FILES_DIR, found.item.file));
+});
+
+app.delete("/api/lessons/:lessonId/materials/:id", requireDirectorApi, (req, res) => {
+  const data = readLessons();
+  const lesson = findLesson(data, req.params.lessonId);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  const item = (lesson.materials || []).find((m) => m.id === req.params.id);
+  if (!item) return res.status(404).json({ error: "not_found" });
+  lesson.materials = lesson.materials.filter((m) => m.id !== req.params.id);
+  writeLessons(data);
+  if (item.file) fs.unlink(path.join(LESSON_FILES_DIR, item.file), () => {});
+  res.json({ ok: true, lesson });
 });
 
 // ---- Selos (presença por empresa → gamificação individualizada) ----
