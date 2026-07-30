@@ -636,9 +636,9 @@
     var createHtml = me.director
       ? '<div class="card">' +
           '<p class="section-label">Nova reunião (diretoria)</p>' +
-          '<div class="checkin-row">' +
-            '<input type="text" id="new-meeting-title" placeholder="Título (ex.: Reunião geral)" style="text-transform:none; letter-spacing:0; font-weight:400;" maxlength="80">' +
-            '<input type="date" id="new-meeting-date" style="flex:none; width:150px; text-transform:none; letter-spacing:0; font-weight:400;">' +
+          '<div class="meeting-new">' +
+            '<input type="text" id="new-meeting-title" placeholder="Título (ex.: Reunião geral)" maxlength="80">' +
+            '<input type="date" id="new-meeting-date">' +
             '<button type="button" class="btn-primary" id="new-meeting-btn">Criar</button>' +
           "</div>" +
         "</div>"
