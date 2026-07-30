@@ -5,7 +5,7 @@
 //
 // Variáveis de ambiente:
 //   BASE_URL        destino (default http://localhost:4000; produção:
-//                   https://lepv-imersao-sp-production.up.railway.app)
+//                   https://lepv.up.railway.app)
 //   ADMIN_ORDER     ordem do super admin (default 1)
 //   ADMIN_PASSWORD  senha do super admin (obrigatória)
 //   DRY_RUN=1       só mostra o que seria importado, sem enviar
