@@ -71,25 +71,34 @@ function columnIndex(header, keywords) {
 function rowsToMembers(rows) {
   const header = rows[0];
   const iName = columnIndex(header, ["nome", "name", "membro"]);
+  const iCargo = columnIndex(header, ["cargo", "funcao"]);
+  const iTurma = columnIndex(header, ["turma"]);
+  const iPhone = columnIndex(header, ["numero", "telefone", "whatsapp", "celular"]);
+  const iStatus = columnIndex(header, ["a/r", "status", "ativa"]);
   const iCourse = columnIndex(header, ["curso", "course"]);
   const iYear = columnIndex(header, ["ano", "periodo", "year"]);
   const iInterests = columnIndex(header, ["interesse", "interest", "area"]);
   const iCode = columnIndex(header, ["codigo", "code", "senha inicial"]);
-  const iDirector = columnIndex(header, ["diretor", "director", "cargo", "funcao"]);
   if (iName === -1) {
     console.error("Não achei a coluna de nome no cabeçalho:", header.join(" | "));
     process.exit(1);
   }
+  // CPF fica deliberadamente de fora: o app não precisa e /api/members é
+  // visível a todos os membros.
   return rows.slice(1).map((r) => {
     const get = (i) => (i >= 0 && r[i] !== undefined ? String(r[i]).trim() : "");
-    const directorRaw = get(iDirector).toLowerCase();
+    const cargo = get(iCargo);
     return {
       name: get(iName),
+      cargo,
+      turma: get(iTurma),
+      phone: get(iPhone),
+      status: get(iStatus).toLowerCase(),
       course: get(iCourse),
       year: get(iYear),
       interests: get(iInterests) ? get(iInterests).split(/[,;/]/).map((s) => s.trim()).filter(Boolean) : [],
       code: get(iCode) || undefined,
-      director: /diretor|director|sim|true|x/.test(directorRaw) && directorRaw !== "" && directorRaw !== "nao" && directorRaw !== "não",
+      director: cargo !== "" && cargo.toLowerCase() !== "membro",
     };
   }).filter((m) => m.name.length >= 3);
 }

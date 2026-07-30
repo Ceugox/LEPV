@@ -13,7 +13,10 @@
     "admin": true,
     "superadmin": true,
     "pix": "13543433440",
-    "director": true
+    "director": true,
+    "cargo": "Membro",
+    "turma": "XVII",
+    "status": "ativa"
   },
   {
     "order": 2,
@@ -26,7 +29,10 @@
       "Fitness",
       "IA"
     ],
-    "pix": "92982016396"
+    "pix": "92982016396",
+    "cargo": "Membro",
+    "turma": "XXX",
+    "status": "reserva"
   },
   {
     "order": 3,
@@ -39,7 +45,10 @@
       "Tech"
     ],
     "pix": "21982161514",
-    "director": true
+    "director": true,
+    "cargo": "Presidente",
+    "turma": "XVII",
+    "status": "ativa"
   },
   {
     "order": 4,
@@ -54,7 +63,10 @@
       "Mercado Financeiro"
     ],
     "pix": "04162624354",
-    "director": true
+    "director": true,
+    "cargo": "Diretor de Marketing",
+    "turma": "XXIX",
+    "status": "reserva"
   },
   {
     "order": 5,
@@ -63,7 +75,10 @@
     "course": "Engenharia Química",
     "year": "3º ano",
     "interests": [],
-    "director": true
+    "director": true,
+    "cargo": "Diretor de Pessoas",
+    "turma": "XXVIII",
+    "status": "ativa"
   },
   {
     "order": 6,
@@ -78,7 +93,10 @@
       "Infra",
       "Tech"
     ],
-    "pix": "73988766763"
+    "pix": "73988766763",
+    "cargo": "Membro",
+    "turma": "XVII",
+    "status": "ativa"
   },
   {
     "order": 7,
@@ -100,7 +118,10 @@
       "Tech",
       "Consultoria"
     ],
-    "pix": "18034626716"
+    "pix": "18034626716",
+    "cargo": "Membro",
+    "turma": "XXIX",
+    "status": "ativa"
   },
   {
     "order": 9,
@@ -112,7 +133,10 @@
       "Mercado Financeiro",
       "Consultoria",
       "Tech"
-    ]
+    ],
+    "cargo": "Membro",
+    "turma": "XXX",
+    "status": "reserva"
   },
   {
     "order": 10,
@@ -136,6 +160,9 @@
       "IA",
       "Venture Capital"
     ],
-    "pix": "20639960758"
+    "pix": "20639960758",
+    "cargo": "Membro",
+    "turma": "XXIX",
+    "status": "reserva"
   }
 ]

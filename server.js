@@ -328,6 +328,8 @@ app.get("/api/members-public", (req, res) => {
       photo: memberPhoto(m),
       course: m.course || "",
       year: m.year || "",
+      cargo: m.cargo || "",
+      turma: m.turma || "",
       interests: m.interests || [],
     }))
   );
@@ -418,6 +420,13 @@ app.post("/api/set-password", requireAuthApi, (req, res) => {
   } else {
     signups.credentials.push({ order, passwordHash: hash });
   }
+  // Primeiro acesso também coleta o WhatsApp (a planilha da liga não tem os
+  // números) — só funciona para membros do volume; fundador é dado do repo.
+  const phone = String(req.body.phone || "").trim().slice(0, 30);
+  if (phone) {
+    const member = signups.members.find((m) => m.order === order);
+    if (member) member.phone = phone;
+  }
   writeSignups(signups);
   req.session.user.mustChangePassword = false;
   res.json({ ok: true });
@@ -448,16 +457,22 @@ app.post("/api/admin/import-members", requireSuperAdminApi, (req, res) => {
     const code = String(raw.code || "").trim() || generateCode();
     const order = signups.nextOrder;
     signups.nextOrder += 1;
+    const cargo = String(raw.cargo || "").trim().slice(0, 60);
     signups.members.push({
       order,
       name,
       photo: null,
       course: String(raw.course || "").trim().slice(0, 80),
       year: String(raw.year || "").trim().slice(0, 40),
+      cargo,
+      turma: String(raw.turma || "").trim().slice(0, 20),
+      status: String(raw.status || "").trim().toLowerCase().slice(0, 20),
+      phone: String(raw.phone || "").trim().slice(0, 30),
       interests: Array.isArray(raw.interests)
         ? raw.interests.map((i) => String(i).trim().slice(0, 30)).filter(Boolean).slice(0, 8)
         : [],
-      director: raw.director === true,
+      // Qualquer cargo de diretoria (Presidente, Tesoureiro...) vira diretor.
+      director: raw.director === true || (cargo !== "" && cargo.toLowerCase() !== "membro"),
       joinedAt: new Date().toISOString(),
       importedBy: req.session.user.order,
     });
@@ -503,12 +518,16 @@ app.post("/api/register", (req, res) => {
   const password = String(req.body.password || "");
   const course = String(req.body.course || "").trim().slice(0, 80);
   const year = String(req.body.year || "").trim().slice(0, 40);
+  const phone = String(req.body.phone || "").trim().slice(0, 30);
   const interests = Array.isArray(req.body.interests)
     ? req.body.interests.map((i) => String(i).trim().slice(0, 30)).filter(Boolean).slice(0, 8)
     : [];
 
   if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
     return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
+  }
+  if (phone.replace(/\D/g, "").length < 10) {
+    return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
   }
   if (password.length < 4 || password.length > 72) {
     return res.status(400).json({ error: "invalid_password", message: "A senha precisa ter pelo menos 4 caracteres." });
@@ -531,6 +550,7 @@ app.post("/api/register", (req, res) => {
     name,
     course,
     year,
+    phone,
     interests,
     passwordHash: bcrypt.hashSync(password, 10),
     requestedAt: new Date().toISOString(),
@@ -556,6 +576,7 @@ app.post("/api/signups/:id/approve", requireSuperAdminApi, (req, res) => {
     photo: null,
     course: p.course,
     year: p.year,
+    phone: p.phone || "",
     interests: p.interests,
     joinedAt: new Date().toISOString(),
     approvedBy: req.session.user.order,

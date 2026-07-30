@@ -1,18 +1,21 @@
+/* Identidade da LIGA (padrão): preto de engrenagem + vinho da seta da logo,
+   sobre papel claro. Os nomes das variáveis são históricos (--navy/--red) —
+   o que muda entre liga e imersão são os VALORES. */
 :root {
-  --navy: #081B33;
-  --navy-2: #123259;
-  --navy-soft: #0F2947;
-  --navy-line: rgba(255,255,255,0.12);
+  --navy: #17171B;
+  --navy-2: #2A2A31;
+  --navy-soft: #202025;
+  --navy-line: rgba(255,255,255,0.14);
   --white: #FFFFFF;
-  --offwhite: #F5F7FA;
-  --graphite: #334155;
-  --graphite-soft: #475569;
-  --line: #E2E6EC;
-  --red: #D31E24;
-  --red-2: #F04E4E;
-  --red-hover: #B5151A;
-  --red-glow: rgba(211,30,36,0.32);
-  --navy-glow: rgba(8,27,51,0.28);
+  --offwhite: #F7F5F2;
+  --graphite: #37343A;
+  --graphite-soft: #6B6570;
+  --line: #E6E2DE;
+  --red: #8A1E2D;
+  --red-2: #A93245;
+  --red-hover: #6D1523;
+  --red-glow: rgba(138,30,45,0.30);
+  --navy-glow: rgba(23,23,27,0.28);
   --good: #15803D;
   --good-soft: #EAF6EE;
   --pending: #B45309;
@@ -23,15 +26,34 @@
   --lunch-soft: #FBF1E4;
   --lunch-dark: #8A5A21;
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
   --gradient-primary: linear-gradient(135deg, var(--navy) 0%, var(--red) 100%);
+  --gradient-primary-15: linear-gradient(135deg, rgba(23,23,27,0.10) 0%, rgba(138,30,45,0.08) 100%);
+  --shadow-soft: 0 1px 2px rgba(23,23,27,0.05), 0 10px 28px -10px rgba(23,23,27,0.14);
+  --shadow-lift: 0 16px 36px -10px rgba(23,23,27,0.22);
+  color-scheme: light;
+}
+
+/* Dentro do acervo da imersão, o visual original SP (navy + vermelho) volta. */
+body.imersao {
+  --navy: #081B33;
+  --navy-2: #123259;
+  --navy-soft: #0F2947;
+  --offwhite: #F5F7FA;
+  --graphite: #334155;
+  --graphite-soft: #475569;
+  --line: #E2E6EC;
+  --red: #D31E24;
+  --red-2: #F04E4E;
+  --red-hover: #B5151A;
+  --red-glow: rgba(211,30,36,0.32);
+  --navy-glow: rgba(8,27,51,0.28);
   --gradient-primary-15: linear-gradient(135deg, rgba(8,27,51,0.10) 0%, rgba(211,30,36,0.08) 100%);
   --shadow-soft: 0 1px 2px rgba(8,27,51,0.05), 0 10px 28px -10px rgba(8,27,51,0.14);
   --shadow-lift: 0 16px 36px -10px rgba(8,27,51,0.22);
-  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -99,6 +121,38 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
 @keyframes staggerIn { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
 .stagger-in { animation: staggerIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @media (prefers-reduced-motion: reduce) { .stagger-in { animation: none; } }
+
+/* Carrosséis da liga (Início e landing): filmstrip de fotos e marquee de
+   logos — CSS puro, trilha duplicada para loop contínuo, pausa no hover. */
+.strip { overflow: hidden; position: relative; }
+.strip::before, .strip::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 48px; z-index: 2; pointer-events: none;
+}
+.strip::before { left: 0; background: linear-gradient(90deg, var(--strip-fade, var(--offwhite)), transparent); }
+.strip::after { right: 0; background: linear-gradient(270deg, var(--strip-fade, var(--offwhite)), transparent); }
+.strip-track {
+  display: flex; align-items: center; gap: 14px; width: max-content;
+  animation: stripScroll var(--strip-speed, 46s) linear infinite;
+}
+.strip:hover .strip-track { animation-play-state: paused; }
+.strip.reverse .strip-track { animation-direction: reverse; }
+@keyframes stripScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .strip-track { animation: none; flex-wrap: wrap; width: auto; }
+  .strip::before, .strip::after { display: none; }
+}
+.strip-photo {
+  width: 250px; height: 170px; flex: none; object-fit: cover;
+  border-radius: var(--radius-sm); border: 1px solid var(--line);
+  filter: saturate(0.96);
+}
+.logo-chip {
+  display: flex; align-items: center; justify-content: center; flex: none;
+  height: 62px; padding: 0 26px; background: var(--white);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+}
+.logo-chip img { height: 26px; max-width: 120px; object-fit: contain; display: block; }
+.logo-chip.dark { background: var(--navy); border-color: var(--navy); }
 
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {

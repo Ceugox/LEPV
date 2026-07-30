@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Entrar — LEPV SP</title>
-<link rel="icon" href="/logo.png">
+<title>Entrar — LEPV</title>
+<link rel="icon" href="/logo-liga.png">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#081B33">
+<meta name="theme-color" content="#17171B">
 <link rel="apple-touch-icon" href="/icons/maskable-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <style>
   body {
@@ -31,7 +31,7 @@
   .brandblock { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
   .brandblock img {
     width: 76px; height: 76px; margin-bottom: 16px; border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px rgba(211,30,36,0.25);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px var(--red-glow); background: #fff; object-fit: cover;
   }
   .brandblock .eyebrow { color: rgba(255,255,255,0.55); margin-bottom: 10px; }
   .brandblock h1 {
@@ -181,10 +181,10 @@
 <body>
   <div class="stage">
     <div class="brandblock">
-      <img src="/logo.png" alt="LEPV SP">
+      <img src="/logo-liga.png" alt="LEPV">
       <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
-      <h1>LEPV <span class="accent">SP</span></h1>
-      <p class="sub">Acervo da 1ª Imersão · 19–24 de julho de 2026</p>
+      <h1>LE<span class="accent">P</span>V</h1>
+      <p class="sub">Reuniões, visitas e imersões — negócios na prática.</p>
     </div>
 
     <div class="login-card">
@@ -192,9 +192,9 @@
       <div class="intro-stage" id="intro-stage">
         <p class="eyebrow">Acesso restrito</p>
         <h2>Bem-vindo(a)</h2>
-        <p class="intro-copy">11 membros, 12 empresas, 1 missão em São Paulo. O acervo da imersão fica aqui — entre e some o seu aprendizado.</p>
-        <button type="button" class="btn-primary" id="assemble-btn">Entrar no acervo</button>
-        <button type="button" class="link-btn" id="roster-btn">Ver quem participou</button>
+        <p class="intro-copy">O portal da liga: reuniões, presença, membros e o acervo das imersões. Entre com a sua conta ou peça o seu acesso.</p>
+        <button type="button" class="btn-primary" id="assemble-btn">Entrar</button>
+        <button type="button" class="link-btn" id="roster-btn">Ver membros</button>
         <button type="button" class="link-btn" id="register-btn">Sou novo na liga · Solicitar acesso</button>
       </div>
 
@@ -218,6 +218,10 @@
           <div class="field">
             <label for="reg-year">Ano</label>
             <input type="text" id="reg-year" placeholder="Ex.: 2º ano">
+          </div>
+          <div class="field">
+            <label for="reg-phone">WhatsApp</label>
+            <input type="tel" id="reg-phone" autocomplete="tel" placeholder="(21) 9...." required>
           </div>
           <div class="field">
             <label for="reg-interests">Interesses <span style="font-weight:400; text-transform:none;">(separados por vírgula)</span></label>
@@ -246,8 +250,8 @@
       <div class="roster-stage hidden" id="roster-stage">
         <div class="roster-head">
           <div>
-            <p class="eyebrow">Quem participou</p>
-            <h2>Equipe da imersão</h2>
+            <p class="eyebrow">Quem faz a liga</p>
+            <h2>Membros da liga</h2>
           </div>
           <button type="button" class="link-btn" id="roster-back">Voltar</button>
         </div>
@@ -270,6 +274,11 @@
           <div class="field">
             <label for="np-password2">Confirmar nova senha</label>
             <input type="password" id="np-password2" autocomplete="new-password" minlength="4" required>
+          </div>
+          <div class="field">
+            <label for="np-phone">WhatsApp</label>
+            <input type="tel" id="np-phone" autocomplete="tel" placeholder="(21) 9....">
+            <p class="hint">Para o cadastro da liga — usamos no grupo e nos avisos.</p>
           </div>
           <p class="error" id="np-error"></p>
           <button type="submit" class="btn-primary" id="np-submit">Salvar e entrar</button>
@@ -439,6 +448,7 @@
         name: document.getElementById("reg-name").value,
         course: document.getElementById("reg-course").value,
         year: document.getElementById("reg-year").value,
+        phone: document.getElementById("reg-phone").value,
         interests: interests,
         password: password,
       }),
@@ -547,7 +557,7 @@
     fetch("/api/set-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: p1 }),
+      body: JSON.stringify({ password: p1, phone: document.getElementById("np-phone").value }),
     })
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {

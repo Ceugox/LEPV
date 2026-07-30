@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Presença — LEPV</title>
-<link rel="icon" href="/logo.png">
-<meta name="theme-color" content="#081B33">
+<link rel="icon" href="/logo-liga.png">
+<meta name="theme-color" content="#17171B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <style>
   body { background-color: var(--navy); min-height: 100vh; }
@@ -70,7 +70,7 @@
 <body>
   <div class="stage">
     <div class="brandblock">
-      <img src="/logo.png" alt="LEPV">
+      <img src="/logo-liga.png" alt="LEPV" style="background:#fff; object-fit:cover;">
       <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
       <h1>LEPV</h1>
       <p class="sub">Registro de presença de visitantes</p>
@@ -94,8 +94,8 @@
           <p class="hint">Use sempre o mesmo e-mail — é ele que soma suas presenças entre reuniões.</p>
         </div>
         <div class="field">
-          <label for="v-phone">WhatsApp (opcional)</label>
-          <input type="tel" id="v-phone" autocomplete="tel" placeholder="(21) 9....">
+          <label for="v-phone">WhatsApp</label>
+          <input type="tel" id="v-phone" autocomplete="tel" placeholder="(21) 9...." required>
         </div>
         <p class="error" id="v-error"></p>
         <button type="submit" class="btn-primary" id="v-submit">Registrar presença</button>

@@ -108,12 +108,20 @@
     b.addEventListener("click", function () { activateTab(b.dataset.tab); });
   });
 
-  // A nav tem dois grupos: a liga (padrão) e o acervo da imersão, aberto pela
-  // aba Membros só para quem participou.
+  // A nav tem dois grupos: a liga (padrão, identidade preto+vinho da logo) e
+  // o acervo da imersão (identidade navy+vermelho SP), aberto pela aba
+  // Membros só para quem participou. A troca de tema é via body.imersao.
   function setNavGroup(group) {
     document.querySelectorAll("nav.tabs button[data-group]").forEach(function (b) {
       b.classList.toggle("group-hidden", b.dataset.group !== group);
     });
+    var imersao = group === "imersao";
+    document.body.classList.toggle("imersao", imersao);
+    document.getElementById("brand-logo").src = imersao ? "/logo.png" : "/logo-liga.png";
+    document.getElementById("brand-b1").innerHTML = imersao ? 'LEPV <span class="accent">SP</span>' : "LEPV";
+    document.getElementById("brand-b2").textContent = imersao
+      ? "Acervo da 1ª Imersão"
+      : "Liga de Empreendedorismo da Praia Vermelha";
   }
   document.getElementById("back-liga").addEventListener("click", function () {
     setNavGroup("liga");
@@ -122,6 +130,49 @@
   function openImmersion() {
     setNavGroup("imersao");
     activateTab("legado");
+  }
+
+  // ---- Início (quem somos + carrosséis) ----
+  // Conteúdo institucional fixo: fotos das atividades (acervo público em
+  // /gallery) e as empresas que já receberam a liga.
+  var INICIO_FOTOS = [
+    "day-seg20", "co-nomad", "co-mottu", "day-ter21", "co-insper", "co-mirow",
+    "co-sharpi", "day-qua22", "co-bain", "co-revolut", "day-qui23", "co-link",
+    "co-pax", "co-enter", "day-sex24", "co-tivita",
+  ];
+  var INICIO_EMPRESAS = [
+    { name: "NOMAD", logo: "/logos/nomad.svg", bg: "light" },
+    { name: "Mottu", logo: "/logos/mottu.svg", bg: "light" },
+    { name: "Insper", logo: "/logos/insper.png", bg: "light" },
+    { name: "Mirow & Co.", logo: "/logos/mirow.svg", bg: "dark" },
+    { name: "Sharpi", logo: "/logos/sharpi.png", bg: "light" },
+    { name: "Bain & Company", logo: "/logos/bain.svg", bg: "light" },
+    { name: "Revolut", logo: "/logos/revolut.svg", bg: "light" },
+    { name: "Segura", logo: "/logos/segura.png", bg: "light" },
+    { name: "Link", logo: "/logos/link.png", bg: "light" },
+    { name: "PAX", logo: "/logos/pax.svg", bg: "dark" },
+    { name: "ENTER", logo: "/logos/enter.svg", bg: "light" },
+    { name: "Tivita", logo: "/logos/tivita.svg", bg: "light" },
+  ];
+  var inicioBuilt = false;
+
+  function loadInicio() {
+    api("/api/members").then(function (members) {
+      document.getElementById("stat-membros").textContent = members.length;
+    }).catch(function () {});
+    if (inicioBuilt) return;
+    inicioBuilt = true;
+
+    // Trilha duplicada = loop contínuo sem emenda visível.
+    var fotosHtml = INICIO_FOTOS.map(function (f) {
+      return '<img class="strip-photo" loading="lazy" src="/gallery/' + f + '.jpg" alt="Atividade da LEPV">';
+    }).join("");
+    document.querySelector("#strip-atividades .strip-track").innerHTML = fotosHtml + fotosHtml;
+
+    var logosHtml = INICIO_EMPRESAS.map(function (c) {
+      return '<span class="logo-chip' + (c.bg === "dark" ? " dark" : "") + '"><img loading="lazy" src="' + c.logo + '" alt="' + c.name + '" title="' + c.name + '"></span>';
+    }).join("");
+    document.querySelector("#strip-empresas .strip-track").innerHTML = logosHtml + logosHtml;
   }
 
   // ---- Resumo: card "agora / a seguir" (durante a viagem) ou countdown ----
@@ -417,8 +468,11 @@
             ? '<img class="avatar photo" src="' + esc(m.photo) + '" alt="' + esc(m.name) + '">'
             : '<div class="avatar">' + esc(initials) + "</div>";
 
-          var courseLine = [m.course, m.year].filter(Boolean).join(" · ");
-          var metaHtml = courseLine ? '<div class="meta">' + esc(courseLine) + "</div>" : "";
+          var cargoHtml = (m.cargo && m.cargo !== "Membro")
+            ? '<span class="cargo-chip">' + esc(m.cargo) + "</span>"
+            : "";
+          var courseLine = [m.turma ? "Turma " + m.turma : "", m.course, m.year].filter(Boolean).join(" · ");
+          var metaHtml = (courseLine || cargoHtml) ? '<div class="meta">' + cargoHtml + esc(courseLine) + "</div>" : "";
           var interestsHtml = (m.interests && m.interests.length)
             ? '<div class="interests">' + m.interests.map(function (i) { return '<span class="interest-chip">' + esc(i) + "</span>"; }).join("") + "</div>"
             : "";
@@ -2545,6 +2599,7 @@
   }
 
   var loaders = {
+    inicio: loadInicio,
     membros: loadMembers,
     reunioes: loadMeetings,
     legado: loadLegacy,
@@ -2557,6 +2612,6 @@
     arquivo: function () { loadRoutes(); loadRooms(); loadChecklist(); },
   };
 
-  // O app abre na liga; o acervo da imersão é aberto pela aba Membros.
-  activateTab("membros");
+  // O app abre na liga (Quem somos); o acervo da imersão sai da aba Membros.
+  activateTab("inicio");
 })();
