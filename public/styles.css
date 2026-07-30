@@ -154,6 +154,51 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
 .logo-chip img { height: 26px; max-width: 120px; object-fit: contain; display: block; }
 .logo-chip.dark { background: var(--navy); border-color: var(--navy); }
 
+/* Marquee de empresas (referência aprovada pelo Marcell): band PRETO sobre
+   página clara, logos monocromáticos brancos em duas fileiras
+   contra-rotantes, fade nas bordas, pausa no hover. Usar este componente
+   para os próximos carrosséis de logos. */
+.marquee-band {
+  padding: 44px 0 50px; background: var(--navy);
+  border-top: 1px solid var(--navy); border-bottom: 1px solid var(--navy);
+}
+.marquee-label {
+  display: flex; align-items: center; gap: 16px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.22em;
+  color: rgba(255,255,255,0.45); margin: 0 0 32px;
+}
+.marquee-label .rule { height: 1px; flex: 1; background: rgba(255,255,255,0.14); }
+.marquee {
+  --gap: clamp(3rem, 8vw, 6rem);
+  display: flex; flex-direction: column; gap: 30px; overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 18%, black 82%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 18%, black 82%, transparent);
+}
+.m-row { display: flex; overflow: hidden; gap: var(--gap); }
+.m-track {
+  display: flex; flex: none; align-items: center; gap: var(--gap);
+  animation: marquee var(--duration, 45s) linear infinite;
+  will-change: transform; backface-visibility: hidden;
+}
+.m-row.reverse .m-track { animation-direction: reverse; }
+.marquee:hover .m-track { animation-play-state: paused; }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(calc(-100% - var(--gap))); } }
+.m-logo {
+  display: block; height: 27px; width: auto; flex: none;
+  filter: brightness(0) invert(1); opacity: 0.85; transition: opacity 0.3s;
+}
+.m-logo:hover { opacity: 1; }
+.m-word {
+  flex: none; font-family: var(--font-display); font-weight: 600; font-size: 25px;
+  text-transform: uppercase; letter-spacing: 0.04em; color: rgba(255,255,255,0.85); line-height: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-track { animation: none; }
+  .m-row { overflow-x: auto; }
+  .m-track[aria-hidden="true"] { display: none; }
+  .marquee { mask-image: none; -webkit-mask-image: none; }
+}
+
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {
   background: linear-gradient(90deg, #EDEFF3 25%, #E1E5EC 50%, #EDEFF3 75%);

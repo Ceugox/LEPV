@@ -235,6 +235,12 @@
     .stat-cell:first-child { border-left: none; }
   }
   .strip-card { --strip-fade: var(--white); }
+  /* Band escuro de logos dentro do painel Início (versão card do marquee) */
+  .inicio-band {
+    border-radius: var(--radius-lg); margin-bottom: 16px;
+    padding: 26px 0 32px; border: 1px solid var(--navy); overflow: hidden;
+  }
+  .inicio-band .marquee-label { padding: 0 18px; margin-bottom: 24px; }
 
   /* Navegação em grupos: liga (padrão) × acervo da imersão */
   .tabs button.group-hidden { display: none; }
@@ -1063,9 +1069,12 @@
         <div class="strip" id="strip-atividades" style="--strip-speed: 60s;"><div class="strip-track"></div></div>
       </div>
 
-      <div class="card strip-card">
-        <p class="section-label" style="color: var(--red);">Empresas que já nos receberam!</p>
-        <div class="strip reverse" id="strip-empresas" style="--strip-speed: 40s;"><div class="strip-track"></div></div>
+      <div class="marquee-band inicio-band">
+        <p class="marquee-label"><span>Empresas que já nos receberam!</span><span class="rule"></span></p>
+        <div class="marquee" role="img" aria-label="Logos das 12 empresas que já receberam a liga">
+          <div class="m-row" id="inicio-row-1"></div>
+          <div class="m-row reverse" id="inicio-row-2"></div>
+        </div>
       </div>
     </section>
 

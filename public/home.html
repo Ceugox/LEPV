@@ -173,14 +173,17 @@
       </div>
     </section>
 
-    <section class="block empresas-title">
-      <div class="block-head"><span class="n">/03</span><h2>Empresas que já nos <span class="accent">receberam!</span></h2><span class="rule"></span></div>
-    </section>
   </div>
 
-  <div class="strip strip-home reverse" style="--strip-speed: 40s;">
-    <div class="strip-track" id="logos-track"></div>
-  </div>
+  <section class="marquee-band">
+    <div class="shell">
+      <p class="marquee-label"><span>/03 · Empresas que já nos receberam!</span><span class="rule"></span></p>
+    </div>
+    <div class="marquee" role="img" aria-label="Logos das 12 empresas que já receberam a liga: NOMAD, Mottu, Insper, Link, Mirow & Co., Sharpi, Bain & Company, Revolut, Segura, PAX, ENTER e Tivita">
+      <div class="m-row" id="m-row-1"></div>
+      <div class="m-row reverse" id="m-row-2"></div>
+    </div>
+  </section>
 
   <div class="shell">
     <footer>
@@ -197,29 +200,42 @@
     "co-sharpi", "day-qua22", "co-bain", "co-revolut", "day-qui23", "co-link",
     "co-pax", "co-enter", "day-sex24", "co-tivita",
   ];
-  var EMPRESAS = [
-    { name: "NOMAD", logo: "/logos/nomad.svg" },
-    { name: "Mottu", logo: "/logos/mottu.svg" },
-    { name: "Insper", logo: "/logos/insper.png" },
-    { name: "Mirow & Co.", logo: "/logos/mirow.svg", dark: true },
-    { name: "Sharpi", logo: "/logos/sharpi.png" },
-    { name: "Bain & Company", logo: "/logos/bain.svg" },
-    { name: "Revolut", logo: "/logos/revolut.svg" },
-    { name: "Segura", logo: "/logos/segura.png" },
-    { name: "Link", logo: "/logos/link.png" },
-    { name: "PAX", logo: "/logos/pax.svg", dark: true },
-    { name: "ENTER", logo: "/logos/enter.svg" },
-    { name: "Tivita", logo: "/logos/tivita.svg" },
-  ];
   var fotosHtml = FOTOS.map(function (f) {
     return '<img class="strip-photo" loading="lazy" src="/gallery/' + f + '.jpg" alt="Atividade da LEPV">';
   }).join("");
   document.getElementById("fotos-track").innerHTML = fotosHtml + fotosHtml;
 
-  var logosHtml = EMPRESAS.map(function (c) {
-    return '<span class="logo-chip' + (c.dark ? " dark" : "") + '"><img loading="lazy" src="' + c.logo + '" alt="' + c.name + '" title="' + c.name + '"></span>';
-  }).join("");
-  document.getElementById("logos-track").innerHTML = logosHtml + logosHtml;
+  // Marquee escuro de logos — sharpi/segura têm fundo opaco, viram wordmark
+  var ROW1 = [
+    { name: "NOMAD", logo: "/logos/nomad-mono.svg" },
+    { name: "Mottu", logo: "/logos/mottu.svg" },
+    { name: "Insper", logo: "/logos/insper.png" },
+    { name: "Link", logo: "/logos/link.png", scale: 1.2 },
+    { name: "Mirow & Co.", logo: "/logos/mirow.svg" },
+    { name: "Sharpi", word: true }
+  ];
+  var ROW2 = [
+    { name: "Bain & Company", logo: "/logos/bain.svg" },
+    { name: "Revolut", logo: "/logos/revolut.svg" },
+    { name: "Segura", word: true },
+    { name: "PAX", logo: "/logos/pax.svg" },
+    { name: "ENTER", logo: "/logos/enter.svg" },
+    { name: "Tivita", logo: "/logos/tivita.svg" }
+  ];
+  function itemHtml(c) {
+    if (c.word) return '<span class="m-word">' + c.name + "</span>";
+    var style = c.scale ? ' style="height:' + Math.round(27 * c.scale) + 'px"' : "";
+    return '<img class="m-logo" src="' + c.logo + '" alt="' + c.name + '" loading="lazy"' + style + ">";
+  }
+  function fillRow(id, items, duration) {
+    var row = document.getElementById(id);
+    var track = '<div class="m-track" style="--duration:' + duration + '">' + items.map(itemHtml).join("") + "</div>";
+    // 3 cópias da trilha: o loop translateX(-100% - gap) nunca mostra buraco em telas largas
+    var hidden = track.replace('class="m-track"', 'class="m-track" aria-hidden="true"');
+    row.innerHTML = track + hidden + hidden;
+  }
+  fillRow("m-row-1", ROW1, "45s");
+  fillRow("m-row-2", ROW2, "52s");
 })();
 </script>
 </body>

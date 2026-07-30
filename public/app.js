@@ -140,20 +140,36 @@
     "co-sharpi", "day-qua22", "co-bain", "co-revolut", "day-qui23", "co-link",
     "co-pax", "co-enter", "day-sex24", "co-tivita",
   ];
-  var INICIO_EMPRESAS = [
-    { name: "NOMAD", logo: "/logos/nomad.svg", bg: "light" },
-    { name: "Mottu", logo: "/logos/mottu.svg", bg: "light" },
-    { name: "Insper", logo: "/logos/insper.png", bg: "light" },
-    { name: "Mirow & Co.", logo: "/logos/mirow.svg", bg: "dark" },
-    { name: "Sharpi", logo: "/logos/sharpi.png", bg: "light" },
-    { name: "Bain & Company", logo: "/logos/bain.svg", bg: "light" },
-    { name: "Revolut", logo: "/logos/revolut.svg", bg: "light" },
-    { name: "Segura", logo: "/logos/segura.png", bg: "light" },
-    { name: "Link", logo: "/logos/link.png", bg: "light" },
-    { name: "PAX", logo: "/logos/pax.svg", bg: "dark" },
-    { name: "ENTER", logo: "/logos/enter.svg", bg: "light" },
-    { name: "Tivita", logo: "/logos/tivita.svg", bg: "light" },
+  // Marquee escuro de logos (referência aprovada): band preto, logos
+  // monocromáticos brancos — sharpi/segura têm fundo opaco, viram wordmark.
+  var INICIO_ROW1 = [
+    { name: "NOMAD", logo: "/logos/nomad-mono.svg" },
+    { name: "Mottu", logo: "/logos/mottu.svg" },
+    { name: "Insper", logo: "/logos/insper.png" },
+    { name: "Link", logo: "/logos/link.png", scale: 1.2 },
+    { name: "Mirow & Co.", logo: "/logos/mirow.svg" },
+    { name: "Sharpi", word: true },
   ];
+  var INICIO_ROW2 = [
+    { name: "Bain & Company", logo: "/logos/bain.svg" },
+    { name: "Revolut", logo: "/logos/revolut.svg" },
+    { name: "Segura", word: true },
+    { name: "PAX", logo: "/logos/pax.svg" },
+    { name: "ENTER", logo: "/logos/enter.svg" },
+    { name: "Tivita", logo: "/logos/tivita.svg" },
+  ];
+  function marqueeItemHtml(c) {
+    if (c.word) return '<span class="m-word">' + c.name + "</span>";
+    var style = c.scale ? ' style="height:' + Math.round(27 * c.scale) + 'px"' : "";
+    return '<img class="m-logo" src="' + c.logo + '" alt="' + c.name + '" loading="lazy"' + style + ">";
+  }
+  function fillMarqueeRow(id, items, duration) {
+    var row = document.getElementById(id);
+    var track = '<div class="m-track" style="--duration:' + duration + '">' + items.map(marqueeItemHtml).join("") + "</div>";
+    // 3 cópias da trilha: o loop translateX(-100% - gap) nunca mostra buraco em telas largas
+    var hidden = track.replace('class="m-track"', 'class="m-track" aria-hidden="true"');
+    row.innerHTML = track + hidden + hidden;
+  }
   var inicioBuilt = false;
 
   function loadInicio() {
@@ -169,10 +185,8 @@
     }).join("");
     document.querySelector("#strip-atividades .strip-track").innerHTML = fotosHtml + fotosHtml;
 
-    var logosHtml = INICIO_EMPRESAS.map(function (c) {
-      return '<span class="logo-chip' + (c.bg === "dark" ? " dark" : "") + '"><img loading="lazy" src="' + c.logo + '" alt="' + c.name + '" title="' + c.name + '"></span>';
-    }).join("");
-    document.querySelector("#strip-empresas .strip-track").innerHTML = logosHtml + logosHtml;
+    fillMarqueeRow("inicio-row-1", INICIO_ROW1, "45s");
+    fillMarqueeRow("inicio-row-2", INICIO_ROW2, "52s");
   }
 
   // ---- Resumo: card "agora / a seguir" (durante a viagem) ou countdown ----
