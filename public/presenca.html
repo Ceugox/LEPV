@@ -26,7 +26,7 @@
   .brandblock { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
   .brandblock img {
     width: 76px; height: 76px; margin-bottom: 16px; border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px rgba(211,30,36,0.25);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px var(--red-glow);
   }
   .brandblock .eyebrow { color: rgba(255,255,255,0.55); margin-bottom: 10px; }
   .brandblock h1 {
@@ -38,7 +38,7 @@
   .card {
     position: relative; width: 100%; max-width: 420px; background: var(--white);
     border-radius: var(--radius-lg); padding: 28px 22px;
-    box-shadow: 0 30px 70px rgba(0,0,0,0.45);
+    box-shadow: var(--shadow-lift);
   }
   .card .eyebrow { margin-bottom: 6px; color: var(--graphite-soft); }
   .card h2 { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 0 0 4px; }
@@ -55,12 +55,12 @@
   .done .check {
     width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    background: #E8F5EC; color: #1B7A3D; font-size: 22px; font-weight: 800;
+    background: var(--good-soft); color: var(--good); font-size: 22px; font-weight: 800;
   }
   .done h3 { font-size: 17px; font-weight: 800; text-transform: uppercase; color: var(--navy); margin: 0 0 8px; }
   .done p { font-size: 13px; color: var(--graphite-soft); line-height: 1.55; margin: 0; }
   .done .invite {
-    margin-top: 14px; font-size: 13px; color: var(--navy); background: #FEF4E5;
+    margin-top: 14px; font-size: 13px; color: var(--navy); background: var(--pending-soft);
     border: 1px solid #F5DFB8; border-radius: var(--radius-sm); padding: 10px 12px; line-height: 1.5;
   }
   .done .invite a { color: var(--red-2); font-weight: 700; }
@@ -70,7 +70,7 @@
 <body>
   <div class="stage">
     <div class="brandblock">
-      <img src="/logo-liga.png" alt="LEPV" style="background:#fff; object-fit:cover;">
+      <img src="/logo-liga.png" alt="LEPV" style="background:var(--white); object-fit:cover;">
       <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
       <h1>LEPV</h1>
       <p class="sub">Registro de presença de visitantes</p>

@@ -13,10 +13,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <style>
-  /* Tema escuro do ambiente de membros — mesma linguagem da página inicial:
-     escada de superfícies navy + hairlines + hierarquia por alpha.
-     Os tokens claros são remapeados aqui; logos coloridos continuam em tiles brancos literais. */
+  /* A LIGA usa o papel claro + cards brancos de styles.css. Aqui só entra o
+     hairline forte, que não existe nos tokens globais. */
   :root {
+    --line-strong: #D8D3CE;
+  }
+
+  /* Tema escuro do acervo da imersão — mesma linguagem da página inicial:
+     escada de superfícies navy + hairlines + hierarquia por alpha. Escopado em
+     body.imersao para não vazar nas abas da liga; logos coloridos continuam em
+     tiles brancos literais. */
+  body.imersao {
     --canvas: #06152A;
     --white: #0B2140;            /* superfície de card */
     --offwhite: #12294D;         /* superfície elevada (stopcards, campos) */
@@ -29,19 +36,19 @@
     --internal: #9AA8BC; --internal-soft: rgba(154,168,188,0.14);
     --lunch: #E8B04B; --lunch-soft: rgba(232,176,75,0.12); --lunch-dark: #E8B04B;
     color-scheme: dark;
+    background: var(--canvas);
   }
-  body { background: var(--canvas); }
-  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.34); }
-  .field input, .field select {
+  body.imersao ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22); }
+  body.imersao ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.34); }
+  body.imersao .field input, body.imersao .field select {
     background: var(--offwhite); border-color: var(--line-strong); color: #fff;
   }
-  .field input::placeholder { color: rgba(255,255,255,0.35); }
-  .field input:focus, .field select:focus {
+  body.imersao .field input::placeholder { color: rgba(255,255,255,0.35); }
+  body.imersao .field input:focus, body.imersao .field select:focus {
     border-color: rgba(255,255,255,0.45); box-shadow: 0 0 0 3px rgba(255,255,255,0.08);
   }
-  .field select option { background-color: var(--offwhite); color: #fff; }
-  .skeleton {
+  body.imersao .field select option { background-color: var(--offwhite); color: #fff; }
+  body.imersao .skeleton {
     background: linear-gradient(90deg, #10254A 25%, #17325E 50%, #10254A 75%);
     background-size: 200% 100%;
   }
@@ -80,7 +87,7 @@
     padding: 10px 11px; cursor: pointer; transition: color 0.18s, border-color 0.18s;
   }
   nav.tabs button:hover { color: rgba(255,255,255,0.9); }
-  nav.tabs button.active { color: #fff; border-bottom-color: var(--red); }
+  nav.tabs button.active { color: #fff; border-bottom-color: var(--red-2); }
 
   main { padding-top: 20px; }
   .panel { display: none; }
@@ -210,7 +217,7 @@
   @media (prefers-reduced-motion: reduce) { .hero-gear { animation: none; } }
   .hero-logo {
     width: 96px; height: 96px; flex: none; border-radius: 18px;
-    border: 1px solid var(--line); object-fit: cover; background: #fff;
+    border: 1px solid var(--line); object-fit: cover; background: var(--white);
   }
   .hero-text { position: relative; min-width: 0; }
   .hero-text h2 {
@@ -335,7 +342,7 @@
     color: var(--graphite-soft); font: inherit; font-size: 12px; font-weight: 700;
     padding: 8px 14px; cursor: pointer;
   }
-  .btn-reject:hover { border-color: #C0392B; color: #C0392B; }
+  .btn-reject:hover { border-color: var(--red-hover); color: var(--red-hover); }
 
   /* Cargo da diretoria no card do membro */
   .cargo-chip {
@@ -356,7 +363,7 @@
   /* Membros */
   .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .member-card {
-    padding: 14px; border-radius: var(--radius-sm); background: var(--offwhite);
+    padding: 14px; border-radius: var(--radius-sm); background: var(--white);
     border: 1px solid var(--line); text-align: left;
     display: flex; flex-direction: column; gap: 10px;
   }
@@ -377,7 +384,7 @@
     font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
     padding: 3px 7px; border-radius: 3px; background: var(--white); color: var(--graphite); border: 1px solid var(--line);
   }
-  .member-card .name { font-size: 13.5px; font-weight: 700; line-height: 1.3; color: #fff; }
+  .member-card .name { font-size: 13.5px; font-weight: 700; line-height: 1.3; color: var(--navy); }
   .member-card .order { font-size: 11px; color: var(--graphite-soft); margin-top: 4px; letter-spacing: 0.03em; }
 
   /* Hotel */
@@ -561,9 +568,9 @@
     flex: none; width: 34px; height: 34px; border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
     font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
-    background: var(--offwhite); border: 1px solid var(--line); color: #fff;
+    background: var(--navy); border: 1px solid var(--navy); color: #fff;
   }
-  .material-icon.link { color: var(--red-2); }
+  .material-icon.link { background: var(--white); border-color: var(--line); color: var(--red-2); }
   .material-main { flex: 1; min-width: 0; }
   .material-title { font-size: 13.5px; font-weight: 700; color: var(--graphite); line-height: 1.3; }
   .material-meta { font-size: 11px; color: var(--graphite-soft); margin-top: 1px; }
@@ -994,10 +1001,13 @@
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700;
     color: var(--red-2); margin: 0 0 6px;
   }
+  /* O modal é injetado no body ao carregar (aba Início, tema claro), mas pode
+     ficar aberto se o acervo for aberto atrás dele — daí a tinta por tema. */
   .pin-modal h3 {
     font-family: var(--font-display); font-size: 21px; font-weight: 800; text-transform: uppercase;
-    color: #fff; margin: 0 0 10px; line-height: 1.15;
+    color: var(--navy); margin: 0 0 10px; line-height: 1.15;
   }
+  body.imersao .pin-modal h3 { color: #fff; }
   .pin-modal .pin-text { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0 0 18px; }
   .pin-modal .pin-actions { display: flex; flex-direction: column; gap: 10px; }
   .pin-modal .pin-later {

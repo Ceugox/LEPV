@@ -93,7 +93,7 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
 .btn-ghost {
   font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
   padding: 9px 16px; border-radius: var(--radius-md); border: 1px solid var(--navy-line);
-  background: transparent; color: var(--white); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  background: transparent; color: #fff; cursor: pointer; transition: border-color 0.15s, background 0.15s;
 }
 .btn-ghost:hover { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); }
 
@@ -107,7 +107,7 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .field input:focus, .field select:focus {
-  outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(8,27,51,0.10);
+  outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px var(--navy-glow);
 }
 .field select option { background-color: var(--white); color: var(--graphite); }
 
