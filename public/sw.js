@@ -2,7 +2,7 @@
 // Nasceu pra agenda/trajetos sobreviverem ao sinal ruim do metrô; hoje serve
 // pro acervo continuar legível offline usando a última resposta vista.
 // Nada de cache-first — deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v5";
+var CACHE = "lepv-sp-v6"; // v6: site da liga (reuniões, cadastro, imersão restrita)
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();

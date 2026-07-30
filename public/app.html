@@ -198,6 +198,81 @@
   .prepare-card li { font-size: 12.5px; line-height: 1.5; color: var(--graphite); padding-left: 14px; position: relative; }
   .prepare-card li::before { content: "•"; color: var(--red-2); position: absolute; left: 0; font-weight: 700; }
 
+  /* Navegação em grupos: liga (padrão) × acervo da imersão */
+  .tabs button.group-hidden { display: none; }
+  .tabs .back-liga { color: var(--red-2); font-weight: 800; }
+
+  /* Entrada do acervo da imersão (só participantes) */
+  .immersion-card {
+    margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  }
+  .immersion-card .ic-title { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); }
+  .immersion-card .ic-sub { font-size: 12.5px; color: var(--graphite-soft); margin-top: 3px; }
+  .immersion-card .btn-primary { flex: none; }
+
+  /* Reuniões */
+  .checkin-row { display: flex; gap: 8px; }
+  .checkin-row input {
+    flex: 1; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 700; font-size: 15px;
+  }
+  .checkin-ok {
+    font-size: 12.5px; color: var(--good, #1B7A3D); background: var(--good-soft, #E8F5EC);
+    border-radius: var(--radius-sm); padding: 9px 12px; margin-top: 10px;
+  }
+  .meeting-row { padding: 13px 0; border-top: 1px solid var(--line); }
+  .meeting-row:first-of-type { border-top: none; }
+  .meeting-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .meeting-head .mdate { font-size: 12px; font-weight: 700; color: var(--graphite-soft); }
+  .meeting-head .mtitle { font-size: 14px; font-weight: 700; color: var(--navy); flex: 1; min-width: 140px; }
+  .meeting-head .mcount { font-size: 12px; color: var(--graphite-soft); }
+  .meeting-manage { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .code-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 10px; }
+  .code-chip {
+    font-family: var(--font-display); font-size: 15px; font-weight: 800; letter-spacing: 0.12em;
+    padding: 5px 10px; border-radius: 3px; background: var(--navy); color: #fff;
+  }
+  .meeting-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .attendance-toggle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px; margin-top: 8px; }
+  .attendance-toggle-grid label {
+    display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--graphite); padding: 4px 2px; cursor: pointer;
+  }
+  .visitor-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 12.5px; }
+  .visitor-row:first-of-type { border-top: none; }
+  .invite-flag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 2px; background: var(--pending-soft, #FEF4E5); color: var(--pending, #B7791F);
+  }
+  .qr-box { margin-top: 10px; text-align: center; }
+  .qr-box img { width: 220px; max-width: 100%; background: #fff; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--line); }
+  .qr-box .qr-link { font-size: 11.5px; color: var(--graphite-soft); word-break: break-all; margin-top: 6px; }
+
+  /* Solicitações de acesso (super admin) */
+  .signup-panel { margin-bottom: 14px; }
+  .signup-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  .signup-row:first-of-type { border-top: none; }
+  .signup-info .name { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .signup-info .meta { font-size: 12px; color: var(--graphite-soft); margin-top: 2px; }
+  .signup-actions { display: flex; gap: 8px; flex: none; }
+  .btn-small { padding: 8px 14px; font-size: 12px; }
+  .btn-reject {
+    background: none; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    color: var(--graphite-soft); font: inherit; font-size: 12px; font-weight: 700;
+    padding: 8px 14px; cursor: pointer;
+  }
+  .btn-reject:hover { border-color: #C0392B; color: #C0392B; }
+
+  /* Foto de perfil (próprio card) */
+  .avatar-edit {
+    margin-top: 10px; width: 100%; padding: 7px 10px; cursor: pointer;
+    background: none; border: 1px dashed var(--line); border-radius: var(--radius-sm);
+    color: var(--graphite-soft); font: inherit; font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .avatar-edit:hover { border-color: var(--navy); color: var(--navy); }
+
   /* Membros */
   .member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
   .member-card {
@@ -876,10 +951,10 @@
 <body>
 
 <header class="topbar">
-  <img class="logo" src="/logo.png" alt="LEPV SP">
+  <img class="logo" src="/logo.png" alt="LEPV">
   <div class="brandtext">
-    <span class="b1">LEPV <span class="accent">SP</span></span>
-    <span class="b2">Acervo da 1ª Imersão</span>
+    <span class="b1">LEPV</span>
+    <span class="b2">Liga de Empreendedorismo da Praia Vermelha</span>
   </div>
   <div class="who">
     <span class="name" id="who-name"></span>
@@ -887,22 +962,32 @@
   </div>
 </header>
 
+<!-- Dois grupos de navegação: a liga (padrão) e o acervo da imersão, que só
+     aparece para quem participou, via aba Membros. -->
 <nav class="tabs" id="tabs" role="tablist" aria-label="Seções">
-  <button data-tab="legado" class="active" role="tab" id="tab-legado" aria-controls="panel-legado" aria-selected="true">Legado</button>
-  <button data-tab="empresas" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
-  <button data-tab="selos" role="tab" id="tab-selos" aria-controls="panel-selos" aria-selected="false" tabindex="-1">Selos</button>
-  <button data-tab="agenda" role="tab" id="tab-agenda" aria-controls="panel-agenda" aria-selected="false" tabindex="-1">Roteiro</button>
-  <button data-tab="resumo" role="tab" id="tab-resumo" aria-controls="panel-resumo" aria-selected="false" tabindex="-1">A missão</button>
-  <button data-tab="membros" role="tab" id="tab-membros" aria-controls="panel-membros" aria-selected="false" tabindex="-1">Membros</button>
-  <button data-tab="despesas" role="tab" id="tab-despesas" aria-controls="panel-despesas" aria-selected="false" tabindex="-1">Despesas</button>
-  <button data-tab="arquivo" role="tab" id="tab-arquivo" aria-controls="panel-arquivo" aria-selected="false" tabindex="-1">Arquivo</button>
+  <button data-tab="membros" data-group="liga" class="active" role="tab" id="tab-membros" aria-controls="panel-membros" aria-selected="true">Membros</button>
+  <button data-tab="reunioes" data-group="liga" role="tab" id="tab-reunioes" aria-controls="panel-reunioes" aria-selected="false" tabindex="-1">Reuniões</button>
+  <button type="button" data-group="imersao" class="group-hidden back-liga" id="back-liga">← Liga</button>
+  <button data-tab="legado" data-group="imersao" class="group-hidden" role="tab" id="tab-legado" aria-controls="panel-legado" aria-selected="false" tabindex="-1">Legado</button>
+  <button data-tab="empresas" data-group="imersao" class="group-hidden" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
+  <button data-tab="selos" data-group="imersao" class="group-hidden" role="tab" id="tab-selos" aria-controls="panel-selos" aria-selected="false" tabindex="-1">Selos</button>
+  <button data-tab="agenda" data-group="imersao" class="group-hidden" role="tab" id="tab-agenda" aria-controls="panel-agenda" aria-selected="false" tabindex="-1">Roteiro</button>
+  <button data-tab="resumo" data-group="imersao" class="group-hidden" role="tab" id="tab-resumo" aria-controls="panel-resumo" aria-selected="false" tabindex="-1">A missão</button>
+  <button data-tab="despesas" data-group="imersao" class="group-hidden" role="tab" id="tab-despesas" aria-controls="panel-despesas" aria-selected="false" tabindex="-1">Despesas</button>
+  <button data-tab="arquivo" data-group="imersao" class="group-hidden" role="tab" id="tab-arquivo" aria-controls="panel-arquivo" aria-selected="false" tabindex="-1">Arquivo</button>
 </nav>
 
 <div class="wrap">
   <main>
 
-    <section class="panel active" id="panel-legado" role="tabpanel" aria-labelledby="tab-legado" tabindex="0">
+    <section class="panel" id="panel-legado" role="tabpanel" aria-labelledby="tab-legado" tabindex="0">
       <div id="legacy-content">
+        <div class="card"><p class="empty-state">Carregando...</p></div>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-reunioes" role="tabpanel" aria-labelledby="tab-reunioes" tabindex="0">
+      <div id="meetings-content">
         <div class="card"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
@@ -913,9 +998,11 @@
       </div>
     </section>
 
-    <section class="panel" id="panel-membros" role="tabpanel" aria-labelledby="tab-membros" tabindex="0">
+    <section class="panel active" id="panel-membros" role="tabpanel" aria-labelledby="tab-membros" tabindex="0">
+      <div id="signup-panel"></div>
+      <div id="immersion-entry"></div>
       <div class="card">
-        <p class="section-label">Quem esteve na imersão</p>
+        <p class="section-label">Membros da liga</p>
         <div class="member-grid" id="member-grid">
           <p class="empty-state">Carregando...</p>
         </div>

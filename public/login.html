@@ -98,6 +98,20 @@
     padding: 3px 7px; border-radius: 3px; background: var(--white); color: var(--navy); border: 1px solid var(--line);
   }
 
+  /* Cadastro de novo membro (aguarda aprovação do admin) */
+  .register-stage.hidden { display: none; }
+  .register-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .register-head h2 { font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 4px 0 0; }
+  .register-done { display: none; text-align: center; padding: 18px 4px 8px; }
+  .register-done.show { display: block; }
+  .register-done .check {
+    width: 48px; height: 48px; margin: 0 auto 14px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #E8F5EC; color: #1B7A3D; font-size: 22px; font-weight: 800;
+  }
+  .register-done h3 { font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 0 0 8px; }
+  .register-done p { font-size: 13px; color: var(--graphite-soft); line-height: 1.55; margin: 0 0 16px; }
+
   /* Etapa 2 — montagem da equipe */
   .login-stage.hidden { display: none; }
   .factory-rail { position: relative; height: 3px; background: var(--line); border-radius: 2px; margin: 2px 0 18px; overflow: hidden; }
@@ -181,6 +195,52 @@
         <p class="intro-copy">11 membros, 12 empresas, 1 missão em São Paulo. O acervo da imersão fica aqui — entre e some o seu aprendizado.</p>
         <button type="button" class="btn-primary" id="assemble-btn">Entrar no acervo</button>
         <button type="button" class="link-btn" id="roster-btn">Ver quem participou</button>
+        <button type="button" class="link-btn" id="register-btn">Sou novo na liga · Solicitar acesso</button>
+      </div>
+
+      <div class="register-stage hidden" id="register-stage">
+        <div class="register-head">
+          <div>
+            <p class="eyebrow">Novo membro</p>
+            <h2>Solicitar acesso</h2>
+          </div>
+          <button type="button" class="link-btn" id="register-back">Voltar</button>
+        </div>
+        <form id="register-form">
+          <div class="field">
+            <label for="reg-name">Nome completo</label>
+            <input type="text" id="reg-name" autocomplete="name" placeholder="Nome e sobrenome" required>
+          </div>
+          <div class="field">
+            <label for="reg-course">Curso</label>
+            <input type="text" id="reg-course" placeholder="Ex.: Engenharia da Computação">
+          </div>
+          <div class="field">
+            <label for="reg-year">Ano</label>
+            <input type="text" id="reg-year" placeholder="Ex.: 2º ano">
+          </div>
+          <div class="field">
+            <label for="reg-interests">Interesses <span style="font-weight:400; text-transform:none;">(separados por vírgula)</span></label>
+            <input type="text" id="reg-interests" placeholder="IA, Tech, Consultoria">
+          </div>
+          <div class="field">
+            <label for="reg-password">Senha</label>
+            <input type="password" id="reg-password" autocomplete="new-password" minlength="4" required>
+            <p class="hint">Mínimo de 4 caracteres. Você vai usá-la para entrar depois da aprovação.</p>
+          </div>
+          <div class="field">
+            <label for="reg-password2">Confirmar senha</label>
+            <input type="password" id="reg-password2" autocomplete="new-password" minlength="4" required>
+          </div>
+          <p class="error" id="reg-error"></p>
+          <button type="submit" class="btn-primary" id="reg-submit">Enviar pedido</button>
+        </form>
+        <div class="register-done" id="register-done">
+          <div class="check">✓</div>
+          <h3>Pedido enviado</h3>
+          <p>Seu cadastro está aguardando a aprovação do admin da liga. Quando for aprovado, é só voltar aqui, escolher seu nome na lista e entrar com a senha que você criou.</p>
+          <button type="button" class="btn-primary" id="register-done-back">Voltar ao início</button>
+        </div>
       </div>
 
       <div class="roster-stage hidden" id="roster-stage">
@@ -194,6 +254,28 @@
         <div class="roster-grid" id="roster-grid"></div>
       </div>
 
+      <div class="register-stage hidden" id="newpass-stage">
+        <div class="register-head">
+          <div>
+            <p class="eyebrow">Primeiro acesso</p>
+            <h2>Defina sua senha</h2>
+          </div>
+        </div>
+        <p class="intro-copy" style="max-width:none; text-align:left; margin-bottom:14px;">Você entrou com o código inicial. Escolha agora uma senha pessoal — é ela que vale a partir do próximo acesso.</p>
+        <form id="newpass-form">
+          <div class="field">
+            <label for="np-password">Nova senha</label>
+            <input type="password" id="np-password" autocomplete="new-password" minlength="4" required>
+          </div>
+          <div class="field">
+            <label for="np-password2">Confirmar nova senha</label>
+            <input type="password" id="np-password2" autocomplete="new-password" minlength="4" required>
+          </div>
+          <p class="error" id="np-error"></p>
+          <button type="submit" class="btn-primary" id="np-submit">Salvar e entrar</button>
+        </form>
+      </div>
+
       <div class="login-stage hidden" id="login-stage">
         <p class="eyebrow">Acesso restrito</p>
         <h2>Quem é você?</h2>
@@ -205,8 +287,8 @@
           </div>
           <div class="field reveal-after" id="password-field">
             <label for="password">Senha</label>
-            <input type="password" id="password" inputmode="numeric" placeholder="seu número de inscrição" required>
-            <p class="hint">Sua senha é o seu número na ordem de inscrição.</p>
+            <input type="password" id="password" required>
+            <p class="hint">Esqueceu a senha? Fale com o Marcell.</p>
           </div>
           <p class="error" id="error"></p>
           <button type="submit" class="btn-primary reveal-after" id="submit-btn">Entrar</button>
@@ -218,6 +300,14 @@
 
 <script>
 (function () {
+  // Nome/curso/interesses agora podem vir de cadastro público — escapa tudo
+  // que entra em innerHTML.
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
   var introStage = document.getElementById("intro-stage");
   var loginStage = document.getElementById("login-stage");
   var rosterStage = document.getElementById("roster-stage");
@@ -246,14 +336,14 @@
         var firstName = m.name.trim().split(/\s+/)[0];
         var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
         var avatarHtml = m.photo
-          ? '<img class="pick-avatar" src="' + m.photo + '" alt="">'
-          : '<span class="pick-avatar">' + initials + "</span>";
+          ? '<img class="pick-avatar" src="' + esc(m.photo) + '" alt="">'
+          : '<span class="pick-avatar">' + esc(initials) + "</span>";
 
         var btn = document.createElement("button");
         btn.type = "button";
         btn.className = "member-pick";
         btn.dataset.order = m.order;
-        btn.innerHTML = avatarHtml + '<span class="pick-name">' + firstName + "</span>";
+        btn.innerHTML = avatarHtml + '<span class="pick-name">' + esc(firstName) + "</span>";
         btn.addEventListener("click", function () {
           grid.querySelectorAll(".member-pick").forEach(function (b) { b.classList.remove("active"); });
           btn.classList.add("active");
@@ -272,18 +362,18 @@
       .map(function (m, i) {
         var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
         var avatarHtml = m.photo
-          ? '<img class="avatar" src="' + m.photo + '" alt="' + m.name + '">'
-          : '<span class="avatar">' + initials + "</span>";
+          ? '<img class="avatar" src="' + esc(m.photo) + '" alt="' + esc(m.name) + '">'
+          : '<span class="avatar">' + esc(initials) + "</span>";
         var courseLine = [m.course, m.year].filter(Boolean).join(" · ");
-        var metaHtml = courseLine ? '<div class="meta">' + courseLine + "</div>" : "";
+        var metaHtml = courseLine ? '<div class="meta">' + esc(courseLine) + "</div>" : "";
         var interestsHtml = (m.interests && m.interests.length)
-          ? '<div class="interests">' + m.interests.map(function (it) { return '<span class="interest-chip">' + it + "</span>"; }).join("") + "</div>"
+          ? '<div class="interests">' + m.interests.map(function (it) { return '<span class="interest-chip">' + esc(it) + "</span>"; }).join("") + "</div>"
           : "";
         return (
           '<div class="roster-card stagger-in" style="animation-delay:' + (i * 40) + 'ms">' +
             '<div class="head">' +
               avatarHtml +
-              '<div class="who"><div class="name">' + m.name + '</div><div class="order">Inscrição nº ' + m.order + "</div></div>" +
+              '<div class="who"><div class="name">' + esc(m.name) + '</div><div class="order">Inscrição nº ' + m.order + "</div></div>" +
             "</div>" +
             metaHtml +
             interestsHtml +
@@ -305,6 +395,72 @@
     rosterStage.classList.add("hidden");
     introStage.classList.remove("hidden");
     loginCard.classList.remove("wide");
+  });
+
+  // ---- Cadastro de novo membro ----
+  var registerStage = document.getElementById("register-stage");
+  var registerForm = document.getElementById("register-form");
+  var registerDone = document.getElementById("register-done");
+  var regError = document.getElementById("reg-error");
+  var regSubmit = document.getElementById("reg-submit");
+
+  function backToIntro() {
+    registerStage.classList.add("hidden");
+    introStage.classList.remove("hidden");
+  }
+  document.getElementById("register-btn").addEventListener("click", function () {
+    introStage.classList.add("hidden");
+    registerStage.classList.remove("hidden");
+    document.getElementById("reg-name").focus();
+  });
+  document.getElementById("register-back").addEventListener("click", backToIntro);
+  document.getElementById("register-done-back").addEventListener("click", backToIntro);
+
+  registerForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    regError.classList.remove("show");
+
+    var password = document.getElementById("reg-password").value;
+    if (password !== document.getElementById("reg-password2").value) {
+      regError.textContent = "As senhas não conferem.";
+      regError.classList.add("show");
+      return;
+    }
+    var interests = document.getElementById("reg-interests").value
+      .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+
+    regSubmit.disabled = true;
+    regSubmit.textContent = "Enviando...";
+
+    fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: document.getElementById("reg-name").value,
+        course: document.getElementById("reg-course").value,
+        year: document.getElementById("reg-year").value,
+        interests: interests,
+        password: password,
+      }),
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          registerForm.style.display = "none";
+          registerDone.classList.add("show");
+        } else {
+          regError.textContent = res.data.message || "Não foi possível enviar o pedido.";
+          regError.classList.add("show");
+          regSubmit.disabled = false;
+          regSubmit.textContent = "Enviar pedido";
+        }
+      })
+      .catch(function () {
+        regError.textContent = "Erro de conexão com o servidor.";
+        regError.classList.add("show");
+        regSubmit.disabled = false;
+        regSubmit.textContent = "Enviar pedido";
+      });
   });
 
   assembleBtn.addEventListener("click", function () {
@@ -344,7 +500,9 @@
     })
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {
-        if (res.ok) {
+        if (res.ok && res.data.mustChangePassword) {
+          showNewPass();
+        } else if (res.ok) {
           window.location.href = "/";
         } else {
           errorEl.textContent = res.data.message || "Não foi possível entrar.";
@@ -360,6 +518,65 @@
         submitBtn.textContent = "Entrar";
       });
   });
+
+  // ---- Primeiro acesso: trocar o código inicial por uma senha própria ----
+  var newpassStage = document.getElementById("newpass-stage");
+  var npError = document.getElementById("np-error");
+  var npSubmit = document.getElementById("np-submit");
+
+  function showNewPass() {
+    introStage.classList.add("hidden");
+    loginStage.classList.add("hidden");
+    rosterStage.classList.add("hidden");
+    registerStage.classList.add("hidden");
+    newpassStage.classList.remove("hidden");
+    document.getElementById("np-password").focus();
+  }
+
+  document.getElementById("newpass-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    npError.classList.remove("show");
+    var p1 = document.getElementById("np-password").value;
+    if (p1 !== document.getElementById("np-password2").value) {
+      npError.textContent = "As senhas não conferem.";
+      npError.classList.add("show");
+      return;
+    }
+    npSubmit.disabled = true;
+    npSubmit.textContent = "Salvando...";
+    fetch("/api/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: p1 }),
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          window.location.href = "/";
+        } else {
+          npError.textContent = res.data.message || "Não foi possível salvar a senha.";
+          npError.classList.add("show");
+          npSubmit.disabled = false;
+          npSubmit.textContent = "Salvar e entrar";
+        }
+      })
+      .catch(function () {
+        npError.textContent = "Erro de conexão com o servidor.";
+        npError.classList.add("show");
+        npSubmit.disabled = false;
+        npSubmit.textContent = "Salvar e entrar";
+      });
+  });
+
+  // Quem chegou do app com sessão pendente de troca de senha cai direto aqui.
+  if (new URLSearchParams(window.location.search).get("setpass") === "1") {
+    fetch("/api/me")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (me) {
+        if (me && me.mustChangePassword) showNewPass();
+      })
+      .catch(function () {});
+  }
 })();
 </script>
 </body>

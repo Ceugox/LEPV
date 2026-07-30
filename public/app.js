@@ -25,6 +25,12 @@
   var currentUser = null;
   var meReady = api("/api/me").then(function (me) {
     currentUser = me;
+    // Quem entrou com o código inicial precisa definir a própria senha
+    // antes de usar o app.
+    if (me.mustChangePassword) {
+      window.location.href = "/login.html?setpass=1";
+      return new Promise(function () {}); // segura os loaders até o redirect
+    }
     document.getElementById("who-name").textContent = me.name;
     return me;
   });
@@ -77,7 +83,7 @@
     });
   }
 
-  var tabButtons = document.querySelectorAll("nav.tabs button");
+  var tabButtons = document.querySelectorAll("nav.tabs button[data-tab]");
   var panels = document.querySelectorAll(".panel");
   wireTablist(document.getElementById("tabs"));
 
@@ -93,14 +99,30 @@
         p.classList.add("fade-in");
       }
     });
-    // Tudo pode mudar durante a viagem (agenda corrigida, item de checklist de
-    // outro membro, presença marcada) — recarrega a aba a cada ativação. Os
-    // JSONs são pequenos e os loaders preservam o dia/empresa selecionados.
+    // Tudo pode mudar entre visitas (novo membro aprovado, presença marcada,
+    // material publicado) — recarrega a aba a cada ativação. Os JSONs são
+    // pequenos e os loaders preservam o dia/empresa selecionados.
     loaders[name] && loaders[name]();
   }
   tabButtons.forEach(function (b) {
     b.addEventListener("click", function () { activateTab(b.dataset.tab); });
   });
+
+  // A nav tem dois grupos: a liga (padrão) e o acervo da imersão, aberto pela
+  // aba Membros só para quem participou.
+  function setNavGroup(group) {
+    document.querySelectorAll("nav.tabs button[data-group]").forEach(function (b) {
+      b.classList.toggle("group-hidden", b.dataset.group !== group);
+    });
+  }
+  document.getElementById("back-liga").addEventListener("click", function () {
+    setNavGroup("liga");
+    activateTab("membros");
+  });
+  function openImmersion() {
+    setNavGroup("imersao");
+    activateTab("legado");
+  }
 
   // ---- Resumo: card "agora / a seguir" (durante a viagem) ou countdown ----
   function parseTimeRange(t) {
@@ -286,34 +308,415 @@
   }
 
   // ---- Membros ----
+
+  // Fila de aprovação de novos membros — só o super admin vê e decide.
+  function renderSignupPanel(me) {
+    var panel = document.getElementById("signup-panel");
+    if (!panel) return;
+    if (!me.superadmin) { panel.innerHTML = ""; return; }
+    api("/api/signups").then(function (data) {
+      if (!data.pending.length) { panel.innerHTML = ""; return; }
+      panel.innerHTML =
+        '<div class="card signup-panel">' +
+          '<p class="section-label">Solicitações de acesso (super admin) · ' + data.pending.length + "</p>" +
+          data.pending.map(function (p) {
+            var meta = [p.course, p.year].filter(Boolean).join(" · ");
+            var when = p.requestedAt ? new Date(p.requestedAt).toLocaleDateString("pt-BR") : "";
+            return (
+              '<div class="signup-row" data-id="' + esc(p.id) + '">' +
+                '<div class="signup-info">' +
+                  '<div class="name">' + esc(p.name) + "</div>" +
+                  (meta ? '<div class="meta">' + esc(meta) + "</div>" : "") +
+                  ((p.interests && p.interests.length) ? '<div class="meta">' + esc(p.interests.join(", ")) + "</div>" : "") +
+                  (when ? '<div class="meta">Pedido em ' + when + "</div>" : "") +
+                "</div>" +
+                '<div class="signup-actions">' +
+                  '<button class="btn-primary btn-small" data-action="approve">Aprovar</button>' +
+                  '<button class="btn-reject" data-action="reject">Recusar</button>' +
+                "</div>" +
+              "</div>"
+            );
+          }).join("") +
+        "</div>";
+      panel.querySelectorAll("[data-action]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var row = btn.closest(".signup-row");
+          if (btn.dataset.action === "reject" && !confirm("Recusar este pedido de acesso?")) return;
+          row.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+          api("/api/signups/" + row.dataset.id + "/" + btn.dataset.action, { method: "POST" })
+            .then(function () { loadMembers(); })
+            .catch(function () { loadMembers(); });
+        });
+      });
+    });
+  }
+
+  // Entrada do acervo da imersão — só quem esteve lá vê o card.
+  function renderImmersionEntry(me) {
+    var box = document.getElementById("immersion-entry");
+    if (!box) return;
+    if (!me.immersion) { box.innerHTML = ""; return; }
+    box.innerHTML =
+      '<div class="card immersion-card">' +
+        '<div>' +
+          '<p class="section-label">Você esteve lá</p>' +
+          '<div class="ic-title">1ª Imersão LEPV — São Paulo</div>' +
+          '<div class="ic-sub">19–24 de julho de 2026 · 12 empresas · acervo, selos, roteiro e despesas</div>' +
+        "</div>" +
+        '<button type="button" class="btn-primary" id="open-immersion">Abrir acervo</button>' +
+      "</div>";
+    document.getElementById("open-immersion").addEventListener("click", openImmersion);
+  }
+
+  // Normaliza a foto no cliente: redimensiona para 512px e converte para JPEG
+  // (foto de iPhone vem HEIC — o canvas decodifica e o servidor recebe JPG).
+  function normalizePhoto(file) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = function () {
+        var max = 512;
+        var scale = Math.min(1, max / Math.max(img.width, img.height));
+        var canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(img.src);
+        canvas.toBlob(function (blob) { resolve(blob || file); }, "image/jpeg", 0.85);
+      };
+      img.onerror = function () { URL.revokeObjectURL(img.src); resolve(file); };
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  function uploadPhoto(file) {
+    return normalizePhoto(file).then(function (blob) {
+      return fetch("/api/me/photo", {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "application/octet-stream" },
+        body: blob,
+      }).then(function (r) {
+        return r.json().then(function (data) {
+          if (!r.ok) throw new Error(data.message || "Falha no envio da foto.");
+          return data;
+        });
+      });
+    });
+  }
+
   function loadMembers() {
-    api("/api/members").then(function (members) {
+    Promise.all([meReady, api("/api/members")]).then(function (results) {
+      var me = results[0], members = results[1];
+      renderSignupPanel(me);
+      renderImmersionEntry(me);
       var grid = document.getElementById("member-grid");
       grid.innerHTML = members
         .map(function (m, i) {
+          var isMe = m.order === me.order;
           var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
           var avatarHtml = m.photo
-            ? '<img class="avatar photo" src="' + m.photo + '" alt="' + m.name + '">'
-            : '<div class="avatar">' + initials + "</div>";
+            ? '<img class="avatar photo" src="' + esc(m.photo) + '" alt="' + esc(m.name) + '">'
+            : '<div class="avatar">' + esc(initials) + "</div>";
 
           var courseLine = [m.course, m.year].filter(Boolean).join(" · ");
-          var metaHtml = courseLine ? '<div class="meta">' + courseLine + "</div>" : "";
+          var metaHtml = courseLine ? '<div class="meta">' + esc(courseLine) + "</div>" : "";
           var interestsHtml = (m.interests && m.interests.length)
-            ? '<div class="interests">' + m.interests.map(function (i) { return '<span class="interest-chip">' + i + "</span>"; }).join("") + "</div>"
+            ? '<div class="interests">' + m.interests.map(function (i) { return '<span class="interest-chip">' + esc(i) + "</span>"; }).join("") + "</div>"
+            : "";
+          var photoBtnHtml = isMe
+            ? '<button type="button" class="avatar-edit" id="avatar-edit-btn">' + (m.photo ? "Trocar foto" : "Adicionar foto") + "</button>"
             : "";
 
           return (
             '<div class="member-card stagger-in" style="animation-delay:' + (i * 45) + 'ms">' +
               '<div class="head">' +
                 avatarHtml +
-                '<div class="who"><div class="name">' + m.name + '</div><div class="order">Inscrição nº ' + m.order + "</div></div>" +
+                '<div class="who"><div class="name">' + esc(m.name) + '</div><div class="order">Inscrição nº ' + m.order + "</div></div>" +
               "</div>" +
               metaHtml +
               interestsHtml +
+              photoBtnHtml +
             "</div>"
           );
         })
         .join("");
+
+      var editBtn = document.getElementById("avatar-edit-btn");
+      if (editBtn) {
+        var fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = "image/*";
+        fileInput.style.display = "none";
+        grid.appendChild(fileInput);
+        editBtn.addEventListener("click", function () { fileInput.click(); });
+        fileInput.addEventListener("change", function () {
+          var file = fileInput.files[0];
+          if (!file) return;
+          editBtn.disabled = true;
+          editBtn.textContent = "Enviando...";
+          uploadPhoto(file)
+            .then(function () { loadMembers(); })
+            .catch(function (err) {
+              window.alert(err.message || "Não deu pra enviar a foto. Tente outra imagem.");
+              loadMembers();
+            });
+        });
+      }
+    });
+  }
+
+  // ---- Reuniões da liga (presença por código e QR) ----
+  var meetingExpanded = null;
+
+  function fmtDateBR(iso) {
+    var p = String(iso || "").split("-");
+    return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : esc(iso);
+  }
+  function copyText(text, btn) {
+    var done = function () {
+      var old = btn.textContent;
+      btn.textContent = "Copiado ✓";
+      setTimeout(function () { btn.textContent = old; }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done);
+    } else {
+      window.prompt("Copie o texto:", text);
+    }
+  }
+
+  function meetingRowHtml(m, me) {
+    var badge = m.open
+      ? '<span class="badge ok">aberta</span>'
+      : '<span class="badge internal">encerrada</span>';
+    var mine = m.present ? ' · <strong style="color:var(--good,#1B7A3D);">você esteve ✓</strong>' : "";
+    var manageBtn = me.director
+      ? '<button type="button" class="btn-reject" data-manage="' + esc(m.id) + '">' + (meetingExpanded === m.id ? "Fechar" : "Gerenciar") + "</button>"
+      : "";
+    var detail = "";
+    if (me.director && meetingExpanded === m.id) {
+      detail = '<div class="meeting-manage" data-detail="' + esc(m.id) + '"><p class="empty-state">Carregando...</p></div>';
+    }
+    return (
+      '<div class="meeting-row" data-id="' + esc(m.id) + '">' +
+        '<div class="meeting-head">' +
+          '<span class="mdate num">' + fmtDateBR(m.date) + "</span>" +
+          '<span class="mtitle">' + esc(m.title) + "</span>" +
+          badge +
+          '<span class="mcount">' + m.membersPresent + " membros · " + m.visitorsPresent + " visitantes" + mine + "</span>" +
+          manageBtn +
+        "</div>" +
+        detail +
+      "</div>"
+    );
+  }
+
+  function meetingDetailHtml(m, members) {
+    var codesHtml =
+      '<p class="section-label">Códigos de presença (todos valem)</p>' +
+      '<div class="code-chips">' +
+        m.codes.map(function (c) { return '<span class="code-chip">' + esc(c) + "</span>"; }).join("") +
+        '<button type="button" class="btn-reject" data-newcode>+ Gerar outro</button>' +
+      "</div>";
+
+    var publicUrl = window.location.origin + "/presenca.html?t=" + m.qrToken;
+    var qrHtml =
+      '<div class="meeting-actions">' +
+        '<button type="button" class="btn-primary btn-small" data-showqr>QR de visitantes</button>' +
+        '<button type="button" class="btn-reject" data-copylink>Copiar link público</button>' +
+        '<button type="button" class="btn-reject" data-toggleopen>' + (m.open ? "Encerrar reunião" : "Reabrir reunião") + "</button>" +
+      "</div>" +
+      '<div class="qr-box" data-qrbox style="display:none;">' +
+        '<img src="/api/meetings/' + esc(m.id) + '/qr" alt="QR code de presença">' +
+        '<div class="qr-link">' + esc(publicUrl) + "</div>" +
+      "</div>";
+
+    var present = {};
+    m.memberAttendance.forEach(function (a) { present[a.order] = true; });
+    var gridHtml =
+      '<p class="section-label" style="margin-top:12px;">Presença dos membros</p>' +
+      '<div class="attendance-toggle-grid">' +
+        (members || [])
+          .map(function (mem) {
+            return (
+              "<label><input type=\"checkbox\" data-att-order=\"" + mem.order + "\"" + (present[mem.order] ? " checked" : "") + ">" +
+                esc(mem.name) +
+              "</label>"
+            );
+          })
+          .join("") +
+      "</div>";
+
+    var visitorsHtml =
+      '<p class="section-label" style="margin-top:12px;">Visitantes desta reunião</p>' +
+      (m.visitors && m.visitors.length
+        ? m.visitors
+            .map(function (v) {
+              var contact = [v.email, v.phone].filter(Boolean).join(" · ");
+              return (
+                '<div class="visitor-row">' +
+                  "<span><strong>" + esc(v.name) + "</strong>" + (contact ? ' <span style="color:var(--graphite-soft);">' + esc(contact) + "</span>" : "") + "</span>" +
+                  "<span>" + v.visits + "ª presença" + (v.inviteReady ? ' <span class="invite-flag">convidar p/ membro</span>' : "") + "</span>" +
+                "</div>"
+              );
+            })
+            .join("")
+        : '<p class="empty-state">Nenhum visitante registrado.</p>');
+
+    return codesHtml + qrHtml + gridHtml + visitorsHtml;
+  }
+
+  function renderMeetings(me, data, members) {
+    var content = document.getElementById("meetings-content");
+
+    var checkinHtml =
+      '<div class="card">' +
+        '<p class="section-label">Registrar minha presença</p>' +
+        '<div class="checkin-row">' +
+          '<input type="text" id="checkin-code" maxlength="10" placeholder="CÓDIGO" aria-label="Código de presença" autocomplete="off">' +
+          '<button type="button" class="btn-primary" id="checkin-btn">Confirmar</button>' +
+        "</div>" +
+        '<p class="hint" style="margin-top:8px; font-size:11.5px; color:var(--graphite-soft);">O código é anunciado pelos diretores durante a reunião.</p>' +
+        '<div id="checkin-feedback"></div>' +
+      "</div>";
+
+    var createHtml = me.director
+      ? '<div class="card">' +
+          '<p class="section-label">Nova reunião (diretoria)</p>' +
+          '<div class="checkin-row">' +
+            '<input type="text" id="new-meeting-title" placeholder="Título (ex.: Reunião geral)" style="text-transform:none; letter-spacing:0; font-weight:400;" maxlength="80">' +
+            '<input type="date" id="new-meeting-date" style="flex:none; width:150px; text-transform:none; letter-spacing:0; font-weight:400;">' +
+            '<button type="button" class="btn-primary" id="new-meeting-btn">Criar</button>' +
+          "</div>" +
+        "</div>"
+      : "";
+
+    var inviteHtml = "";
+    if (me.director && data.inviteReady && data.inviteReady.length) {
+      inviteHtml =
+        '<div class="card">' +
+          '<p class="section-label" style="color:var(--red);">Visitantes com 2+ presenças — convidar para virar membro</p>' +
+          data.inviteReady
+            .map(function (v) {
+              var contact = [v.email, v.phone].filter(Boolean).join(" · ");
+              return (
+                '<div class="visitor-row">' +
+                  "<span><strong>" + esc(v.name) + "</strong>" + (contact ? ' <span style="color:var(--graphite-soft);">' + esc(contact) + "</span>" : "") + " · " + v.visits + " reuniões</span>" +
+                  '<button type="button" class="btn-reject" data-invite="' + esc(v.name) + '">Copiar convite</button>' +
+                "</div>"
+              );
+            })
+            .join("") +
+        "</div>";
+    }
+
+    var listHtml =
+      '<div class="card">' +
+        '<p class="section-label">Reuniões</p>' +
+        (data.meetings.length
+          ? data.meetings.map(function (m) { return meetingRowHtml(m, me); }).join("")
+          : '<p class="empty-state">Nenhuma reunião registrada ainda.</p>') +
+      "</div>";
+
+    content.innerHTML = checkinHtml + createHtml + inviteHtml + listHtml;
+
+    // Check-in do membro
+    var checkinBtn = document.getElementById("checkin-btn");
+    var checkinInput = document.getElementById("checkin-code");
+    function doCheckin() {
+      var code = checkinInput.value.trim().toUpperCase();
+      if (!code) return;
+      checkinBtn.disabled = true;
+      fetch("/api/meetings/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code }),
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            loadMeetings();
+          } else {
+            checkinBtn.disabled = false;
+            document.getElementById("checkin-feedback").innerHTML =
+              '<div class="checkin-ok" style="background:#FEEBEB; color:#991B1B;">' + esc(res.data.message || "Código inválido.") + "</div>";
+          }
+        });
+    }
+    checkinBtn.addEventListener("click", doCheckin);
+    checkinInput.addEventListener("keydown", function (e) { if (e.key === "Enter") doCheckin(); });
+
+    // Criação de reunião (diretoria)
+    if (me.director) {
+      document.getElementById("new-meeting-btn").addEventListener("click", function () {
+        api("/api/meetings", {
+          method: "POST",
+          body: JSON.stringify({
+            title: document.getElementById("new-meeting-title").value,
+            date: document.getElementById("new-meeting-date").value,
+          }),
+        }).then(function (res) {
+          if (res && res.meeting) meetingExpanded = res.meeting.id;
+          loadMeetings();
+        });
+      });
+
+      content.querySelectorAll("[data-invite]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          copyText(
+            "Oi, " + btn.dataset.invite.split(" ")[0] + "! Você já participou de 2+ reuniões da LEPV e queremos você como membro. " +
+              "Peça seu acesso em " + window.location.origin + "/login.html (botão \"Solicitar acesso\") que a gente aprova!",
+            btn
+          );
+        });
+      });
+
+      content.querySelectorAll("[data-manage]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          meetingExpanded = meetingExpanded === btn.dataset.manage ? null : btn.dataset.manage;
+          loadMeetings();
+        });
+      });
+
+      // Detalhe expandido
+      var detailBox = content.querySelector("[data-detail]");
+      if (detailBox) {
+        var meeting = data.meetings.find(function (m) { return m.id === meetingExpanded; });
+        if (meeting) {
+          detailBox.innerHTML = meetingDetailHtml(meeting, members);
+          detailBox.querySelector("[data-newcode]").addEventListener("click", function () {
+            api("/api/meetings/" + meeting.id + "/codes", { method: "POST" }).then(loadMeetings);
+          });
+          detailBox.querySelector("[data-showqr]").addEventListener("click", function () {
+            var box = detailBox.querySelector("[data-qrbox]");
+            box.style.display = box.style.display === "none" ? "block" : "none";
+          });
+          detailBox.querySelector("[data-copylink]").addEventListener("click", function (e) {
+            copyText(window.location.origin + "/presenca.html?t=" + meeting.qrToken, e.currentTarget);
+          });
+          detailBox.querySelector("[data-toggleopen]").addEventListener("click", function () {
+            api("/api/meetings/" + meeting.id + "/open", { method: "POST", body: JSON.stringify({ open: !meeting.open }) }).then(loadMeetings);
+          });
+          detailBox.querySelectorAll("[data-att-order]").forEach(function (cb) {
+            cb.addEventListener("change", function () {
+              api("/api/meetings/" + meeting.id + "/member-attendance", {
+                method: "POST",
+                body: JSON.stringify({ order: parseInt(cb.dataset.attOrder, 10), present: cb.checked }),
+              });
+            });
+          });
+        }
+      }
+    }
+  }
+
+  function loadMeetings() {
+    Promise.all([meReady, api("/api/meetings")]).then(function (r) {
+      var me = r[0], data = r[1];
+      if (me.director) {
+        api("/api/members").then(function (members) { renderMeetings(me, data, members); });
+      } else {
+        renderMeetings(me, data, null);
+      }
     });
   }
 
@@ -583,7 +986,7 @@
               iconHtml +
               '<div class="material-main"><div class="material-title">' + esc(m.title) + "</div>" + metaHtml + "</div>" +
               '<div class="material-actions">' + actionsHtml +
-                (me.admin ? '<button class="del-btn" title="Remover material">×</button>' : "") +
+                (me.director ? '<button class="del-btn" title="Remover material">×</button>' : "") +
               "</div>" +
             "</li>"
           );
@@ -604,12 +1007,12 @@
       if (companyKey !== activeCompanyKey) return;
       var list = materialsCache[companyKey] || [];
 
-      if (!list.length && !me.admin) {
+      if (!list.length && !me.director) {
         panel.innerHTML = ""; // membro sem material não precisa ver card vazio
         return;
       }
 
-      var adminHtml = me.admin
+      var adminHtml = me.director
         ? '<div class="material-admin">' +
             '<input type="text" class="mat-title" placeholder="Título do material" aria-label="Título do material" maxlength="120">' +
             '<div class="row2">' +
@@ -647,7 +1050,7 @@
       }
       wireDeletes();
 
-      if (!me.admin) return;
+      if (!me.director) return;
       var uploadBtn = panel.querySelector(".mat-upload");
       uploadBtn.addEventListener("click", function () {
         var title = panel.querySelector(".mat-title").value.trim();
@@ -2092,8 +2495,13 @@
 
   // ---- Enquete do bóton limitado (pop-up até o membro responder) ----
   function maybeShowPinPoll() {
-    Promise.all([meReady, api("/api/pin-poll")]).then(function (results) {
-      var me = results[0], poll = results[1];
+    meReady.then(function (me) {
+      // O bóton é da 1ª imersão — membro novo da liga nem vê a enquete.
+      if (!me.immersion) return;
+      return api("/api/pin-poll").then(function (poll) { showPinPoll(me, poll); });
+    });
+  }
+  function showPinPoll(me, poll) {
       if (poll.answered) return;
 
       var num = String(me.order).padStart(2, "0");
@@ -2129,7 +2537,6 @@
           });
         });
       });
-    });
   }
   setTimeout(maybeShowPinPoll, 1400); // deixa a primeira aba assentar antes
 
@@ -2138,9 +2545,10 @@
   }
 
   var loaders = {
+    membros: loadMembers,
+    reunioes: loadMeetings,
     legado: loadLegacy,
     resumo: loadMission,
-    membros: loadMembers,
     agenda: loadAgenda,
     empresas: loadCompanies,
     selos: loadBadges,
@@ -2149,5 +2557,6 @@
     arquivo: function () { loadRoutes(); loadRooms(); loadChecklist(); },
   };
 
-  activateTab("legado");
+  // O app abre na liga; o acervo da imersão é aberto pela aba Membros.
+  activateTab("membros");
 })();
