@@ -142,29 +142,6 @@ if (!fs.existsSync(MATERIALS_PATH)) {
 }
 fs.mkdirSync(MATERIALS_DIR, { recursive: true });
 
-// Limpeza pontual do volume: a divisão de custos da viagem foi removida do app,
-// então o expenses.json fica no volume sem ninguém para lê-lo. Com PURGE_EXPENSES=1
-// o boot despeja o conteúdo no log (última chance de cópia) e apaga o arquivo.
-// Rotina de uso único — remover este bloco e a variável depois de rodar.
-if (process.env.PURGE_EXPENSES === "1") {
-  for (const suffix of ["", ".bak", ".tmp"]) {
-    const p = path.join(STORAGE_DIR, "expenses.json" + suffix);
-    if (!fs.existsSync(p)) continue;
-    try {
-      console.log("PURGE expenses.json" + suffix + " conteúdo >>> " + fs.readFileSync(p, "utf8").replace(/\s+/g, " "));
-      fs.rmSync(p);
-      console.log("PURGE removido: expenses.json" + suffix);
-    } catch (err) {
-      console.error("PURGE falhou em expenses.json" + suffix + ": " + err.message);
-    }
-  }
-  console.log(
-    "PURGE fim. Arquivos no volume agora: " +
-      fs.readdirSync(STORAGE_DIR).filter((f) => f.indexOf("expenses") === 0).length +
-      " com 'expenses' no nome."
-  );
-}
-
 // Reuniões da liga — presença de membros (por código) e de visitantes
 // (por QR/pré-cadastro). Tudo em runtime, então mora no volume.
 const MEETINGS_PATH = path.join(STORAGE_DIR, "meetings.json");
