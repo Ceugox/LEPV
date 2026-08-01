@@ -102,6 +102,23 @@
   .do-card h3 { font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--navy); margin: 8px 0 8px; }
   .do-card p { font-size: 13px; line-height: 1.6; color: var(--graphite-soft); margin: 0; }
 
+  /* Próximos eventos — só aparece quando há evento com inscrições abertas */
+  #agenda { display: none; }
+  #agenda.show { display: block; }
+  .ev-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .ev-card {
+    border: 1px solid var(--line); background: var(--white); border-radius: 14px;
+    padding: 20px 18px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .ev-card .ev-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .ev-card .kind { font-family: var(--font-display); font-weight: 800; font-size: 14px; color: var(--red); letter-spacing: 0.06em; text-transform: uppercase; }
+  .ev-card .when { font-size: 12.5px; font-weight: 700; color: var(--graphite-soft); white-space: nowrap; }
+  .ev-card h3 { font-size: 18px; font-weight: 800; text-transform: uppercase; color: var(--navy); margin: 0; }
+  .ev-card .meta { font-size: 13px; font-weight: 600; color: var(--graphite-soft); }
+  .ev-card p { font-size: 13px; line-height: 1.6; color: var(--graphite-soft); margin: 0; }
+  .ev-card .seats { font-size: 12.5px; font-weight: 700; color: var(--red); }
+  .ev-card .btn-primary { align-self: flex-start; margin-top: 8px; }
+
   /* Rodapé */
   footer {
     margin-top: 56px; padding: 26px 0 40px; border-top: 1px solid var(--line);
@@ -140,6 +157,12 @@
       <div class="stat"><div class="v">12</div><div class="k">Empresas visitadas</div></div>
       <div class="stat"><div class="v">1ª</div><div class="k">Imersão · SP 2026</div></div>
     </div>
+
+    <section class="block" id="agenda">
+      <div class="block-head"><span class="n">/00</span><h2>Próximos eventos</h2><span class="rule"></span></div>
+      <p class="lead">Inscrições abertas — visitantes são bem-vindos.</p>
+      <div class="ev-grid" id="agenda-grid"></div>
+    </section>
 
     <section class="block">
       <div class="block-head"><span class="n">/01</span><h2>Nossas atividades</h2><span class="rule"></span></div>
@@ -237,6 +260,44 @@
   }
   fillRow("m-row-1", ROW1, "45s");
   fillRow("m-row-2", ROW2, "52s");
+
+  // Próximos eventos: todo evento nasce com o formulário de inscrição
+  // publicado aqui, junto com o aviso. Sem evento aberto, a seção some.
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  fetch("/api/public-events")
+    .then(function (r) { return r.ok ? r.json() : { events: [] }; })
+    .then(function (data) {
+      if (!data.events || !data.events.length) return;
+      document.getElementById("agenda-grid").innerHTML = data.events.map(function (ev) {
+        var p = String(ev.date || "").split("-");
+        var quando = (p.length === 3 ? p[2] + "/" + p[1] : "") + (ev.time ? " · " + ev.time : "");
+        var lugar = ev.location
+          ? ev.location + (ev.travelMinutes > 0 ? " · ~" + ev.travelMinutes + " min do IME" : "")
+          : "";
+        var vagas = "";
+        if (ev.capacity) {
+          vagas = ev.seatsLeft > 0
+            ? '<span class="seats">' + ev.seatsLeft + " de " + ev.capacity + " vagas disponíveis</span>"
+            : '<span class="seats">Vagas esgotadas — inscrição vai para a fila de espera</span>';
+        }
+        return (
+          '<div class="ev-card">' +
+            '<div class="ev-top"><span class="kind">' + escHtml(ev.kind) + '</span><span class="when">' + escHtml(quando) + "</span></div>" +
+            "<h3>" + escHtml(ev.title) + "</h3>" +
+            (lugar ? '<span class="meta">' + escHtml(lugar) + "</span>" : "") +
+            (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
+            vagas +
+            '<a class="btn-primary" href="' + escHtml(ev.signupUrl) + '">Inscrever-se</a>' +
+          "</div>"
+        );
+      }).join("");
+      document.getElementById("agenda").classList.add("show");
+    })
+    .catch(function () {});
 })();
 </script>
 </body>

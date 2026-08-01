@@ -891,6 +891,10 @@
         '<button type="button" class="btn-primary btn-small" data-save>Salvar</button>' +
       "</div>" +
       '<div class="meeting-new" style="margin-top:8px;">' +
+        '<input type="time" class="edit-time" value="' + esc(ev.time || "") + '" aria-label="Horário">' +
+        '<input type="text" class="edit-local" maxlength="120" value="' + esc(ev.location || "") + '" placeholder="Local" aria-label="Local" style="flex:1;">' +
+      "</div>" +
+      '<div class="meeting-new" style="margin-top:8px;">' +
         '<input type="text" class="edit-text" maxlength="600" value="' + esc(ev.text || "") + '" placeholder="Aviso que aparece no mural" aria-label="Texto do aviso" style="flex:1 1 100%;">' +
       "</div>";
 
@@ -938,7 +942,13 @@
 
     var listaInscritos = ev.signups.length
       ? ev.signups.map(function (s) {
-          var contato = [s.email, s.phone].filter(Boolean).join(" · ");
+          var contato = [
+            s.turma ? "Turma " + s.turma : "",
+            s.especialidade || "",
+            s.idade ? s.idade + " anos" : "",
+            s.email,
+            s.phone,
+          ].filter(Boolean).join(" · ");
           var tag = s.status === "waitlist"
             ? '<span class="signup-badge done">fila</span>'
             : '<span class="signup-badge open">' + (s.type === "member" ? "membro" : "visitante") + "</span>";
@@ -1023,6 +1033,13 @@
           '<span class="event-title">' + esc(ev.title) + "</span>" +
           gerir + apagar +
         "</div>" +
+        (ev.time || ev.location
+          ? '<p class="event-text" style="color:var(--graphite-soft);font-weight:600;">' +
+              esc([
+                ev.time,
+                ev.location + (ev.travelMinutes > 0 ? " (~" + ev.travelMinutes + " min do IME)" : ""),
+              ].filter(Boolean).join(" · ")) + "</p>"
+          : "") +
         (ev.text ? '<p class="event-text">' + esc(ev.text) + "</p>" : "") +
         fotos +
         materialsHtml(ev, me) +
@@ -1073,8 +1090,13 @@
             '<button type="button" class="btn-primary" id="new-event-btn">Criar</button>' +
           "</div>" +
           '<div class="meeting-new" style="margin-top:8px;">' +
+            '<input type="time" id="new-event-time" aria-label="Horário">' +
+            '<input type="text" id="new-event-local" placeholder="Local" maxlength="120" style="flex:1;">' +
+          "</div>" +
+          '<div class="meeting-new" style="margin-top:8px;">' +
             '<input type="text" id="new-event-text" placeholder="Aviso que aparece no mural (opcional)" maxlength="600" style="flex:1 1 100%;">' +
           "</div>" +
+          '<p class="questions-hint">O evento já nasce com o formulário de inscrição publicado na página principal, junto com o aviso.</p>' +
         "</div>"
       : "";
 
@@ -1131,12 +1153,16 @@
       document.getElementById("new-event-btn").addEventListener("click", function () {
         var title = document.getElementById("new-event-title").value.trim();
         if (!title) return window.alert("Dê um título ao evento.");
+        if (!document.getElementById("new-event-local").value.trim()) return window.alert("Informe o local do evento.");
+        if (!document.getElementById("new-event-time").value) return window.alert("Informe o horário do evento.");
         api("/api/events", {
           method: "POST",
           body: JSON.stringify({
             type: document.getElementById("new-event-type").value,
             title: title,
             date: document.getElementById("new-event-date").value,
+            time: document.getElementById("new-event-time").value,
+            location: document.getElementById("new-event-local").value,
             text: document.getElementById("new-event-text").value,
           }),
         }).then(function () { loadEvents(); });
@@ -1200,6 +1226,8 @@
           type: box.querySelector(".edit-type").value,
           title: box.querySelector(".edit-title").value,
           date: box.querySelector(".edit-date").value,
+          time: box.querySelector(".edit-time").value,
+          location: box.querySelector(".edit-local").value,
           text: box.querySelector(".edit-text").value,
         }),
       })

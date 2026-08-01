@@ -26,6 +26,11 @@ const MEMBER_PASS = "teste-membro";
 const RESET_ORDER = 3;
 const RESET_SEED_PASS = "3";
 
+// Todo evento agora exige local e horário no cadastro.
+const EV_LOCAL = { time: "19:00", location: "Auditório do IME" };
+// E o formulário público exige os campos do IME de todo inscrito externo.
+const FORM_IME = { turma: "XXIX", especialidade: "Computação", idade: 21, awareLocation: true, awareTime: true };
+
 let volumeDir;
 let server;
 const results = { pass: 0, fail: 0 };
@@ -105,7 +110,16 @@ function startServer() {
   return new Promise((resolve, reject) => {
     server = spawn(process.execPath, [path.join(ROOT, "server.js")], {
       cwd: ROOT,
-      env: { ...process.env, PORT: String(PORT), RAILWAY_VOLUME_MOUNT_PATH: volumeDir, SESSION_SECRET: "e2e" },
+      // TRAVEL_ESTIMATE=off: o e2e não pode depender de Nominatim/OSRM na rede.
+      // PUBLIC_FORM_MAX alto: a suíte inteira dispara do mesmo IP.
+      env: {
+        ...process.env,
+        PORT: String(PORT),
+        RAILWAY_VOLUME_MOUNT_PATH: volumeDir,
+        SESSION_SECRET: "e2e",
+        TRAVEL_ESTIMATE: "off",
+        PUBLIC_FORM_MAX: "500",
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -346,11 +360,19 @@ test("evento nasce como aviso e todo membro enxerga", async () => {
     title: "Aula 01 — Modelagem de negócio",
     text: "Traga o caso da sua empresa favorita.",
     date: hoje,
+    ...EV_LOCAL,
   });
   eq(criado.status, 200, "criação do evento");
   const ev = criado.data.event;
   assert(ev.codes && ev.codes.length === 1, "evento já nasce com um código de presença");
   assert(ev.qrToken, "evento já nasce com token de QR");
+  assert(ev.signupsOpen === true && ev.signupToken, "o formulário de inscrição nasce publicado junto com o aviso");
+  eq(ev.location, "Auditório do IME", "local gravado");
+  eq(ev.time, "19:00", "horário gravado");
+
+  // Local e horário são obrigatórios no cadastro.
+  eq((await admin.post("/api/events", { title: "Sem local", date: hoje, time: "19:00" })).status, 400, "sem local é recusado");
+  eq((await admin.post("/api/events", { title: "Sem horário", date: hoje, location: "IME" })).status, 400, "sem horário é recusado");
 
   const member = client();
   await member.login(MEMBER_ORDER, MEMBER_PASS);
@@ -368,8 +390,8 @@ test("evento nasce como aviso e todo membro enxerga", async () => {
 test("filtro por tipo devolve só o tipo pedido", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const a = await admin.post("/api/events", { type: "aula", title: "Aula de filtro", date: "2026-09-10" });
-  const v = await admin.post("/api/events", { type: "visita", title: "Visita de filtro", date: "2026-09-11" });
+  const a = await admin.post("/api/events", { type: "aula", title: "Aula de filtro", date: "2026-09-10", ...EV_LOCAL });
+  const v = await admin.post("/api/events", { type: "visita", title: "Visita de filtro", date: "2026-09-11", ...EV_LOCAL });
 
   const aulas = await admin.get("/api/events?type=aula");
   assert(aulas.data.events.every((e) => e.type === "aula"), "só aulas");
@@ -383,16 +405,15 @@ test("filtro por tipo devolve só o tipo pedido", async () => {
 test("inscrição com vagas: confirma, lota, faz fila e promove quem esperava", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const ev = (await admin.post("/api/events", { type: "visita", title: "Visita com 1 vaga", date: "2026-09-20" })).data.event;
+  const ev = (await admin.post("/api/events", { type: "visita", title: "Visita com 1 vaga", date: "2026-09-20", ...EV_LOCAL })).data.event;
 
   const member = client();
   await member.login(MEMBER_ORDER, MEMBER_PASS);
-  eq((await member.post("/api/events/" + ev.id + "/signup")).status, 423, "fechado antes de abrir");
 
   const aberto = await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 1 });
-  eq(aberto.status, 200, "diretor abre inscrições com 1 vaga");
+  eq(aberto.status, 200, "diretor limita as inscrições a 1 vaga");
   const token = aberto.data.event.signupToken;
-  assert(token, "abrir gera token público");
+  assert(token, "o token público existe desde a criação");
 
   const inscrito = await member.post("/api/events/" + ev.id + "/signup");
   eq(inscrito.data.event.myStatus, "confirmed", "membro pega a única vaga");
@@ -406,6 +427,7 @@ test("inscrição com vagas: confirma, lota, faz fila e promove quem esperava", 
     name: "Joana Silva",
     email: "joana@exemplo.com",
     phone: "21999998888",
+    ...FORM_IME,
   });
   eq(fila.data.status, "waitlist", "visitante entra na fila de espera");
 
@@ -417,19 +439,24 @@ test("inscrição com vagas: confirma, lota, faz fila e promove quem esperava", 
   eq(depois.signupCount, 1, "uma vaga ocupada");
   eq(depois.waitlistCount, 0, "fila vazia");
 
+  // Encerrar as inscrições fecha o formulário para todo mundo.
+  await admin.post("/api/events/" + ev.id + "/signups-open", { open: false });
+  eq((await member.post("/api/events/" + ev.id + "/signup")).status, 423, "inscrição encerrada recusa membro");
+  eq((await visitante.post("/api/event-signup/" + token, { name: "Tarde Demais", email: "t@x.com", phone: "21900000000", ...FORM_IME })).status, 423, "e recusa visitante");
+
   await admin.del("/api/events/" + ev.id);
 });
 
 test("aumentar o número de vagas promove a fila inteira", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const ev = (await admin.post("/api/events", { type: "social", title: "Happy hour", date: "2026-09-25" })).data.event;
+  const ev = (await admin.post("/api/events", { type: "social", title: "Happy hour", date: "2026-09-25", ...EV_LOCAL })).data.event;
   const aberto = await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 1 });
   const token = aberto.data.event.signupToken;
 
   const v1 = client(), v2 = client();
-  await v1.post("/api/event-signup/" + token, { name: "Ana Prima", email: "ana@x.com", phone: "21988887777" });
-  await v2.post("/api/event-signup/" + token, { name: "Bruno Segundo", email: "bruno@x.com", phone: "21977776666" });
+  await v1.post("/api/event-signup/" + token, { name: "Ana Prima", email: "ana@x.com", phone: "21988887777", ...FORM_IME });
+  await v2.post("/api/event-signup/" + token, { name: "Bruno Segundo", email: "bruno@x.com", phone: "21977776666", ...FORM_IME });
   let atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
   eq(atual.waitlistCount, 1, "o segundo deveria estar na fila");
 
@@ -441,10 +468,60 @@ test("aumentar o número de vagas promove a fila inteira", async () => {
   await admin.del("/api/events/" + ev.id);
 });
 
+test("formulário público exige os campos do IME e o evento aberto aparece na home", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const ev = (await admin.post("/api/events", {
+    type: "visita",
+    title: "Visita com formulário",
+    date: "2027-01-15",
+    time: "09:30",
+    location: "Av. Faria Lima, 4440 — São Paulo",
+  })).data.event;
+
+  const visitante = client();
+  const info = await visitante.get("/api/event-signup/" + ev.signupToken);
+  assert(Array.isArray(info.data.turmas) && info.data.turmas.includes("XXVIII"), "o formulário recebe a lista fechada de turmas");
+  assert(info.data.especialidades.includes("Cartografia"), "e a de especialidades");
+  eq(info.data.time, "09:30", "horário exposto no formulário");
+  eq(info.data.location, "Av. Faria Lima, 4440 — São Paulo", "local exposto no formulário");
+
+  const base = { name: "Cadete Completo", email: "cadete@ime.eb.br", phone: "21999990000", ...FORM_IME };
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, turma: "" })).status, 400, "sem turma é recusado");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, turma: "XXXI" })).status, 400, "turma fora da lista fechada é recusada");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, especialidade: "Astrologia" })).status, 400, "especialidade fora da lista é recusada");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, email: "sem-arroba" })).status, 400, "e-mail inválido é recusado");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, idade: "vinte" })).status, 400, "idade inválida é recusada");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, awareLocation: false })).status, 400, "sem ciência do local é recusado");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, { ...base, awareTime: false })).status, 400, "sem ciência do horário é recusado");
+  eq((await visitante.post("/api/event-signup/" + ev.signupToken, base)).status, 200, "com tudo preenchido a inscrição entra");
+
+  const visto = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  const s = visto.signups.find((x) => x.name === "Cadete Completo");
+  eq(s.turma, "XXIX", "turma gravada na inscrição");
+  eq(s.especialidade, "Computação", "especialidade gravada");
+  eq(s.idade, 21, "idade gravada");
+
+  // Vitrine pública: o evento com inscrições abertas vai à página principal.
+  const pub = await client().get("/api/public-events");
+  eq(pub.status, 200, "a vitrine é pública, sem login");
+  const naHome = pub.data.events.find((e) => e.title === "Visita com formulário");
+  assert(naHome, "evento aberto aparece na home");
+  assert(naHome.signupUrl.indexOf("/inscricao.html?t=") === 0, "com o link do formulário");
+  assert(!("qrToken" in naHome) && !("codes" in naHome) && !("signups" in naHome), "sem vazar presença nem lista nominal");
+
+  // Encerrou as inscrições, sai da home.
+  await admin.post("/api/events/" + ev.id + "/signups-open", { open: false });
+  const depois = await client().get("/api/public-events");
+  assert(!depois.data.events.some((e) => e.title === "Visita com formulário"), "evento fechado some da home");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
 test("presença só vale no dia: código e QR recusam fora da data", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const futuro = await admin.post("/api/events", { type: "reuniao", title: "Reunião de outubro", date: "2026-10-30" });
+  const futuro = await admin.post("/api/events", { type: "reuniao", title: "Reunião de outubro", date: "2026-10-30", ...EV_LOCAL });
   const ev = futuro.data.event;
   eq(ev.attendanceState, "agendada", "evento futuro nasce agendado");
 
@@ -470,7 +547,7 @@ test("no dia do evento a presença abre sozinha, sem ninguém apertar nada", asy
   const admin = client();
   await admin.login(1, ADMIN_PASS);
   const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  const ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião de hoje", date: hoje })).data.event;
+  const ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião de hoje", date: hoje, ...EV_LOCAL })).data.event;
   eq(ev.attendanceState, "aberta", "evento de hoje já está com presença aberta");
 
   const member = client();
@@ -503,7 +580,7 @@ test("diretoria pode encerrar a presença antes e reabrir depois", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
   const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  const ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião com override", date: hoje })).data.event;
+  const ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião com override", date: hoje, ...EV_LOCAL })).data.event;
 
   const fechar = await admin.post("/api/events/" + ev.id + "/attendance-open", { open: false });
   eq(fechar.data.attendanceState, "encerrada", "override fecha no próprio dia");
@@ -522,12 +599,12 @@ test("quem se inscreveu e apareceu fica marcado como presente", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
   const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  const ev = (await admin.post("/api/events", { type: "aula", title: "Aula com lista", date: hoje })).data.event;
-  const token = (await admin.post("/api/events/" + ev.id + "/signups-open", { open: true })).data.event.signupToken;
+  const ev = (await admin.post("/api/events", { type: "aula", title: "Aula com lista", date: hoje, ...EV_LOCAL })).data.event;
+  const token = ev.signupToken;
 
   const visitante = client();
-  await visitante.post("/api/event-signup/" + token, { name: "Elisa Presente", email: "elisa@x.com", phone: "21944443333" });
-  await visitante.post("/api/event-signup/" + token, { name: "Faltoso Silva", email: "faltoso@x.com", phone: "21933332222" });
+  await visitante.post("/api/event-signup/" + token, { name: "Elisa Presente", email: "elisa@x.com", phone: "21944443333", ...FORM_IME });
+  await visitante.post("/api/event-signup/" + token, { name: "Faltoso Silva", email: "faltoso@x.com", phone: "21933332222", ...FORM_IME });
   await visitante.post("/api/presence/" + ev.qrToken, { name: "Elisa Presente", email: "elisa@x.com", phone: "21944443333" });
 
   const visao = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
@@ -542,7 +619,7 @@ test("quem se inscreveu e apareceu fica marcado como presente", async () => {
 test("materiais e fotos do evento: diretoria publica, membro consome", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const ev = (await admin.post("/api/events", { type: "aula", title: "Aula com material", date: "2026-09-30" })).data.event;
+  const ev = (await admin.post("/api/events", { type: "aula", title: "Aula com material", date: "2026-09-30", ...EV_LOCAL })).data.event;
 
   const foto = await admin.post("/api/events/" + ev.id + "/photos", PNG_1PX, { "Content-Type": "image/png" });
   eq(foto.status, 200, "upload de foto");
@@ -591,21 +668,27 @@ test("CRUD completo: editar o evento, remover inscrição, presença, código e 
   const admin = client();
   await admin.login(1, ADMIN_PASS);
   const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  let ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião de teste", date: hoje })).data.event;
+  let ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião de teste", date: hoje, ...EV_LOCAL })).data.event;
 
-  // Update: tipo, título, data e texto
+  // Update: tipo, título, data, texto, local e horário
   const editado = await admin.patch("/api/events/" + ev.id, {
     type: "visita",
     title: "Visita à Mirow",
     date: "2026-10-05",
     text: "Encontro no escritório às 14h.",
+    time: "14:00",
+    location: "Escritório da Mirow — Botafogo",
   });
   eq(editado.status, 200, "edição do evento");
   eq(editado.data.event.type, "visita", "tipo atualizado");
   eq(editado.data.event.title, "Visita à Mirow", "título atualizado");
   eq(editado.data.event.date, "2026-10-05", "data atualizada");
   eq(editado.data.event.text, "Encontro no escritório às 14h.", "texto atualizado");
+  eq(editado.data.event.time, "14:00", "horário atualizado");
+  eq(editado.data.event.location, "Escritório da Mirow — Botafogo", "local atualizado");
   eq((await admin.patch("/api/events/" + ev.id, { title: "  " })).status, 400, "título vazio recusado");
+  eq((await admin.patch("/api/events/" + ev.id, { location: "  " })).status, 400, "local vazio recusado");
+  eq((await admin.patch("/api/events/" + ev.id, { time: "19h" })).status, 400, "horário fora do formato recusado");
 
   const member = client();
   await member.login(MEMBER_ORDER, MEMBER_PASS);
@@ -614,8 +697,8 @@ test("CRUD completo: editar o evento, remover inscrição, presença, código e 
   // Delete de inscrição, com promoção da fila
   const token = (await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 1 })).data.event.signupToken;
   const visitante = client();
-  await visitante.post("/api/event-signup/" + token, { name: "Primeiro Inscrito", email: "um@x.com", phone: "21911112222" });
-  await visitante.post("/api/event-signup/" + token, { name: "Segundo Espera", email: "dois@x.com", phone: "21933334444" });
+  await visitante.post("/api/event-signup/" + token, { name: "Primeiro Inscrito", email: "um@x.com", phone: "21911112222", ...FORM_IME });
+  await visitante.post("/api/event-signup/" + token, { name: "Segundo Espera", email: "dois@x.com", phone: "21933334444", ...FORM_IME });
   let atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
   const primeiro = atual.signups.find((s) => s.name === "Primeiro Inscrito");
   assert(primeiro.id, "inscrição deveria ter id próprio");
@@ -684,8 +767,8 @@ test("escrita do volume é atômica e deixa .bak recuperável", async () => {
   for (const e of (await admin.get("/api/events")).data.events) await admin.del("/api/events/" + e.id);
 
   const eventsPath = path.join(volumeDir, "events.json");
-  await admin.post("/api/events", { title: "Primeiro aviso", date: "2026-08-20" });
-  const second = await admin.post("/api/events", { title: "Segundo aviso", date: "2026-08-21" });
+  await admin.post("/api/events", { title: "Primeiro aviso", date: "2026-08-20", ...EV_LOCAL });
+  const second = await admin.post("/api/events", { title: "Segundo aviso", date: "2026-08-21", ...EV_LOCAL });
 
   assert(fs.existsSync(eventsPath + ".bak"), "deveria existir .bak depois da segunda escrita");
   assert(!fs.existsSync(eventsPath + ".tmp"), "o .tmp não deveria sobrar");
@@ -701,8 +784,8 @@ test("escrita do volume é atômica e deixa .bak recuperável", async () => {
 test("JSON corrompido no volume cai no .bak em vez de derrubar o app", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  await admin.post("/api/events", { title: "Aviso antes da corrupção", date: "2026-08-22" });
-  await admin.post("/api/events", { title: "Aviso depois", date: "2026-08-23" });
+  await admin.post("/api/events", { title: "Aviso antes da corrupção", date: "2026-08-22", ...EV_LOCAL });
+  await admin.post("/api/events", { title: "Aviso depois", date: "2026-08-23", ...EV_LOCAL });
 
   const eventsPath = path.join(volumeDir, "events.json");
   fs.writeFileSync(eventsPath, '{"events": [{"title": "trunca'); // simula kill no meio da escrita

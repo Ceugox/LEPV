@@ -1205,6 +1205,12 @@ app.get("/api/legacy", requireImmersionApi, (req, res) => {
 const EVENT_TYPES = ["reuniao", "aula", "visita", "social"];
 const EVENT_TEXT_MAX = 600;
 const EVENT_PHOTOS_MAX = 6;
+// Listas fechadas do formulário público de inscrição (público do IME).
+const SIGNUP_TURMAS = ["XXX", "XXIX", "XXVIII", "XXVII", "XXVI"];
+const SIGNUP_ESPECIALIDADES = [
+  "Básico", "Computação", "Elétrica", "Eletrônica", "Comunicações",
+  "Mecânica", "Materiais", "Química", "Cartografia",
+];
 // Com 2+ presenças o visitante deve ser convidado a virar membro.
 const VISITOR_INVITE_THRESHOLD = 2;
 
@@ -1212,6 +1218,56 @@ const VISITOR_INVITE_THRESHOLD = 2;
 // evento das 19h às 22h viraria "amanhã" às 21h, fechando o QR no meio.
 function todayBR() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+// ---- Estimativa de deslocamento a partir do IME ----
+//
+// "Ciente do local?" só vale se der para dimensionar o trajeto: ao lado do
+// local o site mostra quanto tempo leva saindo do IME (Praça General
+// Tibúrcio, 80). A estimativa é calculada UMA vez, ao criar ou editar o
+// evento (Nominatim para geocodificar + OSRM para a rota, públicos e sem
+// chave), e fica gravada em travelMinutes. Falhou a rede? Fica null e a
+// linha simplesmente não aparece. TRAVEL_ESTIMATE=off desliga (usado no e2e
+// para não depender de internet).
+const IME_COORDS = { lat: -22.9556, lon: -43.1661 };
+const AT_IME_RE = /\bIME\b|tib[uú]rcio|praia vermelha/i;
+const travelCache = new Map();
+
+async function fetchJson(url, headers) {
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(4000) });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+async function estimateTravelMinutes(location) {
+  if (process.env.TRAVEL_ESTIMATE === "off") return null;
+  // Evento no próprio IME não precisa de trajeto.
+  if (AT_IME_RE.test(location)) return 0;
+  const key = location.trim().toLowerCase();
+  if (travelCache.has(key)) return travelCache.get(key);
+  let minutes = null;
+  try {
+    const geo = await fetchJson(
+      "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" +
+        encodeURIComponent(location + ", Rio de Janeiro"),
+      { "User-Agent": "LEPV/1.0 (https://lepv.org)" }
+    );
+    if (Array.isArray(geo) && geo.length) {
+      const route = await fetchJson(
+        "https://router.project-osrm.org/route/v1/driving/" +
+          IME_COORDS.lon + "," + IME_COORDS.lat + ";" + geo[0].lon + "," + geo[0].lat + "?overview=false"
+      );
+      if (route.routes && route.routes.length) {
+        minutes = Math.max(1, Math.round(route.routes[0].duration / 60));
+      }
+    }
+  } catch (err) {
+    console.error('Estimativa de trajeto falhou para "' + location + '":', err.message);
+  }
+  // null não entra no cache: falha transitória merece nova tentativa na
+  // próxima edição, não ficar gravada até o próximo deploy.
+  if (minutes !== null) travelCache.set(key, minutes);
+  return minutes;
 }
 
 // Presença aberta = é o dia do evento. `attendanceOpen` só existe para o
@@ -1229,6 +1285,9 @@ function attendanceState(ev) {
 
 function normalizeEvent(ev) {
   if (!Array.isArray(ev.photos)) ev.photos = [];
+  if (typeof ev.location !== "string") ev.location = "";
+  if (typeof ev.time !== "string") ev.time = "";
+  if (typeof ev.travelMinutes !== "number") ev.travelMinutes = null;
   if (!Array.isArray(ev.materials)) ev.materials = [];
   if (!Array.isArray(ev.codes)) ev.codes = [];
   if (!Array.isArray(ev.memberAttendance)) ev.memberAttendance = [];
@@ -1370,6 +1429,9 @@ function eventView(ev, user) {
     title: ev.title,
     text: ev.text || "",
     date: ev.date,
+    location: ev.location || "",
+    time: ev.time || "",
+    travelMinutes: ev.travelMinutes,
     photos: ev.photos.map((p) => ({ id: p.id, url: "/api/events/" + ev.id + "/photos/" + p.id })),
     materials: ev.materials.map((m) => ({
       id: m.id,
@@ -1466,11 +1528,18 @@ app.get("/api/events", requireAuthApi, (req, res) => {
 
 // ---- Criação e edição (diretoria) ----
 
-app.post("/api/events", requireDirectorApi, (req, res) => {
+app.post("/api/events", requireDirectorApi, async (req, res) => {
   const title = String(req.body.title || "").trim().slice(0, 100);
   if (!title) return res.status(400).json({ error: "empty_title", message: "Dê um título ao evento." });
+  const location = String(req.body.location || "").trim().slice(0, 120);
+  if (!location) return res.status(400).json({ error: "empty_location", message: "Informe o local do evento." });
+  const time = String(req.body.time || "");
+  if (!/^\d{2}:\d{2}$/.test(time)) return res.status(400).json({ error: "empty_time", message: "Informe o horário do evento." });
   const type = EVENT_TYPES.indexOf(String(req.body.type)) !== -1 ? String(req.body.type) : "reuniao";
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || "")) ? String(req.body.date) : todayBR();
+  // A estimativa vem antes da leitura do store: nada de segurar o JSON aberto
+  // enquanto se espera serviço externo.
+  const travelMinutes = await estimateTravelMinutes(location);
   const data = readEventsStore();
   const ev = normalizeEvent({
     id: "ev" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
@@ -1478,7 +1547,13 @@ app.post("/api/events", requireDirectorApi, (req, res) => {
     title,
     text: String(req.body.text || "").trim().slice(0, EVENT_TEXT_MAX),
     date,
+    location,
+    time,
+    travelMinutes,
     codes: [generateCode()],
+    // O formulário de inscrição nasce publicado junto com o aviso: token e
+    // inscrições abertas desde a criação, sem passo manual da diretoria.
+    signups: { open: true, token: crypto.randomBytes(8).toString("hex"), capacity: null, list: [] },
     createdBy: req.session.user.order,
     createdByName: req.session.user.name,
     createdAt: new Date().toISOString(),
@@ -1488,7 +1563,18 @@ app.post("/api/events", requireDirectorApi, (req, res) => {
   res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
 });
 
-app.patch("/api/events/:id", requireDirectorApi, (req, res) => {
+app.patch("/api/events/:id", requireDirectorApi, async (req, res) => {
+  // A estimativa de trajeto espera serviço externo, então tudo que valida e
+  // consulta vem ANTES de ler o store — a leitura+escrita fica atômica.
+  let newLocation;
+  if (req.body.location !== undefined) {
+    newLocation = String(req.body.location).trim().slice(0, 120);
+    if (!newLocation) return res.status(400).json({ error: "empty_location", message: "Informe o local do evento." });
+  }
+  if (req.body.time !== undefined && !/^\d{2}:\d{2}$/.test(String(req.body.time))) {
+    return res.status(400).json({ error: "empty_time", message: "Informe o horário do evento." });
+  }
+  const travelMinutes = newLocation !== undefined ? await estimateTravelMinutes(newLocation) : undefined;
   const data = readEventsStore();
   const ev = findEvent(data, req.params.id);
   if (!ev) return res.status(404).json({ error: "not_found" });
@@ -1498,6 +1584,11 @@ app.patch("/api/events/:id", requireDirectorApi, (req, res) => {
     ev.title = title;
   }
   if (req.body.text !== undefined) ev.text = String(req.body.text).trim().slice(0, EVENT_TEXT_MAX);
+  if (newLocation !== undefined) {
+    ev.location = newLocation;
+    ev.travelMinutes = travelMinutes;
+  }
+  if (req.body.time !== undefined) ev.time = String(req.body.time);
   if (req.body.date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date))) ev.date = String(req.body.date);
   if (req.body.type !== undefined && EVENT_TYPES.indexOf(String(req.body.type)) !== -1) ev.type = String(req.body.type);
   writeEvents(data);
@@ -1823,6 +1914,9 @@ app.get("/api/events/:id/qr", requireDirectorApi, (req, res) => {
 // ---- Páginas públicas: inscrição pelo link e presença pelo QR ----
 
 const publicFormAttempts = new Map();
+// O teto vale por IP e é compartilhado por inscrição e presença. O e2e sobe o
+// valor por env porque a suíte inteira dispara de 127.0.0.1.
+const PUBLIC_FORM_MAX = parseInt(process.env.PUBLIC_FORM_MAX, 10) || 20;
 function publicFormRateLimited(ip) {
   const now = Date.now();
   const rec = publicFormAttempts.get(ip);
@@ -1831,7 +1925,7 @@ function publicFormRateLimited(ip) {
     return false;
   }
   rec.count += 1;
-  return rec.count > 20;
+  return rec.count > PUBLIC_FORM_MAX;
 }
 
 const TYPE_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Encontro" };
@@ -1843,12 +1937,43 @@ app.get("/api/event-signup/:token", (req, res) => {
   res.json({
     title: ev.title,
     date: ev.date,
+    time: ev.time || "",
+    location: ev.location || "",
+    travelMinutes: ev.travelMinutes,
     text: ev.text || "",
     kind: TYPE_LABEL[ev.type] || "Evento",
     open: ev.signups.open,
     capacity: ev.signups.capacity,
     seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
+    turmas: SIGNUP_TURMAS,
+    especialidades: SIGNUP_ESPECIALIDADES,
   });
+});
+
+// A vitrine da home: eventos futuros com inscrições abertas, com o link do
+// formulário. É informação deliberadamente pública — o aviso existe para
+// circular fora da liga e trazer gente nova.
+app.get("/api/public-events", (req, res) => {
+  const hoje = todayBR();
+  const events = readEventsStore()
+    .events.filter((e) => e.signups.open && e.date >= hoje)
+    .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0))
+    .map((ev) => {
+      const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
+      return {
+        title: ev.title,
+        kind: TYPE_LABEL[ev.type] || "Evento",
+        date: ev.date,
+        time: ev.time || "",
+        location: ev.location || "",
+        travelMinutes: ev.travelMinutes,
+        text: ev.text || "",
+        capacity: ev.signups.capacity,
+        seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
+        signupUrl: "/inscricao.html?t=" + ev.signups.token,
+      };
+    });
+  res.json({ events });
 });
 
 app.post("/api/event-signup/:token", (req, res) => {
@@ -1864,11 +1989,31 @@ app.post("/api/event-signup/:token", (req, res) => {
   const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
   const email = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
   const phone = String(req.body.phone || "").trim().slice(0, 30);
+  const turma = String(req.body.turma || "").trim();
+  const especialidade = String(req.body.especialidade || "").trim();
+  const idade = parseInt(req.body.idade, 10);
   if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
     return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
   }
+  if (!/^\S+@\S+\.\S+$/.test(email)) {
+    return res.status(400).json({ error: "invalid_email", message: "Informe um e-mail válido." });
+  }
   if (phone.replace(/\D/g, "").length < 10) {
     return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
+  }
+  if (SIGNUP_TURMAS.indexOf(turma) === -1) {
+    return res.status(400).json({ error: "invalid_turma", message: "Escolha sua turma." });
+  }
+  if (SIGNUP_ESPECIALIDADES.indexOf(especialidade) === -1) {
+    return res.status(400).json({ error: "invalid_especialidade", message: "Escolha sua especialidade." });
+  }
+  if (!Number.isInteger(idade) || idade < 14 || idade > 99) {
+    return res.status(400).json({ error: "invalid_idade", message: "Informe sua idade." });
+  }
+  // Ciência de local e horário é compromisso, não burocracia: quem marca leu
+  // onde e quando é — o que reduz no-show.
+  if (req.body.awareLocation !== true || req.body.awareTime !== true) {
+    return res.status(400).json({ error: "not_aware", message: "Confirme que está ciente do local e do horário." });
   }
   const sameName = (n) => n.trim().toLowerCase() === name.toLowerCase();
   const existing = ev.signups.list.find(
@@ -1878,7 +2023,18 @@ app.post("/api/event-signup/:token", (req, res) => {
   if (existing) {
     status = existing.status;
   } else {
-    status = addSignup(ev, { type: "external", name, email, phone, at: new Date().toISOString() });
+    status = addSignup(ev, {
+      type: "external",
+      name,
+      email,
+      phone,
+      turma,
+      especialidade,
+      idade,
+      awareLocation: true,
+      awareTime: true,
+      at: new Date().toISOString(),
+    });
     writeEvents(data);
   }
   res.json({
