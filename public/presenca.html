@@ -78,9 +78,12 @@
 
     <div class="card">
       <div id="meeting-info">
-        <p class="eyebrow">Reunião</p>
+        <p class="eyebrow" id="event-kind">Evento</p>
         <h2 id="meeting-title">Carregando...</h2>
         <p class="meeting-date" id="meeting-date"></p>
+        <!-- Fora do <form>: quando a presença ainda não abriu o formulário some,
+             e o aviso precisa continuar visível. -->
+        <p class="error" id="v-notice"></p>
       </div>
 
       <form id="presence-form">
@@ -122,7 +125,10 @@
 
   function fail(msg) {
     document.getElementById("meeting-title").textContent = "Link inválido";
-    document.getElementById("meeting-date").textContent = msg;
+    document.getElementById("meeting-date").textContent = "";
+    var aviso = document.getElementById("v-notice");
+    aviso.textContent = msg;
+    aviso.classList.add("show");
     form.style.display = "none";
   }
 
@@ -131,18 +137,26 @@
   } else {
     fetch("/api/presence/" + encodeURIComponent(token))
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function (m) {
-        document.getElementById("meeting-title").textContent = m.title;
-        var p = String(m.date || "").split("-");
-        document.getElementById("meeting-date").textContent =
-          (p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : "") + (m.open ? "" : " · reunião encerrada");
-        if (!m.open) {
+      .then(function (ev) {
+        document.getElementById("event-kind").textContent = ev.kind || "Evento";
+        document.getElementById("meeting-title").textContent = ev.title;
+        var p = String(ev.date || "").split("-");
+        var dataBR = p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : "";
+        // O mesmo QR pode ser impresso com antecedência: antes do dia ele
+        // avisa quando vale, depois do dia diz que acabou.
+        var sufixo = ev.state === "agendada" ? " · a presença abre nesse dia"
+          : ev.state === "encerrada" ? " · presença encerrada" : "";
+        document.getElementById("meeting-date").textContent = dataBR + sufixo;
+        if (!ev.open) {
           form.style.display = "none";
-          errorEl.textContent = "Esta reunião já foi encerrada.";
-          errorEl.classList.add("show");
+          var aviso = document.getElementById("v-notice");
+          aviso.textContent = ev.state === "agendada"
+            ? "Ainda não é o dia. Guarde este QR e escaneie de novo em " + dataBR + "."
+            : "A presença deste evento já foi encerrada.";
+          aviso.classList.add("show");
         }
       })
-      .catch(function () { fail("Este QR code não corresponde a nenhuma reunião."); });
+      .catch(function () { fail("Este QR code não corresponde a nenhum evento."); });
   }
 
   form.addEventListener("submit", function (e) {

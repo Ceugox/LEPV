@@ -142,19 +142,9 @@ if (!fs.existsSync(MATERIALS_PATH)) {
 }
 fs.mkdirSync(MATERIALS_DIR, { recursive: true });
 
-// Reuniões da liga — presença de membros (por código) e de visitantes
-// (por QR/pré-cadastro). Tudo em runtime, então mora no volume.
+// Formatos antigos, só para a migração ler uma vez: reuniões e aulas viraram
+// eventos em 01/08/2026. Nada mais escreve nestes arquivos.
 const MEETINGS_PATH = path.join(STORAGE_DIR, "meetings.json");
-function readMeetings() {
-  return readStore(MEETINGS_PATH);
-}
-function writeMeetings(value) {
-  writeStore(MEETINGS_PATH, value);
-}
-if (!fs.existsSync(MEETINGS_PATH)) {
-  fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  writeMeetings({ meetings: [], visitors: [] });
-}
 
 // Fotos de perfil enviadas pelos membros — vivem no volume e vencem a foto
 // do repo (fundador troca a sua; membro novo adiciona a primeira).
@@ -182,22 +172,11 @@ function sniffImage(buf) {
   return null;
 }
 
-// Aulas da liga e seus materiais — diretor cadastra a aula, qualquer diretor
-// anexa material (PDF no volume, link). Todo membro lê. Mesmo padrão dos
-// materiais da imersão, mas por aula em vez de por empresa.
 const LESSONS_PATH = path.join(STORAGE_DIR, "lessons.json");
-const LESSON_FILES_DIR = path.join(STORAGE_DIR, "lesson-materials");
-function readLessons() {
-  return readStore(LESSONS_PATH);
-}
-function writeLessons(value) {
-  writeStore(LESSONS_PATH, value);
-}
-if (!fs.existsSync(LESSONS_PATH)) {
-  fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  writeLessons({ lessons: [] });
-}
-fs.mkdirSync(LESSON_FILES_DIR, { recursive: true });
+// Os PDFs das aulas antigas continuam neste diretório — os eventos gravam no
+// mesmo lugar para que nenhum material precise ser movido na migração.
+const EVENT_FILES_DIR = path.join(STORAGE_DIR, "lesson-materials");
+fs.mkdirSync(EVENT_FILES_DIR, { recursive: true });
 
 // Mural de eventos da liga — qualquer diretor publica um aviso (título, texto
 // e fotos) que roda no carrossel da aba Início. Fotos no volume, como avatars.
@@ -1214,57 +1193,264 @@ app.get("/api/legacy", requireImmersionApi, (req, res) => {
   });
 });
 
-// ---- Reuniões da liga (presença por código e QR) ----
+// ---- Eventos da liga: aviso → inscrição → presença ----
+//
+// Um evento é o objeto único da vida da liga: reunião, aula, visita ou social.
+// Ele nasce como aviso no mural, pode abrir formulário de inscrição (com vagas
+// e fila de espera) e tem presença própria — o código e o QR só valem NO DIA do
+// evento, sem ninguém precisar lembrar de abrir nada. Antes de 01/08/2026 isso
+// eram três coisas separadas (meetings.json, lessons.json e o mural); a
+// migração abaixo junta tudo preservando presença, visitantes e materiais.
 
-// Quantas reuniões um visitante já compareceu — com 2+ ele deve ser
-// convidado a virar membro (o painel dos diretores destaca isso).
+const EVENT_TYPES = ["reuniao", "aula", "visita", "social"];
+const EVENT_TEXT_MAX = 600;
+const EVENT_PHOTOS_MAX = 6;
+// Com 2+ presenças o visitante deve ser convidado a virar membro.
 const VISITOR_INVITE_THRESHOLD = 2;
-function visitorVisits(data, visitorId) {
-  return data.meetings.filter((m) => (m.visitorAttendance || []).includes(visitorId)).length;
+
+// A data do evento é a data no Brasil, não em UTC: o servidor roda em UTC e um
+// evento das 19h às 22h viraria "amanhã" às 21h, fechando o QR no meio.
+function todayBR() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 
-function meetingBaseView(m, user) {
+// Presença aberta = é o dia do evento. `attendanceOpen` só existe para o
+// override manual da diretoria (encerrar antes ou reabrir depois).
+function attendanceIsOpen(ev) {
+  if (ev.attendanceOpen === true || ev.attendanceOpen === false) return ev.attendanceOpen;
+  return ev.date === todayBR();
+}
+function attendanceState(ev) {
+  if (ev.attendanceOpen === true) return "aberta";
+  if (ev.attendanceOpen === false) return "encerrada";
+  if (ev.date === todayBR()) return "aberta";
+  return ev.date > todayBR() ? "agendada" : "encerrada";
+}
+
+function normalizeEvent(ev) {
+  if (!Array.isArray(ev.photos)) ev.photos = [];
+  if (!Array.isArray(ev.materials)) ev.materials = [];
+  if (!Array.isArray(ev.codes)) ev.codes = [];
+  if (!Array.isArray(ev.memberAttendance)) ev.memberAttendance = [];
+  if (!Array.isArray(ev.visitorAttendance)) ev.visitorAttendance = [];
+  if (!ev.signups || typeof ev.signups !== "object") ev.signups = {};
+  if (!Array.isArray(ev.signups.list)) ev.signups.list = [];
+  if (typeof ev.signups.open !== "boolean") ev.signups.open = false;
+  if (!("capacity" in ev.signups)) ev.signups.capacity = null;
+  if (!ev.qrToken) ev.qrToken = crypto.randomBytes(8).toString("hex");
+  if (EVENT_TYPES.indexOf(ev.type) === -1) ev.type = "reuniao";
+  return ev;
+}
+
+function readEventsStore() {
+  const data = readEvents();
+  if (!Array.isArray(data.events)) data.events = [];
+  if (!Array.isArray(data.visitors)) data.visitors = [];
+  data.events.forEach(normalizeEvent);
+  return data;
+}
+
+function findEvent(data, id) {
+  return data.events.find((e) => e.id === id);
+}
+
+function visitorVisits(data, visitorId) {
+  return data.events.filter((e) => (e.visitorAttendance || []).includes(visitorId)).length;
+}
+
+// ---- Migração dos três formatos antigos ----
+//
+// Roda uma vez: converte meetings.json (reuniões, presença e visitantes) e
+// lessons.json (aulas, materiais e inscrições) em eventos. Os arquivos de
+// origem são renomeados para .migrated — ficam no volume como cópia de
+// segurança e não entram de novo na próxima subida.
+function migrateLegacyStores() {
+  const data = readEventsStore();
+  let changed = false;
+
+  if (fs.existsSync(MEETINGS_PATH)) {
+    try {
+      const old = readStore(MEETINGS_PATH);
+      for (const m of old.meetings || []) {
+        if (findEvent(data, m.id)) continue;
+        data.events.push(
+          normalizeEvent({
+            id: m.id,
+            type: "reuniao",
+            title: m.title,
+            text: "",
+            date: m.date,
+            photos: [],
+            materials: [],
+            signups: { open: false, capacity: null, list: [] },
+            codes: m.codes || [],
+            qrToken: m.qrToken,
+            memberAttendance: m.memberAttendance || [],
+            visitorAttendance: m.visitorAttendance || [],
+            // Reunião encerrada à mão continua encerrada; o resto passa a
+            // seguir a data automaticamente.
+            attendanceOpen: m.open === false ? false : undefined,
+            createdBy: m.createdBy,
+            createdByName: m.createdByName || "",
+            createdAt: m.createdAt,
+          })
+        );
+        changed = true;
+      }
+      for (const v of old.visitors || []) {
+        if (!data.visitors.some((x) => x.id === v.id)) {
+          data.visitors.push(v);
+          changed = true;
+        }
+      }
+      fs.renameSync(MEETINGS_PATH, MEETINGS_PATH + ".migrated");
+      console.log("Migração: " + (old.meetings || []).length + " reuniões viraram eventos.");
+    } catch (err) {
+      console.error("Migração de meetings.json falhou:", err.message);
+    }
+  }
+
+  if (fs.existsSync(LESSONS_PATH)) {
+    try {
+      const old = readStore(LESSONS_PATH);
+      for (const l of old.lessons || []) {
+        if (findEvent(data, l.id)) continue;
+        data.events.push(
+          normalizeEvent({
+            id: l.id,
+            type: "aula",
+            title: l.title,
+            text: l.description || "",
+            date: l.date,
+            photos: [],
+            materials: l.materials || [],
+            signups: {
+              open: l.signupsOpen === true,
+              token: l.signupToken,
+              capacity: null,
+              list: (l.signups || []).map((s) => ({ ...s, status: "confirmed" })),
+            },
+            codes: [],
+            memberAttendance: [],
+            visitorAttendance: [],
+            createdBy: l.createdBy,
+            createdByName: l.createdByName || "",
+            createdAt: l.createdAt,
+          })
+        );
+        changed = true;
+      }
+      fs.renameSync(LESSONS_PATH, LESSONS_PATH + ".migrated");
+      console.log("Migração: " + (old.lessons || []).length + " aulas viraram eventos.");
+    } catch (err) {
+      console.error("Migração de lessons.json falhou:", err.message);
+    }
+  }
+
+  if (changed) writeEvents(data);
+}
+migrateLegacyStores();
+
+// ---- Views ----
+
+// O que todo membro vê. A lista nominal de inscritos, os códigos de presença e
+// os contatos dos visitantes são da diretoria — ver directorView.
+function eventView(ev, user) {
+  const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist");
+  const waitlist = ev.signups.list.filter((s) => s.status === "waitlist");
+  const mine = ev.signups.list.find((s) => s.type === "member" && s.order === user.order);
   return {
-    id: m.id,
-    title: m.title,
-    date: m.date,
-    open: m.open !== false,
-    present: m.memberAttendance.includes(user.order),
-    membersPresent: m.memberAttendance.length,
-    visitorsPresent: (m.visitorAttendance || []).length,
+    id: ev.id,
+    type: ev.type,
+    title: ev.title,
+    text: ev.text || "",
+    date: ev.date,
+    photos: ev.photos.map((p) => ({ id: p.id, url: "/api/events/" + ev.id + "/photos/" + p.id })),
+    materials: ev.materials.map((m) => ({
+      id: m.id,
+      type: m.type,
+      title: m.title,
+      url: m.type === "link" ? m.url : "/api/events/materials/" + m.id + "/file",
+      size: m.size || 0,
+      addedBy: m.addedBy || "",
+    })),
+    signupsOpen: ev.signups.open,
+    capacity: ev.signups.capacity,
+    signupCount: confirmed.length,
+    waitlistCount: waitlist.length,
+    seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed.length) : null,
+    myStatus: mine ? mine.status : null,
+    attendanceState: attendanceState(ev),
+    present: ev.memberAttendance.includes(user.order),
+    membersPresent: ev.memberAttendance.length,
+    visitorsPresent: ev.visitorAttendance.length,
+    createdByName: ev.createdByName || "",
   };
 }
 
-app.get("/api/meetings", requireAuthApi, (req, res) => {
-  const data = readMeetings();
+function directorView(ev, data) {
+  return {
+    codes: ev.codes,
+    qrToken: ev.qrToken,
+    signupToken: ev.signups.token || null,
+    signups: ev.signups.list,
+    memberAttendance: ev.memberAttendance
+      .map((order) => {
+        const member = findMemberAny(order);
+        return { order, name: member ? member.name : "nº " + order };
+      })
+      .sort((a, b) => a.order - b.order),
+    visitors: ev.visitorAttendance.map((id) => {
+      const v = data.visitors.find((x) => x.id === id);
+      const visits = visitorVisits(data, id);
+      return v
+        ? { id, name: v.name, email: v.email || "", phone: v.phone || "", visits, inviteReady: visits >= VISITOR_INVITE_THRESHOLD }
+        : { id, name: "?", visits };
+    }),
+  };
+}
+
+// Vaga que abre é vaga que anda: ao sair um confirmado, o primeiro da fila sobe.
+function promoteFromWaitlist(ev) {
+  if (!ev.signups.capacity) {
+    ev.signups.list.forEach((s) => { s.status = "confirmed"; });
+    return;
+  }
+  let confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
+  for (const s of ev.signups.list) {
+    if (s.status === "waitlist" && confirmed < ev.signups.capacity) {
+      s.status = "confirmed";
+      s.promotedAt = new Date().toISOString();
+      confirmed += 1;
+    }
+  }
+}
+
+function addSignup(ev, entry) {
+  const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
+  const lotado = ev.signups.capacity !== null && confirmed >= ev.signups.capacity;
+  entry.status = lotado ? "waitlist" : "confirmed";
+  ev.signups.list.push(entry);
+  return entry.status;
+}
+
+// ---- Leitura ----
+
+app.get("/api/events", requireAuthApi, (req, res) => {
+  const data = readEventsStore();
   const isDirector = req.session.user.director || req.session.user.superadmin;
-  const meetings = [...data.meetings]
+  const type = String(req.query.type || "");
+  const events = data.events
+    .filter((e) => !type || e.type === type)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-    .map((m) => {
-      const view = meetingBaseView(m, req.session.user);
-      if (isDirector) {
-        view.codes = m.codes;
-        view.qrToken = m.qrToken;
-        view.memberAttendance = m.memberAttendance
-          .map((order) => {
-            const member = findMemberAny(order);
-            return { order, name: member ? member.name : "nº " + order };
-          })
-          .sort((a, b) => a.order - b.order);
-        view.visitors = (m.visitorAttendance || []).map((id) => {
-          const v = data.visitors.find((x) => x.id === id);
-          const visits = visitorVisits(data, id);
-          return v
-            ? { id, name: v.name, email: v.email || "", phone: v.phone || "", visits, inviteReady: visits >= VISITOR_INVITE_THRESHOLD }
-            : { id, name: "?", visits };
-        });
-      }
+    .map((e) => {
+      const view = eventView(e, req.session.user);
+      if (isDirector) Object.assign(view, directorView(e, data));
       return view;
     });
 
-  const payload = { meetings };
+  const payload = { events };
   if (isDirector) {
-    // Visão geral dos visitantes recorrentes, independente da reunião.
     payload.inviteReady = data.visitors
       .map((v) => ({ id: v.id, name: v.name, email: v.email || "", phone: v.phone || "", visits: visitorVisits(data, v.id) }))
       .filter((v) => v.visits >= VISITOR_INVITE_THRESHOLD);
@@ -1272,85 +1458,244 @@ app.get("/api/meetings", requireAuthApi, (req, res) => {
   res.json(payload);
 });
 
-app.post("/api/meetings", requireDirectorApi, (req, res) => {
-  const title = String(req.body.title || "").trim().slice(0, 80) || "Reunião da liga";
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || ""))
-    ? String(req.body.date)
-    : new Date().toISOString().slice(0, 10);
-  const data = readMeetings();
-  const meeting = {
-    id: "r" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+// ---- Criação e edição (diretoria) ----
+
+app.post("/api/events", requireDirectorApi, (req, res) => {
+  const title = String(req.body.title || "").trim().slice(0, 100);
+  if (!title) return res.status(400).json({ error: "empty_title", message: "Dê um título ao evento." });
+  const type = EVENT_TYPES.indexOf(String(req.body.type)) !== -1 ? String(req.body.type) : "reuniao";
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || "")) ? String(req.body.date) : todayBR();
+  const data = readEventsStore();
+  const ev = normalizeEvent({
+    id: "ev" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    type,
     title,
+    text: String(req.body.text || "").trim().slice(0, EVENT_TEXT_MAX),
     date,
-    open: true,
     codes: [generateCode()],
-    qrToken: crypto.randomBytes(8).toString("hex"),
-    memberAttendance: [],
-    visitorAttendance: [],
     createdBy: req.session.user.order,
+    createdByName: req.session.user.name,
     createdAt: new Date().toISOString(),
-  };
-  data.meetings.push(meeting);
-  writeMeetings(data);
-  res.json({ ok: true, meeting: { ...meetingBaseView(meeting, req.session.user), codes: meeting.codes, qrToken: meeting.qrToken } });
+  });
+  data.events.push(ev);
+  writeEvents(data);
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
 });
 
-// Mais de um código pode estar ativo ao mesmo tempo — todos valem.
-app.post("/api/meetings/:id/codes", requireDirectorApi, (req, res) => {
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.id === req.params.id);
-  if (!meeting) return res.status(404).json({ error: "not_found" });
-  meeting.codes.push(generateCode());
-  writeMeetings(data);
-  res.json({ ok: true, codes: meeting.codes });
-});
-
-app.post("/api/meetings/:id/open", requireDirectorApi, (req, res) => {
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.id === req.params.id);
-  if (!meeting) return res.status(404).json({ error: "not_found" });
-  meeting.open = Boolean(req.body.open);
-  writeMeetings(data);
-  res.json({ ok: true, open: meeting.open });
-});
-
-// Ajuste manual de presença de membro (esqueceu o código, chegou depois...).
-app.post("/api/meetings/:id/member-attendance", requireDirectorApi, (req, res) => {
-  const order = parseInt(req.body.order, 10);
-  if (!findMemberAny(order)) return res.status(400).json({ error: "invalid_member" });
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.id === req.params.id);
-  if (!meeting) return res.status(404).json({ error: "not_found" });
-  const set = new Set(meeting.memberAttendance);
-  req.body.present ? set.add(order) : set.delete(order);
-  meeting.memberAttendance = Array.from(set).sort((a, b) => a - b);
-  writeMeetings(data);
-  res.json({ ok: true, memberAttendance: meeting.memberAttendance });
-});
-
-// Membro registra a própria presença com o código falado na reunião.
-app.post("/api/meetings/checkin", requireAuthApi, (req, res) => {
-  const code = String(req.body.code || "").trim().toUpperCase();
-  if (!code) return res.status(400).json({ error: "empty_code" });
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.open !== false && m.codes.includes(code));
-  if (!meeting) {
-    return res.status(404).json({ error: "invalid_code", message: "Código inválido ou reunião encerrada." });
+app.patch("/api/events/:id", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  if (req.body.title !== undefined) {
+    const title = String(req.body.title).trim().slice(0, 100);
+    if (!title) return res.status(400).json({ error: "empty_title" });
+    ev.title = title;
   }
-  if (!meeting.memberAttendance.includes(req.session.user.order)) {
-    meeting.memberAttendance.push(req.session.user.order);
-    meeting.memberAttendance.sort((a, b) => a - b);
-    writeMeetings(data);
-  }
-  res.json({ ok: true, meeting: meetingBaseView(meeting, req.session.user) });
+  if (req.body.text !== undefined) ev.text = String(req.body.text).trim().slice(0, EVENT_TEXT_MAX);
+  if (req.body.date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date))) ev.date = String(req.body.date);
+  if (req.body.type !== undefined && EVENT_TYPES.indexOf(String(req.body.type)) !== -1) ev.type = String(req.body.type);
+  writeEvents(data);
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
 });
 
-// QR da reunião: aponta para a página pública de presença de visitantes.
-app.get("/api/meetings/:id/qr", requireDirectorApi, (req, res) => {
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.id === req.params.id);
-  if (!meeting) return res.status(404).json({ error: "not_found" });
-  const url = req.protocol + "://" + req.get("host") + "/presenca.html?t=" + meeting.qrToken;
+app.delete("/api/events/:id", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  for (const p of ev.photos) fs.unlink(path.join(EVENT_PHOTOS_DIR, p.file), () => {});
+  for (const m of ev.materials) {
+    if (m.file) fs.unlink(path.join(EVENT_FILES_DIR, m.file), () => {});
+  }
+  data.events = data.events.filter((e) => e.id !== req.params.id);
+  writeEvents(data);
+  res.json({ ok: true });
+});
+
+// ---- Fotos do aviso ----
+
+app.post(
+  "/api/events/:id/photos",
+  requireDirectorApi,
+  express.raw({ type: ["image/*", "application/octet-stream"], limit: "6mb" }),
+  (req, res) => {
+    const data = readEventsStore();
+    const ev = findEvent(data, req.params.id);
+    if (!ev) return res.status(404).json({ error: "not_found" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "empty_file" });
+    const ext = sniffImage(req.body);
+    if (!ext) return res.status(400).json({ error: "invalid_image", message: "Envie uma imagem JPG, PNG ou WebP." });
+    if (ev.photos.length >= EVENT_PHOTOS_MAX) {
+      return res.status(400).json({ error: "too_many_photos", message: "Máximo de " + EVENT_PHOTOS_MAX + " fotos por evento." });
+    }
+    const id = "p" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+    const file = ev.id + "-" + id + "." + ext;
+    fs.writeFileSync(path.join(EVENT_PHOTOS_DIR, file), req.body);
+    ev.photos.push({ id, file, addedAt: new Date().toISOString() });
+    writeEvents(data);
+    res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+  }
+);
+
+app.get("/api/events/:id/photos/:photoId", requireAuthApi, (req, res) => {
+  const ev = findEvent(readEventsStore(), req.params.id);
+  const photo = ev && ev.photos.find((p) => p.id === req.params.photoId);
+  if (!photo) return res.status(404).end();
+  res.set("Cache-Control", "private, max-age=86400");
+  res.sendFile(path.join(EVENT_PHOTOS_DIR, photo.file));
+});
+
+app.delete("/api/events/:id/photos/:photoId", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const photo = ev.photos.find((p) => p.id === req.params.photoId);
+  if (!photo) return res.status(404).json({ error: "not_found" });
+  ev.photos = ev.photos.filter((p) => p.id !== req.params.photoId);
+  writeEvents(data);
+  fs.unlink(path.join(EVENT_PHOTOS_DIR, photo.file), () => {});
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+// ---- Materiais (slides, PDFs, links) ----
+
+app.post(
+  "/api/events/:id/materials/upload",
+  requireDirectorApi,
+  express.raw({ type: ["application/pdf", "application/octet-stream"], limit: "25mb" }),
+  (req, res) => {
+    const title = String(req.query.title || "").trim().slice(0, 120);
+    if (!title) return res.status(400).json({ error: "empty_title" });
+    const data = readEventsStore();
+    const ev = findEvent(data, req.params.id);
+    if (!ev) return res.status(404).json({ error: "not_found" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "empty_file" });
+    if (req.body.subarray(0, 5).toString("latin1") !== "%PDF-") return res.status(400).json({ error: "not_a_pdf" });
+    const id = "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+    const file = ev.id + "-" + id + ".pdf";
+    fs.writeFileSync(path.join(EVENT_FILES_DIR, file), req.body);
+    ev.materials.push({
+      id,
+      type: "pdf",
+      title,
+      file,
+      size: req.body.length,
+      addedBy: req.session.user.name,
+      addedAt: new Date().toISOString(),
+    });
+    writeEvents(data);
+    res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+  }
+);
+
+app.post("/api/events/:id/materials/link", requireDirectorApi, (req, res) => {
+  const title = String(req.body.title || "").trim().slice(0, 120);
+  const url = String(req.body.url || "").trim();
+  if (!title) return res.status(400).json({ error: "empty_title" });
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "invalid_url" });
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  ev.materials.push({
+    id: "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    type: "link",
+    title,
+    url,
+    addedBy: req.session.user.name,
+    addedAt: new Date().toISOString(),
+  });
+  writeEvents(data);
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+app.get("/api/events/materials/:id/file", requireAuthApi, (req, res) => {
+  const data = readEventsStore();
+  let found = null;
+  for (const ev of data.events) {
+    const item = ev.materials.find((m) => m.id === req.params.id);
+    if (item) { found = item; break; }
+  }
+  if (!found || found.type !== "pdf") return res.status(404).json({ error: "not_found" });
+  const filePath = path.join(EVENT_FILES_DIR, found.file);
+  if (!fs.existsSync(filePath)) return res.status(410).json({ error: "file_missing", message: "O arquivo não está mais no servidor." });
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": (req.query.dl === "1" ? "attachment" : "inline") + "; filename*=UTF-8''" + encodeURIComponent(found.title) + ".pdf",
+    "Cache-Control": "private, max-age=3600",
+  });
+  res.sendFile(filePath);
+});
+
+app.delete("/api/events/:id/materials/:materialId", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const item = ev.materials.find((m) => m.id === req.params.materialId);
+  if (!item) return res.status(404).json({ error: "not_found" });
+  ev.materials = ev.materials.filter((m) => m.id !== req.params.materialId);
+  writeEvents(data);
+  if (item.file) fs.unlink(path.join(EVENT_FILES_DIR, item.file), () => {});
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+// ---- Inscrições ----
+
+app.post("/api/events/:id/signups-open", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  ev.signups.open = Boolean(req.body.open);
+  if ("capacity" in req.body) {
+    const cap = parseInt(req.body.capacity, 10);
+    ev.signups.capacity = Number.isInteger(cap) && cap > 0 ? cap : null;
+    // Aumentar o limite promove quem estava esperando; diminuir não expulsa
+    // ninguém que já tinha vaga confirmada.
+    promoteFromWaitlist(ev);
+  }
+  if (ev.signups.open && !ev.signups.token) ev.signups.token = crypto.randomBytes(8).toString("hex");
+  writeEvents(data);
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+app.post("/api/events/:id/signup", requireAuthApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  if (!ev.signups.open) {
+    return res.status(423).json({ error: "signups_closed", message: "As inscrições deste evento estão fechadas." });
+  }
+  const order = req.session.user.order;
+  if (!ev.signups.list.some((s) => s.type === "member" && s.order === order)) {
+    const member = findMember(order);
+    addSignup(ev, {
+      type: "member",
+      order,
+      name: req.session.user.name,
+      phone: (member && member.phone) || "",
+      at: new Date().toISOString(),
+    });
+    writeEvents(data);
+  }
+  res.json({ ok: true, event: eventView(ev, req.session.user) });
+});
+
+// Cancelar a própria inscrição — e a vaga liberada puxa o primeiro da fila.
+app.delete("/api/events/:id/signup", requireAuthApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const before = ev.signups.list.length;
+  ev.signups.list = ev.signups.list.filter((s) => !(s.type === "member" && s.order === req.session.user.order));
+  if (ev.signups.list.length !== before) {
+    promoteFromWaitlist(ev);
+    writeEvents(data);
+  }
+  res.json({ ok: true, event: eventView(ev, req.session.user) });
+});
+
+app.get("/api/events/:id/signup-qr", requireDirectorApi, (req, res) => {
+  const ev = findEvent(readEventsStore(), req.params.id);
+  if (!ev || !ev.signups.token) return res.status(404).json({ error: "not_found" });
+  const url = req.protocol + "://" + req.get("host") + "/inscricao.html?t=" + ev.signups.token;
   QRCode.toString(url, { type: "svg", margin: 1, width: 480 }, (err, svg) => {
     if (err) return res.status(500).json({ error: "qr_failed" });
     res.set({ "Content-Type": "image/svg+xml", "Cache-Control": "private, max-age=3600" });
@@ -1358,36 +1703,173 @@ app.get("/api/meetings/:id/qr", requireDirectorApi, (req, res) => {
   });
 });
 
-// ---- Presença pública de visitantes (via QR, sem login) ----
+// ---- Presença ----
 
-const presenceAttempts = new Map();
-function presenceRateLimited(ip) {
+app.post("/api/events/:id/codes", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  ev.codes.push(generateCode());
+  writeEvents(data);
+  res.json({ ok: true, codes: ev.codes });
+});
+
+// Override manual da janela automática: true reabre fora da data, false encerra
+// antes da hora, null devolve o controle para o calendário.
+app.post("/api/events/:id/attendance-open", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  if (req.body.open === null) delete ev.attendanceOpen;
+  else ev.attendanceOpen = Boolean(req.body.open);
+  writeEvents(data);
+  res.json({ ok: true, attendanceState: attendanceState(ev) });
+});
+
+app.post("/api/events/:id/member-attendance", requireDirectorApi, (req, res) => {
+  const order = parseInt(req.body.order, 10);
+  if (!findMemberAny(order)) return res.status(400).json({ error: "invalid_member" });
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const set = new Set(ev.memberAttendance);
+  req.body.present ? set.add(order) : set.delete(order);
+  ev.memberAttendance = Array.from(set).sort((a, b) => a - b);
+  writeEvents(data);
+  res.json({ ok: true, memberAttendance: ev.memberAttendance });
+});
+
+app.post("/api/events/checkin", requireAuthApi, (req, res) => {
+  const code = String(req.body.code || "").trim().toUpperCase();
+  if (!code) return res.status(400).json({ error: "empty_code" });
+  const data = readEventsStore();
+  const ev = data.events.find((e) => e.codes.includes(code) && attendanceIsOpen(e));
+  if (!ev) {
+    const existe = data.events.some((e) => e.codes.includes(code));
+    return res.status(existe ? 423 : 404).json({
+      error: existe ? "attendance_closed" : "invalid_code",
+      message: existe
+        ? "Este código é de um evento que não está acontecendo hoje."
+        : "Código inválido.",
+    });
+  }
+  if (!ev.memberAttendance.includes(req.session.user.order)) {
+    ev.memberAttendance.push(req.session.user.order);
+    ev.memberAttendance.sort((a, b) => a - b);
+    writeEvents(data);
+  }
+  res.json({ ok: true, event: eventView(ev, req.session.user) });
+});
+
+app.get("/api/events/:id/qr", requireDirectorApi, (req, res) => {
+  const ev = findEvent(readEventsStore(), req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const url = req.protocol + "://" + req.get("host") + "/presenca.html?t=" + ev.qrToken;
+  QRCode.toString(url, { type: "svg", margin: 1, width: 480 }, (err, svg) => {
+    if (err) return res.status(500).json({ error: "qr_failed" });
+    res.set({ "Content-Type": "image/svg+xml", "Cache-Control": "private, max-age=3600" });
+    res.send(svg);
+  });
+});
+
+// ---- Páginas públicas: inscrição pelo link e presença pelo QR ----
+
+const publicFormAttempts = new Map();
+function publicFormRateLimited(ip) {
   const now = Date.now();
-  const rec = presenceAttempts.get(ip);
+  const rec = publicFormAttempts.get(ip);
   if (!rec || rec.resetAt < now) {
-    presenceAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    publicFormAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
     return false;
   }
   rec.count += 1;
   return rec.count > 20;
 }
 
+const TYPE_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Encontro" };
+
+app.get("/api/event-signup/:token", (req, res) => {
+  const ev = readEventsStore().events.find((e) => e.signups.token === req.params.token);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
+  res.json({
+    title: ev.title,
+    date: ev.date,
+    text: ev.text || "",
+    kind: TYPE_LABEL[ev.type] || "Evento",
+    open: ev.signups.open,
+    capacity: ev.signups.capacity,
+    seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
+  });
+});
+
+app.post("/api/event-signup/:token", (req, res) => {
+  if (publicFormRateLimited(req.ip)) {
+    return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
+  }
+  const data = readEventsStore();
+  const ev = data.events.find((e) => e.signups.token === req.params.token);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  if (!ev.signups.open) {
+    return res.status(423).json({ error: "signups_closed", message: "As inscrições deste evento já foram encerradas." });
+  }
+  const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
+  const email = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
+  const phone = String(req.body.phone || "").trim().slice(0, 30);
+  if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
+    return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
+  }
+  if (phone.replace(/\D/g, "").length < 10) {
+    return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
+  }
+  const sameName = (n) => n.trim().toLowerCase() === name.toLowerCase();
+  const existing = ev.signups.list.find(
+    (s) => s.type === "external" && ((email && s.email && s.email === email) || sameName(s.name))
+  );
+  let status;
+  if (existing) {
+    status = existing.status;
+  } else {
+    status = addSignup(ev, { type: "external", name, email, phone, at: new Date().toISOString() });
+    writeEvents(data);
+  }
+  res.json({
+    ok: true,
+    status,
+    message:
+      status === "waitlist"
+        ? "As vagas acabaram, mas você entrou na fila de espera — avisamos se abrir uma vaga."
+        : "Inscrição confirmada! Te esperamos lá.",
+  });
+});
+
 app.get("/api/presence/:token", (req, res) => {
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.qrToken === req.params.token);
-  if (!meeting) return res.status(404).json({ error: "not_found" });
-  res.json({ title: meeting.title, date: meeting.date, open: meeting.open !== false });
+  const ev = readEventsStore().events.find((e) => e.qrToken === req.params.token);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  res.json({
+    title: ev.title,
+    date: ev.date,
+    kind: TYPE_LABEL[ev.type] || "Evento",
+    open: attendanceIsOpen(ev),
+    state: attendanceState(ev),
+  });
 });
 
 app.post("/api/presence/:token", (req, res) => {
-  if (presenceRateLimited(req.ip)) {
+  if (publicFormRateLimited(req.ip)) {
     return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
   }
-  const data = readMeetings();
-  const meeting = data.meetings.find((m) => m.qrToken === req.params.token);
-  if (!meeting) return res.status(404).json({ error: "not_found" });
-  if (meeting.open === false) {
-    return res.status(423).json({ error: "meeting_closed", message: "Esta reunião já foi encerrada." });
+  const data = readEventsStore();
+  const ev = data.events.find((e) => e.qrToken === req.params.token);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  if (!attendanceIsOpen(ev)) {
+    const agendada = attendanceState(ev) === "agendada";
+    return res.status(423).json({
+      error: agendada ? "not_started" : "attendance_closed",
+      message: agendada
+        ? "A presença deste evento abre no dia " + ev.date.split("-").reverse().join("/") + "."
+        : "A presença deste evento já foi encerrada.",
+    });
   }
   const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
   const email = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
@@ -1396,8 +1878,6 @@ app.post("/api/presence/:token", (req, res) => {
     return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
   }
 
-  // Pré-cadastro: reconhece o visitante pelo e-mail (preferência) ou nome —
-  // é o que permite somar presenças entre reuniões diferentes.
   let visitor = data.visitors.find((v) =>
     (email && v.email && v.email === email) || v.name.trim().toLowerCase() === name.toLowerCase()
   );
@@ -1414,12 +1894,15 @@ app.post("/api/presence/:token", (req, res) => {
     if (email && !visitor.email) visitor.email = email;
     if (phone && !visitor.phone) visitor.phone = phone;
   }
+  if (!ev.visitorAttendance.includes(visitor.id)) ev.visitorAttendance.push(visitor.id);
+  // Quem se inscreveu e apareceu fica marcado: é o que separa presença de
+  // no-show na lista da diretoria.
+  const inscricao = ev.signups.list.find(
+    (s) => s.type === "external" && ((email && s.email === email) || s.name.trim().toLowerCase() === name.toLowerCase())
+  );
+  if (inscricao) inscricao.attended = true;
+  writeEvents(data);
 
-  if (!meeting.visitorAttendance) meeting.visitorAttendance = [];
-  if (!meeting.visitorAttendance.includes(visitor.id)) {
-    meeting.visitorAttendance.push(visitor.id);
-  }
-  writeMeetings(data);
   const visits = visitorVisits(data, visitor.id);
   res.json({
     ok: true,
@@ -1427,395 +1910,9 @@ app.post("/api/presence/:token", (req, res) => {
     inviteReady: visits >= VISITOR_INVITE_THRESHOLD,
     message:
       visits >= VISITOR_INVITE_THRESHOLD
-        ? "Presença registrada! Você já participou de " + visits + " reuniões — que tal virar membro? Peça acesso na página inicial ou fale com a diretoria."
+        ? "Presença registrada! Você já participou de " + visits + " atividades — que tal virar membro? Peça acesso na página inicial ou fale com a diretoria."
         : "Presença registrada! Bem-vindo(a) à LEPV.",
   });
-});
-
-// ---- Aulas da liga e materiais por aula ----
-
-function findLesson(data, id) {
-  return data.lessons.find((l) => l.id === id);
-}
-function findLessonMaterial(data, materialId) {
-  for (const lesson of data.lessons) {
-    const item = (lesson.materials || []).find((m) => m.id === materialId);
-    if (item) return { lesson, item };
-  }
-  return null;
-}
-
-app.get("/api/lessons", requireAuthApi, (req, res) => {
-  const data = readLessons();
-  const isDirector = req.session.user.director || req.session.user.superadmin;
-  const lessons = [...data.lessons]
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-    .map((l) => {
-      ensureLessonSignups(l);
-      // Membro vê o resumo das inscrições (aberta? quantos? eu estou?); a
-      // lista nominal com contato de visitante é coisa da diretoria.
-      const view = {
-        id: l.id,
-        title: l.title,
-        date: l.date,
-        description: l.description || "",
-        materials: l.materials || [],
-        createdByName: l.createdByName || "",
-        ...lessonSignupView(l, req.session.user),
-      };
-      if (isDirector) {
-        view.signups = l.signups;
-        view.signupToken = l.signupToken || null;
-      }
-      return view;
-    });
-  res.json({ lessons });
-});
-
-app.post("/api/lessons", requireDirectorApi, (req, res) => {
-  const title = String(req.body.title || "").trim().slice(0, 100);
-  if (!title) return res.status(400).json({ error: "empty_title", message: "Dê um título à aula." });
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || ""))
-    ? String(req.body.date)
-    : new Date().toISOString().slice(0, 10);
-  const description = String(req.body.description || "").trim().slice(0, 300);
-  const data = readLessons();
-  const lesson = {
-    id: "a" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
-    title,
-    date,
-    description,
-    materials: [],
-    createdBy: req.session.user.order,
-    createdByName: req.session.user.name,
-    createdAt: new Date().toISOString(),
-  };
-  data.lessons.push(lesson);
-  writeLessons(data);
-  res.json({ ok: true, lesson });
-});
-
-app.delete("/api/lessons/:id", requireDirectorApi, (req, res) => {
-  const data = readLessons();
-  const lesson = findLesson(data, req.params.id);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  for (const m of lesson.materials || []) {
-    if (m.file) fs.unlink(path.join(LESSON_FILES_DIR, m.file), () => {});
-  }
-  data.lessons = data.lessons.filter((l) => l.id !== req.params.id);
-  writeLessons(data);
-  res.json({ ok: true, lessons: data.lessons });
-});
-
-// Upload de PDF para uma aula — corpo cru, mesmo contrato do upload da imersão.
-app.post(
-  "/api/lessons/:id/materials/upload",
-  requireDirectorApi,
-  express.raw({ type: ["application/pdf", "application/octet-stream"], limit: "25mb" }),
-  (req, res) => {
-    const title = String(req.query.title || "").trim().slice(0, 120);
-    if (!title) return res.status(400).json({ error: "empty_title" });
-    const data = readLessons();
-    const lesson = findLesson(data, req.params.id);
-    if (!lesson) return res.status(404).json({ error: "not_found" });
-    if (!Buffer.isBuffer(req.body) || !req.body.length) {
-      return res.status(400).json({ error: "empty_file" });
-    }
-    if (req.body.subarray(0, 5).toString("latin1") !== "%PDF-") {
-      return res.status(400).json({ error: "not_a_pdf" });
-    }
-    const id = "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
-    const file = lesson.id + "-" + id + ".pdf";
-    fs.writeFileSync(path.join(LESSON_FILES_DIR, file), req.body);
-    lesson.materials.push({
-      id,
-      type: "pdf",
-      title,
-      file,
-      size: req.body.length,
-      addedBy: req.session.user.name,
-      addedAt: new Date().toISOString(),
-    });
-    writeLessons(data);
-    res.json({ ok: true, lesson });
-  }
-);
-
-app.post("/api/lessons/:id/materials/link", requireDirectorApi, (req, res) => {
-  const title = String(req.body.title || "").trim().slice(0, 120);
-  const url = String(req.body.url || "").trim();
-  if (!title) return res.status(400).json({ error: "empty_title" });
-  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "invalid_url" });
-  const data = readLessons();
-  const lesson = findLesson(data, req.params.id);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  lesson.materials.push({
-    id: "m" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
-    type: "link",
-    title,
-    url,
-    addedBy: req.session.user.name,
-    addedAt: new Date().toISOString(),
-  });
-  writeLessons(data);
-  res.json({ ok: true, lesson });
-});
-
-app.get("/api/lessons/materials/:id/file", requireAuthApi, (req, res) => {
-  const found = findLessonMaterial(readLessons(), req.params.id);
-  if (!found || found.item.type !== "pdf") return res.status(404).json({ error: "not_found" });
-  const disposition = req.query.dl === "1" ? "attachment" : "inline";
-  res.set({
-    "Content-Type": "application/pdf",
-    "Content-Disposition": disposition + "; filename*=UTF-8''" + encodeURIComponent(found.item.title) + ".pdf",
-    "Cache-Control": "private, max-age=3600",
-  });
-  res.sendFile(path.join(LESSON_FILES_DIR, found.item.file));
-});
-
-app.delete("/api/lessons/:lessonId/materials/:id", requireDirectorApi, (req, res) => {
-  const data = readLessons();
-  const lesson = findLesson(data, req.params.lessonId);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  const item = (lesson.materials || []).find((m) => m.id === req.params.id);
-  if (!item) return res.status(404).json({ error: "not_found" });
-  lesson.materials = lesson.materials.filter((m) => m.id !== req.params.id);
-  writeLessons(data);
-  if (item.file) fs.unlink(path.join(LESSON_FILES_DIR, item.file), () => {});
-  res.json({ ok: true, lesson });
-});
-
-// ---- Mural de eventos da liga (avisos da diretoria com fotos) ----
-
-const EVENT_TEXT_MAX = 600;
-const EVENT_PHOTOS_MAX = 6;
-
-function eventView(ev) {
-  return {
-    id: ev.id,
-    title: ev.title,
-    text: ev.text || "",
-    date: ev.date,
-    photos: (ev.photos || []).map((p) => ({ id: p.id, url: "/api/events/" + ev.id + "/photos/" + p.id })),
-    createdByName: ev.createdByName || "",
-    createdAt: ev.createdAt,
-  };
-}
-
-app.get("/api/events", requireAuthApi, (req, res) => {
-  const data = readEvents();
-  const events = [...data.events]
-    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
-    .map(eventView);
-  res.json({ events });
-});
-
-app.post("/api/events", requireDirectorApi, (req, res) => {
-  const title = String(req.body.title || "").trim().slice(0, 100);
-  if (!title) return res.status(400).json({ error: "empty_title", message: "Dê um título ao aviso." });
-  const text = String(req.body.text || "").trim().slice(0, EVENT_TEXT_MAX);
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || ""))
-    ? String(req.body.date)
-    : new Date().toISOString().slice(0, 10);
-  const data = readEvents();
-  const event = {
-    id: "ev" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
-    title,
-    text,
-    date,
-    photos: [],
-    createdBy: req.session.user.order,
-    createdByName: req.session.user.name,
-    createdAt: new Date().toISOString(),
-  };
-  data.events.push(event);
-  writeEvents(data);
-  res.json({ ok: true, event: eventView(event) });
-});
-
-app.delete("/api/events/:id", requireDirectorApi, (req, res) => {
-  const data = readEvents();
-  const event = data.events.find((e) => e.id === req.params.id);
-  if (!event) return res.status(404).json({ error: "not_found" });
-  for (const p of event.photos || []) {
-    fs.unlink(path.join(EVENT_PHOTOS_DIR, p.file), () => {});
-  }
-  data.events = data.events.filter((e) => e.id !== req.params.id);
-  writeEvents(data);
-  res.json({ ok: true });
-});
-
-// Upload de foto do evento — corpo cru + sniff de magic bytes, como o avatar.
-app.post(
-  "/api/events/:id/photos",
-  requireDirectorApi,
-  express.raw({ type: ["image/*", "application/octet-stream"], limit: "6mb" }),
-  (req, res) => {
-    const data = readEvents();
-    const event = data.events.find((e) => e.id === req.params.id);
-    if (!event) return res.status(404).json({ error: "not_found" });
-    if (!Buffer.isBuffer(req.body) || !req.body.length) {
-      return res.status(400).json({ error: "empty_file" });
-    }
-    const ext = sniffImage(req.body);
-    if (!ext) {
-      return res.status(400).json({ error: "invalid_image", message: "Envie uma imagem JPG, PNG ou WebP." });
-    }
-    if (!event.photos) event.photos = [];
-    if (event.photos.length >= EVENT_PHOTOS_MAX) {
-      return res.status(400).json({ error: "too_many_photos", message: "Máximo de " + EVENT_PHOTOS_MAX + " fotos por aviso." });
-    }
-    const id = "p" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
-    const file = event.id + "-" + id + "." + ext;
-    fs.writeFileSync(path.join(EVENT_PHOTOS_DIR, file), req.body);
-    event.photos.push({ id, file, addedAt: new Date().toISOString() });
-    writeEvents(data);
-    res.json({ ok: true, event: eventView(event) });
-  }
-);
-
-app.get("/api/events/:id/photos/:photoId", requireAuthApi, (req, res) => {
-  const event = readEvents().events.find((e) => e.id === req.params.id);
-  const photo = event && (event.photos || []).find((p) => p.id === req.params.photoId);
-  if (!photo) return res.status(404).end();
-  res.set("Cache-Control", "private, max-age=86400");
-  res.sendFile(path.join(EVENT_PHOTOS_DIR, photo.file));
-});
-
-app.delete("/api/events/:id/photos/:photoId", requireDirectorApi, (req, res) => {
-  const data = readEvents();
-  const event = data.events.find((e) => e.id === req.params.id);
-  if (!event) return res.status(404).json({ error: "not_found" });
-  const photo = (event.photos || []).find((p) => p.id === req.params.photoId);
-  if (!photo) return res.status(404).json({ error: "not_found" });
-  event.photos = event.photos.filter((p) => p.id !== req.params.photoId);
-  writeEvents(data);
-  fs.unlink(path.join(EVENT_PHOTOS_DIR, photo.file), () => {});
-  res.json({ ok: true, event: eventView(event) });
-});
-
-// ---- Inscrições por aula (membros com 1 clique, visitantes por link/QR) ----
-
-// Aulas criadas antes desta feature não têm os campos de inscrição — completa
-// na leitura, e o token só nasce (e persiste) quando o diretor abre inscrições.
-function ensureLessonSignups(lesson) {
-  if (!Array.isArray(lesson.signups)) lesson.signups = [];
-  if (typeof lesson.signupsOpen !== "boolean") lesson.signupsOpen = false;
-  return lesson;
-}
-
-function lessonSignupView(lesson, me) {
-  ensureLessonSignups(lesson);
-  const view = {
-    signupsOpen: lesson.signupsOpen,
-    signupCount: lesson.signups.length,
-    signedUp: me ? lesson.signups.some((s) => s.type === "member" && s.order === me.order) : false,
-  };
-  return view;
-}
-
-const lessonSignupAttempts = new Map();
-function lessonSignupRateLimited(ip) {
-  const now = Date.now();
-  const rec = lessonSignupAttempts.get(ip);
-  if (!rec || rec.resetAt < now) {
-    lessonSignupAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return false;
-  }
-  rec.count += 1;
-  return rec.count > 20;
-}
-
-app.post("/api/lessons/:id/signups-open", requireDirectorApi, (req, res) => {
-  const data = readLessons();
-  const lesson = findLesson(data, req.params.id);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  ensureLessonSignups(lesson);
-  lesson.signupsOpen = Boolean(req.body.open);
-  if (lesson.signupsOpen && !lesson.signupToken) {
-    lesson.signupToken = crypto.randomBytes(8).toString("hex");
-  }
-  writeLessons(data);
-  res.json({ ok: true, signupsOpen: lesson.signupsOpen, signupToken: lesson.signupToken || null });
-});
-
-// Membro logado se inscreve com 1 clique — nome e WhatsApp vêm do cadastro.
-app.post("/api/lessons/:id/signup", requireAuthApi, (req, res) => {
-  const data = readLessons();
-  const lesson = findLesson(data, req.params.id);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  ensureLessonSignups(lesson);
-  if (!lesson.signupsOpen) {
-    return res.status(423).json({ error: "signups_closed", message: "As inscrições desta aula estão fechadas." });
-  }
-  const order = req.session.user.order;
-  if (!lesson.signups.some((s) => s.type === "member" && s.order === order)) {
-    const member = findMember(order);
-    lesson.signups.push({
-      type: "member",
-      order,
-      name: req.session.user.name,
-      phone: (member && member.phone) || "",
-      at: new Date().toISOString(),
-    });
-    writeLessons(data);
-  }
-  res.json({ ok: true, ...lessonSignupView(lesson, req.session.user) });
-});
-
-// QR do formulário público de inscrição (mesmo padrão do QR de reunião).
-app.get("/api/lessons/:id/signup-qr", requireDirectorApi, (req, res) => {
-  const data = readLessons();
-  const lesson = findLesson(data, req.params.id);
-  if (!lesson || !lesson.signupToken) return res.status(404).json({ error: "not_found" });
-  const url = req.protocol + "://" + req.get("host") + "/inscricao.html?t=" + lesson.signupToken;
-  QRCode.toString(url, { type: "svg", margin: 1, width: 480 }, (err, svg) => {
-    if (err) return res.status(500).json({ error: "qr_failed" });
-    res.set({ "Content-Type": "image/svg+xml", "Cache-Control": "private, max-age=3600" });
-    res.send(svg);
-  });
-});
-
-// ---- Inscrição pública em aula (via link/QR, sem login) ----
-
-app.get("/api/lesson-signup/:token", (req, res) => {
-  const data = readLessons();
-  const lesson = data.lessons.find((l) => l.signupToken === req.params.token);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  ensureLessonSignups(lesson);
-  res.json({ title: lesson.title, date: lesson.date, description: lesson.description || "", open: lesson.signupsOpen });
-});
-
-app.post("/api/lesson-signup/:token", (req, res) => {
-  if (lessonSignupRateLimited(req.ip)) {
-    return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
-  }
-  const data = readLessons();
-  const lesson = data.lessons.find((l) => l.signupToken === req.params.token);
-  if (!lesson) return res.status(404).json({ error: "not_found" });
-  ensureLessonSignups(lesson);
-  if (!lesson.signupsOpen) {
-    return res.status(423).json({ error: "signups_closed", message: "As inscrições desta aula já foram encerradas." });
-  }
-  const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
-  const email = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
-  const phone = String(req.body.phone || "").trim().slice(0, 30);
-  if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
-    return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
-  }
-  if (phone.replace(/\D/g, "").length < 10) {
-    return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
-  }
-  // Reenvio do mesmo formulário não duplica: reconhece por e-mail ou nome.
-  const sameName = (n) => n.trim().toLowerCase() === name.toLowerCase();
-  const existing = lesson.signups.find(
-    (s) => s.type === "external" && ((email && s.email && s.email === email) || sameName(s.name))
-  );
-  if (!existing) {
-    lesson.signups.push({ type: "external", name, email, phone, at: new Date().toISOString() });
-    writeLessons(data);
-  }
-  res.json({ ok: true, message: "Inscrição confirmada! Te esperamos na aula." });
 });
 
 // ---- Selos (presença por empresa → gamificação individualizada) ----

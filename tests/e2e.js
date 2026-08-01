@@ -49,6 +49,56 @@ function setupVolume() {
       2
     )
   );
+
+  // Formatos antigos (reunião e aula) plantados de propósito: o boot precisa
+  // migrá-los para eventos sem perder presença, materiais nem inscrições.
+  fs.writeFileSync(
+    path.join(volumeDir, "meetings.json"),
+    JSON.stringify(
+      {
+        meetings: [
+          {
+            id: "r-legado-1",
+            title: "Reunião antiga da liga",
+            date: "2026-07-15",
+            open: true,
+            codes: ["ABC123"],
+            qrToken: "tokenlegado1",
+            memberAttendance: [1, MEMBER_ORDER],
+            visitorAttendance: ["v-legado-1"],
+            createdBy: 1,
+            createdAt: "2026-07-15T12:00:00.000Z",
+          },
+        ],
+        visitors: [{ id: "v-legado-1", name: "Visitante Antigo", email: "antigo@x.com", phone: "21911112222" }],
+      },
+      null,
+      2
+    )
+  );
+  fs.writeFileSync(
+    path.join(volumeDir, "lessons.json"),
+    JSON.stringify(
+      {
+        lessons: [
+          {
+            id: "a-legado-1",
+            title: "Aula antiga da liga",
+            date: "2026-07-18",
+            description: "Conteúdo que não pode sumir na migração.",
+            materials: [{ id: "m-legado-1", type: "link", title: "Slides antigos", url: "https://exemplo.com/antigo" }],
+            signupsOpen: false,
+            signupToken: "tokeninscricaolegado",
+            signups: [{ type: "member", order: MEMBER_ORDER, name: "Membro Antigo", at: "2026-07-18T12:00:00.000Z" }],
+            createdBy: 1,
+            createdAt: "2026-07-18T12:00:00.000Z",
+          },
+        ],
+      },
+      null,
+      2
+    )
+  );
 }
 
 function startServer() {
@@ -275,127 +325,265 @@ test("anônimo não passa dos endpoints públicos", async () => {
   const c = client();
   eq((await c.get("/api/members")).status, 401, "roster exige login");
   eq((await c.get("/api/events")).status, 401, "eventos exigem login");
-  eq((await c.get("/api/lessons")).status, 401, "aulas exigem login");
+  eq((await c.get("/api/events")).status, 401, "eventos exigem login");
   eq((await c.get("/api/badges")).status, 401, "selos exigem login");
   eq((await c.get("/api/members-public")).status, 200, "seletor de login é público");
 });
 
 // ---- Mural de eventos ----
 
-test("mural: diretor publica com foto, membro lê, membro não escreve", async () => {
-  const admin = client();
-  await admin.login(1, ADMIN_PASS);
-  const created = await admin.post("/api/events", {
-    title: "Reunião de abertura do semestre",
-    text: "Traga um case para discutir.",
-    date: "2026-08-15",
-  });
-  eq(created.status, 200, "criação de evento");
-  const id = created.data.event.id;
-  assert(id, "evento deveria ter id");
-
-  const photo = await admin.post("/api/events/" + id + "/photos", PNG_1PX, { "Content-Type": "image/png" });
-  eq(photo.status, 200, "upload de foto");
-  eq(photo.data.event.photos.length, 1, "foto registrada no evento");
-  const photoUrl = photo.data.event.photos[0].url;
-
-  const member = client();
-  eq((await member.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login do membro");
-  const list = await member.get("/api/events");
-  eq(list.status, 200, "membro lê o mural");
-  const found = list.data.events.find((e) => e.id === id);
-  assert(found, "evento deveria aparecer para o membro");
-  eq(found.title, "Reunião de abertura do semestre", "título do evento");
-  eq((await member.get(photoUrl)).status, 200, "membro carrega a foto");
-
-  eq((await member.post("/api/events", { title: "Aviso pirata" })).status, 403, "membro não publica");
-  eq((await member.del("/api/events/" + id)).status, 403, "membro não apaga");
-  eq((await client().get(photoUrl)).status, 401, "foto do mural não é pública");
-
-  const del = await admin.del("/api/events/" + id);
-  eq(del.status, 200, "diretor apaga o evento");
-  const after = await admin.get("/api/events");
-  assert(!after.data.events.some((e) => e.id === id), "evento deveria sair da lista");
-});
-
-test("mural rejeita arquivo que não é imagem", async () => {
-  const admin = client();
-  await admin.login(1, ADMIN_PASS);
-  const ev = await admin.post("/api/events", { title: "Aviso com anexo ruim", date: "2026-08-16" });
-  const bad = await admin.post("/api/events/" + ev.data.event.id + "/photos", Buffer.from("<?php echo 1; ?>"), {
-    "Content-Type": "image/png",
-  });
-  eq(bad.status, 400, "conteúdo não-imagem deveria ser recusado apesar do content-type");
-  await admin.del("/api/events/" + ev.data.event.id);
-});
-
 // ---- Inscrições por aula ----
 
-test("inscrições: membro em 1 clique, visitante por link, dedupe e fechamento", async () => {
+// ---- Eventos: aviso → inscrição → presença ----
+
+test("evento nasce como aviso e todo membro enxerga", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const lesson = await admin.post("/api/lessons", { title: "Aula 01 — Modelo de negócio", date: "2026-09-01" });
-  eq(lesson.status, 200, "criação de aula");
-  const lessonId = lesson.data.lesson.id;
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const criado = await admin.post("/api/events", {
+    type: "aula",
+    title: "Aula 01 — Modelagem de negócio",
+    text: "Traga o caso da sua empresa favorita.",
+    date: hoje,
+  });
+  eq(criado.status, 200, "criação do evento");
+  const ev = criado.data.event;
+  assert(ev.codes && ev.codes.length === 1, "evento já nasce com um código de presença");
+  assert(ev.qrToken, "evento já nasce com token de QR");
 
   const member = client();
-  eq((await member.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login do membro");
-  const closed = await member.post("/api/lessons/" + lessonId + "/signup");
-  eq(closed.status, 423, "não dá para se inscrever antes de abrir");
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  const lista = await member.get("/api/events");
+  const visto = lista.data.events.find((e) => e.id === ev.id);
+  assert(visto, "membro deveria ver o evento");
+  eq(visto.title, "Aula 01 — Modelagem de negócio", "título");
+  assert(!("codes" in visto), "membro não deveria ver os códigos");
+  assert(!("signups" in visto), "membro não deveria ver a lista de inscritos");
 
-  eq((await member.post("/api/lessons/" + lessonId + "/signups-open", { open: true })).status, 403, "membro não abre inscrições");
-  const open = await admin.post("/api/lessons/" + lessonId + "/signups-open", { open: true });
-  eq(open.status, 200, "diretor abre inscrições");
-  const token = open.data.signupToken;
-  assert(token, "abrir inscrições deveria gerar token público");
+  eq((await member.post("/api/events", { title: "Pirata" })).status, 403, "membro não cria evento");
+  await admin.del("/api/events/" + ev.id);
+});
 
-  const first = await member.post("/api/lessons/" + lessonId + "/signup");
-  eq(first.status, 200, "inscrição do membro");
-  eq(first.data.signupCount, 1, "1 inscrito");
-  assert(first.data.signedUp === true, "membro deveria constar como inscrito");
-  const again = await member.post("/api/lessons/" + lessonId + "/signup");
-  eq(again.data.signupCount, 1, "reinscrição não deveria duplicar");
+test("filtro por tipo devolve só o tipo pedido", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const a = await admin.post("/api/events", { type: "aula", title: "Aula de filtro", date: "2026-09-10" });
+  const v = await admin.post("/api/events", { type: "visita", title: "Visita de filtro", date: "2026-09-11" });
 
-  // Visitante externo pelo link público, sem login
-  const visitor = client();
-  const info = await visitor.get("/api/lesson-signup/" + token);
-  eq(info.status, 200, "página pública lê os dados da aula");
-  eq(info.data.title, "Aula 01 — Modelo de negócio", "título na página pública");
-  eq((await visitor.post("/api/lesson-signup/" + token, { name: "Semsobrenome", phone: "21999998888" })).status, 400, "nome sem sobrenome recusado");
-  eq((await visitor.post("/api/lesson-signup/" + token, { name: "Joana Silva", phone: "123" })).status, 400, "telefone curto recusado");
-  const ext = await visitor.post("/api/lesson-signup/" + token, {
+  const aulas = await admin.get("/api/events?type=aula");
+  assert(aulas.data.events.every((e) => e.type === "aula"), "só aulas");
+  assert(aulas.data.events.some((e) => e.id === a.data.event.id), "a aula criada aparece");
+  assert(!aulas.data.events.some((e) => e.id === v.data.event.id), "a visita não aparece no filtro de aulas");
+
+  await admin.del("/api/events/" + a.data.event.id);
+  await admin.del("/api/events/" + v.data.event.id);
+});
+
+test("inscrição com vagas: confirma, lota, faz fila e promove quem esperava", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const ev = (await admin.post("/api/events", { type: "visita", title: "Visita com 1 vaga", date: "2026-09-20" })).data.event;
+
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await member.post("/api/events/" + ev.id + "/signup")).status, 423, "fechado antes de abrir");
+
+  const aberto = await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 1 });
+  eq(aberto.status, 200, "diretor abre inscrições com 1 vaga");
+  const token = aberto.data.event.signupToken;
+  assert(token, "abrir gera token público");
+
+  const inscrito = await member.post("/api/events/" + ev.id + "/signup");
+  eq(inscrito.data.event.myStatus, "confirmed", "membro pega a única vaga");
+  eq(inscrito.data.event.seatsLeft, 0, "sem vagas restantes");
+
+  // Visitante externo chega com a sala cheia: vai para a fila.
+  const visitante = client();
+  const info = await visitante.get("/api/event-signup/" + token);
+  eq(info.data.seatsLeft, 0, "página pública mostra lotado");
+  const fila = await visitante.post("/api/event-signup/" + token, {
     name: "Joana Silva",
     email: "joana@exemplo.com",
-    phone: "(21) 99999-8888",
+    phone: "21999998888",
   });
-  eq(ext.status, 200, "inscrição do visitante");
-  const dup = await visitor.post("/api/lesson-signup/" + token, {
-    name: "Joana Silva Sobrenome",
-    email: "joana@exemplo.com",
-    phone: "(21) 99999-8888",
+  eq(fila.data.status, "waitlist", "visitante entra na fila de espera");
+
+  // O membro cancela e a vaga puxa quem estava esperando.
+  await member.del("/api/events/" + ev.id + "/signup");
+  const depois = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  const joana = depois.signups.find((s) => s.name === "Joana Silva");
+  eq(joana.status, "confirmed", "quem estava na fila deveria ser promovido");
+  eq(depois.signupCount, 1, "uma vaga ocupada");
+  eq(depois.waitlistCount, 0, "fila vazia");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+test("aumentar o número de vagas promove a fila inteira", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const ev = (await admin.post("/api/events", { type: "social", title: "Happy hour", date: "2026-09-25" })).data.event;
+  const aberto = await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 1 });
+  const token = aberto.data.event.signupToken;
+
+  const v1 = client(), v2 = client();
+  await v1.post("/api/event-signup/" + token, { name: "Ana Prima", email: "ana@x.com", phone: "21988887777" });
+  await v2.post("/api/event-signup/" + token, { name: "Bruno Segundo", email: "bruno@x.com", phone: "21977776666" });
+  let atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  eq(atual.waitlistCount, 1, "o segundo deveria estar na fila");
+
+  await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 5 });
+  atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  eq(atual.waitlistCount, 0, "ampliar as vagas esvazia a fila");
+  eq(atual.signupCount, 2, "os dois ficam confirmados");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+test("presença só vale no dia: código e QR recusam fora da data", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const futuro = await admin.post("/api/events", { type: "reuniao", title: "Reunião de outubro", date: "2026-10-30" });
+  const ev = futuro.data.event;
+  eq(ev.attendanceState, "agendada", "evento futuro nasce agendado");
+
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  const cedo = await member.post("/api/events/checkin", { code: ev.codes[0] });
+  eq(cedo.status, 423, "check-in antes do dia deveria ser recusado");
+
+  const visitante = client();
+  const info = await visitante.get("/api/presence/" + ev.qrToken);
+  eq(info.data.open, false, "QR fechado antes do dia");
+  eq(info.data.state, "agendada", "estado agendada");
+  const tentativa = await visitante.post("/api/presence/" + ev.qrToken, {
+    name: "Carlos Cedo",
+    phone: "21966665555",
   });
-  eq(dup.status, 200, "reenvio aceito");
+  eq(tentativa.status, 423, "visitante não registra presença antes do dia");
 
-  const adminView = await admin.get("/api/lessons");
-  const l = adminView.data.lessons.find((x) => x.id === lessonId);
-  eq(l.signups.length, 2, "diretoria vê 1 membro + 1 visitante (sem duplicata por e-mail)");
-  assert(l.signups.some((s) => s.type === "member"), "inscrição de membro registrada");
-  assert(l.signups.some((s) => s.type === "external" && s.phone), "visitante registrado com contato");
+  await admin.del("/api/events/" + ev.id);
+});
 
-  const memberView = await member.get("/api/lessons");
-  const lm = memberView.data.lessons.find((x) => x.id === lessonId);
-  assert(!("signups" in lm), "membro não deveria ver a lista nominal");
-  assert(!("signupToken" in lm), "membro não deveria ver o token público");
-  eq(lm.signupCount, 2, "membro vê só a contagem");
+test("no dia do evento a presença abre sozinha, sem ninguém apertar nada", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião de hoje", date: hoje })).data.event;
+  eq(ev.attendanceState, "aberta", "evento de hoje já está com presença aberta");
 
-  eq((await admin.post("/api/lessons/" + lessonId + "/signups-open", { open: false })).status, 200, "diretor fecha inscrições");
-  eq((await visitor.post("/api/lesson-signup/" + token, { name: "Outra Pessoa", phone: "21988887777" })).status, 423, "link fechado não aceita mais");
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  const check = await member.post("/api/events/checkin", { code: ev.codes[0] });
+  eq(check.status, 200, "check-in do membro no dia");
+  assert(check.data.event.present === true, "membro consta como presente");
 
-  const qr = await admin.get("/api/lessons/" + lessonId + "/signup-qr");
-  eq(qr.status, 200, "QR de inscrição");
-  assert(String(qr.data).includes("<svg"), "QR deveria ser SVG");
+  const repetido = await member.post("/api/events/checkin", { code: ev.codes[0] });
+  eq(repetido.data.event.membersPresent, 1, "check-in repetido não duplica");
 
-  await admin.del("/api/lessons/" + lessonId);
+  const visitante = client();
+  const presenca = await visitante.post("/api/presence/" + ev.qrToken, {
+    name: "Daniela Visita",
+    email: "dani@exemplo.com",
+    phone: "21955554444",
+  });
+  eq(presenca.status, 200, "visitante registra presença pelo QR no dia");
+  eq(presenca.data.visits, 1, "primeira presença do visitante");
+
+  const visao = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  eq(visao.membersPresent, 1, "1 membro presente");
+  eq(visao.visitorsPresent, 1, "1 visitante presente");
+  assert(visao.visitors[0].name === "Daniela Visita", "diretoria vê o visitante pelo nome");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+test("diretoria pode encerrar a presença antes e reabrir depois", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião com override", date: hoje })).data.event;
+
+  const fechar = await admin.post("/api/events/" + ev.id + "/attendance-open", { open: false });
+  eq(fechar.data.attendanceState, "encerrada", "override fecha no próprio dia");
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await member.post("/api/events/checkin", { code: ev.codes[0] })).status, 423, "código recusado com presença encerrada");
+
+  const voltar = await admin.post("/api/events/" + ev.id + "/attendance-open", { open: null });
+  eq(voltar.data.attendanceState, "aberta", "devolver ao automático reabre no dia do evento");
+  eq((await member.post("/api/events/checkin", { code: ev.codes[0] })).status, 200, "check-in volta a funcionar");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+test("quem se inscreveu e apareceu fica marcado como presente", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const ev = (await admin.post("/api/events", { type: "aula", title: "Aula com lista", date: hoje })).data.event;
+  const token = (await admin.post("/api/events/" + ev.id + "/signups-open", { open: true })).data.event.signupToken;
+
+  const visitante = client();
+  await visitante.post("/api/event-signup/" + token, { name: "Elisa Presente", email: "elisa@x.com", phone: "21944443333" });
+  await visitante.post("/api/event-signup/" + token, { name: "Faltoso Silva", email: "faltoso@x.com", phone: "21933332222" });
+  await visitante.post("/api/presence/" + ev.qrToken, { name: "Elisa Presente", email: "elisa@x.com", phone: "21944443333" });
+
+  const visao = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  const elisa = visao.signups.find((s) => s.name === "Elisa Presente");
+  const faltoso = visao.signups.find((s) => s.name === "Faltoso Silva");
+  assert(elisa.attended === true, "quem compareceu deveria estar marcado");
+  assert(!faltoso.attended, "quem não veio não deveria estar marcado");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+test("materiais e fotos do evento: diretoria publica, membro consome", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const ev = (await admin.post("/api/events", { type: "aula", title: "Aula com material", date: "2026-09-30" })).data.event;
+
+  const foto = await admin.post("/api/events/" + ev.id + "/photos", PNG_1PX, { "Content-Type": "image/png" });
+  eq(foto.status, 200, "upload de foto");
+  const link = await admin.post("/api/events/" + ev.id + "/materials/link", { title: "Slides", url: "https://exemplo.com/slides" });
+  eq(link.status, 200, "material do tipo link");
+
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  const visto = (await member.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  eq(visto.materials.length, 1, "membro vê o material");
+  eq(visto.photos.length, 1, "membro vê a foto");
+  eq((await member.get(visto.photos[0].url)).status, 200, "membro carrega a foto");
+  eq((await client().get(visto.photos[0].url)).status, 401, "foto não é pública");
+  eq((await member.post("/api/events/" + ev.id + "/materials/link", { title: "x", url: "https://x.com" })).status, 403, "membro não anexa material");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+test("migração trouxe reuniões e aulas antigas como eventos", async () => {
+  // O volume de teste é semeado com os formatos antigos antes do servidor subir
+  // (ver setupVolume): o boot precisa convertê-los sem perder presença.
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const eventos = (await admin.get("/api/events")).data.events;
+
+  const reuniaoAntiga = eventos.find((e) => e.id === "r-legado-1");
+  assert(reuniaoAntiga, "a reunião antiga deveria ter virado evento");
+  eq(reuniaoAntiga.type, "reuniao", "tipo reunião");
+  eq(reuniaoAntiga.membersPresent, 2, "presença dos membros preservada");
+  eq(reuniaoAntiga.visitorsPresent, 1, "presença do visitante preservada");
+  assert(reuniaoAntiga.codes.includes("ABC123"), "código antigo preservado");
+
+  const aulaAntiga = eventos.find((e) => e.id === "a-legado-1");
+  assert(aulaAntiga, "a aula antiga deveria ter virado evento");
+  eq(aulaAntiga.type, "aula", "tipo aula");
+  eq(aulaAntiga.materials.length, 1, "material da aula preservado");
+  eq(aulaAntiga.signupCount, 1, "inscrição da aula preservada");
+
+  // Os arquivos de origem saem de circulação, mas ficam no volume como cópia.
+  assert(!fs.existsSync(path.join(volumeDir, "meetings.json")), "meetings.json deveria ter sido renomeado");
+  assert(fs.existsSync(path.join(volumeDir, "meetings.json.migrated")), "o original deveria virar .migrated");
+  assert(!fs.existsSync(path.join(volumeDir, "lessons.json")), "lessons.json deveria ter sido renomeado");
 });
 
 // ---- Papéis vivos e persistência ----
@@ -421,7 +609,7 @@ test("papel vem do cadastro, não da sessão: membro desativado perde acesso na 
   fs.writeFileSync(signupsPath, JSON.stringify(signups, null, 2));
 
   eq((await tmp.get("/api/members")).status, 401, "sessão aberta deveria cair ao desativar o membro");
-  eq((await tmp.get("/api/meetings")).status, 401, "nenhuma rota deveria aceitar membro desativado");
+  eq((await tmp.get("/api/events")).status, 401, "nenhuma rota deveria aceitar membro desativado");
 });
 
 test("escrita do volume é atômica e deixa .bak recuperável", async () => {
@@ -494,7 +682,7 @@ test("acervo da imersão segue restrito a quem participou", async () => {
   for (const route of ["/api/legacy", "/api/companies", "/api/badges", "/api/gallery", "/api/checklist", "/api/questions"]) {
     eq((await novato.get(route)).status, 403, "membro novo não deveria acessar " + route);
   }
-  eq((await novato.get("/api/lessons")).status, 200, "aulas da liga são de todo membro");
+  eq((await novato.get("/api/events")).status, 200, "eventos da liga são de todo membro");
   eq((await novato.get("/api/events")).status, 200, "mural é de todo membro");
 });
 

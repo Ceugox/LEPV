@@ -227,33 +227,43 @@
       "</div>"
     );
   }
-  function renderMural(events, lessons, meetings) {
+  // O mural é a vitrine dos eventos: o que ainda vai acontecer primeiro (o mais
+  // próximo na frente), e depois os últimos que passaram, para a página não
+  // ficar vazia em semana parada.
+  function renderMural(events) {
     var card = document.getElementById("mural-card");
-    var today = new Date();
-    today = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+    var hoje = new Date();
+    hoje = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, "0") + "-" + String(hoje.getDate()).padStart(2, "0");
 
-    muralSlides = events.map(function (e) {
+    function slideDe(ev) {
+      var linhas = [];
+      if (ev.text) linhas.push(ev.text);
+      if (ev.signupsOpen) {
+        linhas.push(
+          ev.seatsLeft === 0
+            ? "As vagas acabaram — dá para entrar na fila de espera."
+            : ev.seatsLeft
+              ? "Inscrições abertas — restam " + ev.seatsLeft + " vagas."
+              : "Inscrições abertas — garanta a sua."
+        );
+      } else if (ev.attendanceState === "aberta") {
+        linhas.push("Acontece hoje! Registre sua presença com o código do encontro.");
+      }
       return {
-        tag: "Aviso", date: e.date, title: e.title, text: e.text,
-        photos: (e.photos || []).map(function (p) { return p.url; }),
-        by: e.createdByName,
+        tag: TIPO_LABEL[ev.type] || "Evento",
+        auto: ev.date < hoje,
+        date: ev.date,
+        title: ev.title,
+        text: linhas.join("\n"),
+        photos: (ev.photos || []).map(function (p) { return p.url; }),
+        by: ev.createdByName,
+        cta: { label: ev.signupsOpen && ev.myStatus === null ? "Inscrever-se" : "Ver evento", tab: "eventos" },
       };
-    });
-    // "Outras atividades": aulas futuras e reuniões abertas entram sozinhas.
-    lessons.filter(function (l) { return l.date >= today; }).forEach(function (l) {
-      muralSlides.push({
-        tag: "Aula", auto: true, date: l.date, title: l.title,
-        text: (l.description || "") + (l.signupsOpen ? (l.description ? "\n" : "") + "Inscrições abertas — garanta sua vaga." : ""),
-        cta: { label: l.signupsOpen ? "Inscrever-se" : "Ver materiais", tab: "materiais" },
-      });
-    });
-    meetings.filter(function (m) { return m.open; }).forEach(function (m) {
-      muralSlides.push({
-        tag: "Reunião", auto: true, date: m.date, title: m.title,
-        text: "Reunião com presença aberta — registre a sua com o código falado no encontro.",
-        cta: { label: "Fazer check-in", tab: "reunioes" },
-      });
-    });
+    }
+
+    var futuros = events.filter(function (e) { return e.date >= hoje; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var passados = events.filter(function (e) { return e.date < hoje; }).slice(0, 4);
+    muralSlides = futuros.concat(passados).map(slideDe);
 
     if (!muralSlides.length) {
       card.style.display = "none";
@@ -285,101 +295,18 @@
     muralRestartTimer();
   }
 
-  function renderMuralAdmin(me, events) {
-    var box = document.getElementById("mural-admin");
-    if (!me.director) { box.innerHTML = ""; return; }
-
-    var listHtml = events.length
-      ? events.map(function (e) {
-          var photosHtml = (e.photos || []).map(function (p) {
-            return '<span class="ph"><img src="' + esc(p.url) + '" alt=""><button type="button" title="Remover foto" data-delphoto="' + esc(p.id) + '">×</button></span>';
-          }).join("");
-          return (
-            '<div class="event-admin-row" data-event="' + esc(e.id) + '">' +
-              '<div class="event-admin-head">' +
-                '<span class="mural-date num">' + fmtDateBR(e.date) + "</span>" +
-                '<span class="etitle">' + esc(e.title) + "</span>" +
-                '<button type="button" class="btn-reject" data-addphoto>+ Foto</button>' +
-                '<button type="button" class="del-btn" title="Remover aviso" data-delevent>×</button>' +
-              "</div>" +
-              (photosHtml ? '<div class="event-photo-strip">' + photosHtml + "</div>" : "") +
-            "</div>"
-          );
-        }).join("")
-      : '<p class="empty-state">Nenhum aviso publicado ainda.</p>';
-
-    box.innerHTML =
-      '<div class="card">' +
-        '<p class="section-label">Mural (diretoria)</p>' +
-        '<div class="meeting-new">' +
-          '<input type="text" id="new-event-title" placeholder="Título do aviso" maxlength="100">' +
-          '<input type="date" id="new-event-date">' +
-          '<button type="button" class="btn-primary" id="new-event-btn">Publicar</button>' +
-        "</div>" +
-        '<div class="meeting-new" style="margin-top:8px;">' +
-          '<input type="text" id="new-event-text" placeholder="Texto do aviso (opcional)" maxlength="600" style="flex:1 1 100%;">' +
-        "</div>" +
-        '<div style="margin-top:14px;">' + listHtml + "</div>" +
-      "</div>";
-
-    document.getElementById("new-event-btn").addEventListener("click", function () {
-      var title = document.getElementById("new-event-title").value.trim();
-      if (!title) return window.alert("Dê um título ao aviso.");
-      api("/api/events", {
-        method: "POST",
-        body: JSON.stringify({
-          title: title,
-          date: document.getElementById("new-event-date").value,
-          text: document.getElementById("new-event-text").value,
-        }),
-      }).then(loadMural);
-    });
-
-    box.querySelectorAll(".event-admin-row").forEach(function (row) {
-      var eventId = row.dataset.event;
-      row.querySelector("[data-delevent]").addEventListener("click", function () {
-        if (!window.confirm("Remover este aviso do mural?")) return;
-        api("/api/events/" + eventId, { method: "DELETE" }).then(loadMural);
-      });
-      row.querySelectorAll("[data-delphoto]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          api("/api/events/" + eventId + "/photos/" + btn.dataset.delphoto, { method: "DELETE" }).then(loadMural);
-        });
-      });
-      var addBtn = row.querySelector("[data-addphoto]");
-      addBtn.addEventListener("click", function () {
-        var input = document.createElement("input");
-        input.type = "file";
-        input.accept = "image/*";
-        input.addEventListener("change", function () {
-          var file = input.files[0];
-          if (!file) return;
-          addBtn.disabled = true;
-          addBtn.textContent = "Enviando...";
-          normalizePhoto(file, 1600).then(function (blob) {
-            return fetch("/api/events/" + eventId + "/photos", {
-              method: "POST",
-              headers: { "Content-Type": blob.type || "application/octet-stream" },
-              body: blob,
-            });
-          }).then(function (r) {
-            return r.json().then(function (data) {
-              if (!r.ok) throw new Error(data.message || "Falha no envio da foto.");
-            });
-          }).then(loadMural).catch(function (err) {
-            window.alert(err.message || "Não deu pra enviar a foto.");
-            loadMural();
-          });
-        });
-        input.click();
-      });
-    });
-  }
-
   function loadMural() {
-    Promise.all([meReady, api("/api/events"), api("/api/lessons"), api("/api/meetings")]).then(function (r) {
-      renderMural(r[1].events, r[2].lessons, r[3].meetings);
-      renderMuralAdmin(r[0], r[1].events);
+    Promise.all([meReady, api("/api/events")]).then(function (r) {
+      renderMural(r[1].events);
+      // A gestão (criar, foto, inscrição, presença) vive na aba Eventos; aqui
+      // o diretor só ganha o atalho.
+      var box = document.getElementById("mural-admin");
+      box.innerHTML = r[0].director
+        ? '<div class="card mural-admin-link"><span>Publicar aviso, abrir inscrições ou gerar o QR de presença?</span>' +
+          '<button type="button" class="btn-primary btn-small" data-goto-tab="eventos">Ir para Eventos</button></div>'
+        : "";
+      var atalho = box.querySelector("[data-goto-tab]");
+      if (atalho) atalho.addEventListener("click", function () { activateTab("eventos"); });
     }).catch(function () {});
   }
 
@@ -855,8 +782,24 @@
     });
   }
 
-  // ---- Reuniões da liga (presença por código e QR) ----
-  var meetingExpanded = null;
+  // ---- Eventos da liga: aviso → inscrição → presença ----
+  //
+  // Uma aba só para tudo que a liga faz. Reunião, aula, visita e social são
+  // tipos do mesmo objeto; o que muda é o que cada um usa (material, formulário
+  // de inscrição, presença). A presença abre sozinha no dia do evento.
+
+  var TIPOS = [
+    { key: "", label: "Tudo" },
+    { key: "reuniao", label: "Reuniões" },
+    { key: "aula", label: "Aulas" },
+    { key: "visita", label: "Visitas" },
+    { key: "social", label: "Social" },
+  ];
+  var TIPO_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Social" };
+  var eventFilter = "";
+  var eventExpanded = null;
+  var eventsCache = null;
+  var checkinMsg = null;
 
   function fmtDateBR(iso) {
     var p = String(iso || "").split("-");
@@ -875,281 +818,55 @@
     }
   }
 
-  function meetingRowHtml(m, me) {
-    var badge = m.open
-      ? '<span class="badge ok">aberta</span>'
-      : '<span class="badge internal">encerrada</span>';
-    var mine = m.present ? ' · <strong style="color:var(--good,#1B7A3D);">você esteve ✓</strong>' : "";
-    var manageBtn = me.director
-      ? '<button type="button" class="btn-reject" data-manage="' + esc(m.id) + '">' + (meetingExpanded === m.id ? "Fechar" : "Gerenciar") + "</button>"
-      : "";
-    var detail = "";
-    if (me.director && meetingExpanded === m.id) {
-      detail = '<div class="meeting-manage" data-detail="' + esc(m.id) + '"><p class="empty-state">Carregando...</p></div>';
-    }
-    return (
-      '<div class="meeting-row" data-id="' + esc(m.id) + '">' +
-        '<div class="meeting-head">' +
-          '<span class="mdate num">' + fmtDateBR(m.date) + "</span>" +
-          '<span class="mtitle">' + esc(m.title) + "</span>" +
-          badge +
-          '<span class="mcount">' + m.membersPresent + " membros · " + m.visitorsPresent + " visitantes" + mine + "</span>" +
-          manageBtn +
-        "</div>" +
-        detail +
-      "</div>"
-    );
+  function attendanceBadge(ev) {
+    if (ev.attendanceState === "aberta") return '<span class="badge ok">presença aberta</span>';
+    if (ev.attendanceState === "agendada") return '<span class="badge pending">presença abre no dia</span>';
+    return '<span class="badge internal">encerrado</span>';
   }
 
-  function meetingDetailHtml(m, members) {
-    var codesHtml =
-      '<p class="section-label">Códigos de presença (todos valem)</p>' +
-      '<div class="code-chips">' +
-        m.codes.map(function (c) { return '<span class="code-chip">' + esc(c) + "</span>"; }).join("") +
-        '<button type="button" class="btn-reject" data-newcode>+ Gerar outro</button>' +
-      "</div>";
+  function signupLineHtml(ev, me) {
+    if (!ev.signupsOpen && !ev.signupCount) return "";
+    var partes = [];
+    if (ev.signupsOpen) partes.push('<span class="signup-badge open">inscrições abertas</span>');
+    else partes.push('<span class="signup-badge done">inscrições encerradas</span>');
 
-    var publicUrl = window.location.origin + "/presenca.html?t=" + m.qrToken;
-    var qrHtml =
-      '<div class="meeting-actions">' +
-        '<button type="button" class="btn-primary btn-small" data-showqr>QR de visitantes</button>' +
-        '<button type="button" class="btn-reject" data-copylink>Copiar link público</button>' +
-        '<button type="button" class="btn-reject" data-toggleopen>' + (m.open ? "Encerrar reunião" : "Reabrir reunião") + "</button>" +
-      "</div>" +
-      '<div class="qr-box" data-qrbox style="display:none;">' +
-        '<img src="/api/meetings/' + esc(m.id) + '/qr" alt="QR code de presença">' +
-        '<div class="qr-link">' + esc(publicUrl) + "</div>" +
-      "</div>";
+    var vagas = ev.capacity
+      ? '<span class="signup-count num">' + ev.signupCount + "/" + ev.capacity + " vagas" +
+        (ev.waitlistCount ? " · " + ev.waitlistCount + " na espera" : "") + "</span>"
+      : '<span class="signup-count num">' + ev.signupCount + " inscrito" + (ev.signupCount === 1 ? "" : "s") + "</span>";
+    partes.push(vagas);
 
-    var present = {};
-    m.memberAttendance.forEach(function (a) { present[a.order] = true; });
-    var gridHtml =
-      '<p class="section-label" style="margin-top:12px;">Presença dos membros</p>' +
-      '<div class="attendance-toggle-grid">' +
-        (members || [])
-          .map(function (mem) {
-            return (
-              "<label><input type=\"checkbox\" data-att-order=\"" + mem.order + "\"" + (present[mem.order] ? " checked" : "") + ">" +
-                esc(mem.name) +
-              "</label>"
-            );
-          })
-          .join("") +
-      "</div>";
-
-    var visitorsHtml =
-      '<p class="section-label" style="margin-top:12px;">Visitantes desta reunião</p>' +
-      (m.visitors && m.visitors.length
-        ? m.visitors
-            .map(function (v) {
-              var contact = [v.email, v.phone].filter(Boolean).join(" · ");
-              return (
-                '<div class="visitor-row">' +
-                  "<span><strong>" + esc(v.name) + "</strong>" + (contact ? ' <span style="color:var(--graphite-soft);">' + esc(contact) + "</span>" : "") + "</span>" +
-                  "<span>" + v.visits + "ª presença" + (v.inviteReady ? ' <span class="invite-flag">convidar p/ membro</span>' : "") + "</span>" +
-                "</div>"
-              );
-            })
-            .join("")
-        : '<p class="empty-state">Nenhum visitante registrado.</p>');
-
-    return codesHtml + qrHtml + gridHtml + visitorsHtml;
+    if (ev.myStatus === "confirmed") {
+      partes.push('<span class="signup-badge open">você está inscrito ✓</span>');
+      partes.push('<button type="button" class="btn-reject" data-unsignup>Cancelar inscrição</button>');
+    } else if (ev.myStatus === "waitlist") {
+      partes.push('<span class="signup-badge done">você está na fila de espera</span>');
+      partes.push('<button type="button" class="btn-reject" data-unsignup>Sair da fila</button>');
+    } else if (ev.signupsOpen) {
+      var lotado = ev.seatsLeft === 0;
+      partes.push('<button type="button" class="btn-primary btn-small" data-signup>' + (lotado ? "Entrar na fila de espera" : "Inscrever-se") + "</button>");
+    }
+    return '<div class="lesson-signup-bar">' + partes.join("") + "</div>";
   }
 
-  function renderMeetings(me, data, members) {
-    var content = document.getElementById("meetings-content");
-
-    var checkinHtml =
-      '<div class="card">' +
-        '<p class="section-label">Registrar minha presença</p>' +
-        '<div class="checkin-row">' +
-          '<input type="text" id="checkin-code" maxlength="10" placeholder="CÓDIGO" aria-label="Código de presença" autocomplete="off">' +
-          '<button type="button" class="btn-primary" id="checkin-btn">Confirmar</button>' +
-        "</div>" +
-        '<p class="hint" style="margin-top:8px; font-size:11.5px; color:var(--graphite-soft);">O código é anunciado pelos diretores durante a reunião.</p>' +
-        '<div id="checkin-feedback"></div>' +
-      "</div>";
-
-    var createHtml = me.director
-      ? '<div class="card">' +
-          '<p class="section-label">Nova reunião (diretoria)</p>' +
-          '<div class="meeting-new">' +
-            '<input type="text" id="new-meeting-title" placeholder="Título (ex.: Reunião geral)" maxlength="80">' +
-            '<input type="date" id="new-meeting-date">' +
-            '<button type="button" class="btn-primary" id="new-meeting-btn">Criar</button>' +
-          "</div>" +
-        "</div>"
-      : "";
-
-    var inviteHtml = "";
-    if (me.director && data.inviteReady && data.inviteReady.length) {
-      inviteHtml =
-        '<div class="card">' +
-          '<p class="section-label" style="color:var(--red);">Visitantes com 2+ presenças — convidar para virar membro</p>' +
-          data.inviteReady
-            .map(function (v) {
-              var contact = [v.email, v.phone].filter(Boolean).join(" · ");
-              return (
-                '<div class="visitor-row">' +
-                  "<span><strong>" + esc(v.name) + "</strong>" + (contact ? ' <span style="color:var(--graphite-soft);">' + esc(contact) + "</span>" : "") + " · " + v.visits + " reuniões</span>" +
-                  '<button type="button" class="btn-reject" data-invite="' + esc(v.name) + '">Copiar convite</button>' +
-                "</div>"
-              );
-            })
-            .join("") +
-        "</div>";
-    }
-
-    var listHtml =
-      '<div class="card">' +
-        '<p class="section-label">Reuniões</p>' +
-        (data.meetings.length
-          ? data.meetings.map(function (m) { return meetingRowHtml(m, me); }).join("")
-          : '<p class="empty-state">Nenhuma reunião registrada ainda.</p>') +
-      "</div>";
-
-    content.innerHTML = checkinHtml + createHtml + inviteHtml + listHtml;
-
-    // Check-in do membro
-    var checkinBtn = document.getElementById("checkin-btn");
-    var checkinInput = document.getElementById("checkin-code");
-    function doCheckin() {
-      var code = checkinInput.value.trim().toUpperCase();
-      if (!code) return;
-      checkinBtn.disabled = true;
-      fetch("/api/meetings/checkin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: code }),
-      })
-        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-        .then(function (res) {
-          if (res.ok) {
-            loadMeetings();
-          } else {
-            checkinBtn.disabled = false;
-            document.getElementById("checkin-feedback").innerHTML =
-              '<div class="checkin-ok" style="background:#FEEBEB; color:#991B1B;">' + esc(res.data.message || "Código inválido.") + "</div>";
-          }
-        });
-    }
-    checkinBtn.addEventListener("click", doCheckin);
-    checkinInput.addEventListener("keydown", function (e) { if (e.key === "Enter") doCheckin(); });
-
-    // Criação de reunião (diretoria)
-    if (me.director) {
-      document.getElementById("new-meeting-btn").addEventListener("click", function () {
-        api("/api/meetings", {
-          method: "POST",
-          body: JSON.stringify({
-            title: document.getElementById("new-meeting-title").value,
-            date: document.getElementById("new-meeting-date").value,
-          }),
-        }).then(function (res) {
-          if (res && res.meeting) meetingExpanded = res.meeting.id;
-          loadMeetings();
-        });
-      });
-
-      content.querySelectorAll("[data-invite]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          copyText(
-            "Oi, " + btn.dataset.invite.split(" ")[0] + "! Você já participou de 2+ reuniões da LEPV e queremos você como membro. " +
-              "Peça seu acesso em " + window.location.origin + "/login.html (botão \"Solicitar acesso\") que a gente aprova!",
-            btn
-          );
-        });
-      });
-
-      content.querySelectorAll("[data-manage]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          meetingExpanded = meetingExpanded === btn.dataset.manage ? null : btn.dataset.manage;
-          loadMeetings();
-        });
-      });
-
-      // Detalhe expandido
-      var detailBox = content.querySelector("[data-detail]");
-      if (detailBox) {
-        var meeting = data.meetings.find(function (m) { return m.id === meetingExpanded; });
-        if (meeting) {
-          detailBox.innerHTML = meetingDetailHtml(meeting, members);
-          detailBox.querySelector("[data-newcode]").addEventListener("click", function () {
-            api("/api/meetings/" + meeting.id + "/codes", { method: "POST" }).then(loadMeetings);
-          });
-          detailBox.querySelector("[data-showqr]").addEventListener("click", function () {
-            var box = detailBox.querySelector("[data-qrbox]");
-            box.style.display = box.style.display === "none" ? "block" : "none";
-          });
-          detailBox.querySelector("[data-copylink]").addEventListener("click", function (e) {
-            copyText(window.location.origin + "/presenca.html?t=" + meeting.qrToken, e.currentTarget);
-          });
-          detailBox.querySelector("[data-toggleopen]").addEventListener("click", function () {
-            api("/api/meetings/" + meeting.id + "/open", { method: "POST", body: JSON.stringify({ open: !meeting.open }) }).then(loadMeetings);
-          });
-          detailBox.querySelectorAll("[data-att-order]").forEach(function (cb) {
-            cb.addEventListener("change", function () {
-              var desired = cb.checked;
-              cb.disabled = true;
-              api("/api/meetings/" + meeting.id + "/member-attendance", {
-                method: "POST",
-                body: JSON.stringify({ order: parseInt(cb.dataset.attOrder, 10), present: desired }),
-              })
-                .then(function (r) {
-                  cb.disabled = false;
-                  // Se o servidor não confirmou, o check volta: presença
-                  // marcada na tela e ausente no servidor é pior que erro.
-                  if (!r || !r.ok) throw new Error("recusado");
-                })
-                .catch(function () {
-                  cb.disabled = false;
-                  cb.checked = !desired;
-                  window.alert("Não deu pra salvar a presença. Tente de novo.");
-                });
-            });
-          });
-        }
-      }
-    }
-  }
-
-  function loadMeetings() {
-    Promise.all([meReady, api("/api/meetings")]).then(function (r) {
-      var me = r[0], data = r[1];
-      if (me.director) {
-        api("/api/members").then(function (members) { renderMeetings(me, data, members); });
-      } else {
-        renderMeetings(me, data, null);
-      }
-    });
-  }
-
-  // ---- Aulas da liga (aba Materiais) ----
-
-  function lessonMaterialsHtml(lesson, me) {
-    var list = lesson.materials || [];
-    if (!list.length) {
-      return '<p class="empty-state">Nenhum material nesta aula ainda.</p>';
-    }
+  function materialsHtml(ev, me) {
+    if (!ev.materials.length) return "";
     return (
       '<ul class="materials-list">' +
-        list.map(function (m) {
+        ev.materials.map(function (m) {
           var isPdf = m.type === "pdf";
-          var iconHtml = isPdf
-            ? '<span class="material-icon">PDF</span>'
-            : '<span class="material-icon link">LINK</span>';
-          var metaBits = [isPdf ? "PDF · " + formatBytes(m.size) : "Link externo"];
-          if (m.addedBy) metaBits.push("por " + m.addedBy);
-          var actionsHtml = isPdf
-            ? '<a target="_blank" rel="noopener" href="/api/lessons/materials/' + m.id + '/file">Abrir</a>' +
-              '<a href="/api/lessons/materials/' + m.id + '/file?dl=1">Baixar</a>'
+          var meta = [isPdf ? "PDF · " + formatBytes(m.size) : "Link externo"];
+          if (m.addedBy) meta.push("por " + m.addedBy);
+          var acoes = isPdf
+            ? '<a target="_blank" rel="noopener" href="' + esc(m.url) + '">Abrir</a><a href="' + esc(m.url) + '?dl=1">Baixar</a>'
             : '<a target="_blank" rel="noopener" href="' + esc(m.url) + '">Abrir</a>';
           return (
-            '<li data-id="' + esc(m.id) + '">' +
-              iconHtml +
-              '<div class="material-main"><div class="material-title">' + esc(m.title) + '</div><div class="material-meta">' + esc(metaBits.join(" · ")) + "</div></div>" +
-              '<div class="material-actions">' + actionsHtml +
-                (me.director ? '<button class="del-btn" title="Remover material">×</button>' : "") +
+            '<li data-material="' + esc(m.id) + '">' +
+              '<span class="material-icon' + (isPdf ? "" : " link") + '">' + (isPdf ? "PDF" : "LINK") + "</span>" +
+              '<div class="material-main"><div class="material-title">' + esc(m.title) + '</div>' +
+              '<div class="material-meta">' + esc(meta.join(" · ")) + "</div></div>" +
+              '<div class="material-actions">' + acoes +
+                (me.director ? '<button class="del-btn" data-delmaterial title="Remover material">×</button>' : "") +
               "</div>" +
             "</li>"
           );
@@ -1158,213 +875,440 @@
     );
   }
 
-  // Barra de inscrições da aula: membro se inscreve com 1 clique; a diretoria
-  // abre/fecha, distribui o link público (QR) e vê a lista nominal.
-  function lessonSignupBarHtml(l, me) {
-    var badge = l.signupsOpen
-      ? '<span class="signup-badge open">inscrições abertas</span>'
-      : (l.signupCount ? '<span class="signup-badge done">inscrições encerradas</span>' : "");
-    var countHtml = '<span class="signup-count num">' + l.signupCount + " inscrito" + (l.signupCount === 1 ? "" : "s") + "</span>";
-    var meBtn = l.signedUp
-      ? '<button type="button" class="btn-primary btn-small" disabled>Inscrito ✓</button>'
-      : (l.signupsOpen ? '<button type="button" class="btn-primary btn-small" data-signup>Inscrever-se</button>' : "");
+  function managePanelHtml(ev) {
+    var codes =
+      '<p class="section-label">Códigos de presença (todos valem)</p>' +
+      '<div class="code-chips">' +
+        ev.codes.map(function (c) { return '<span class="code-chip">' + esc(c) + "</span>"; }).join("") +
+        '<button type="button" class="btn-reject" data-newcode>+ Gerar outro</button>' +
+      "</div>";
 
-    if (!me.director) {
-      if (!badge && !meBtn) return "";
-      return '<div class="lesson-signup-bar">' + badge + meBtn + (l.signupsOpen || l.signupCount ? countHtml : "") + "</div>";
-    }
+    var presencaUrl = window.location.origin + "/presenca.html?t=" + ev.qrToken;
+    var acoes =
+      '<div class="meeting-actions">' +
+        '<button type="button" class="btn-primary btn-small" data-showqr>QR de presença</button>' +
+        '<button type="button" class="btn-reject" data-copyqr>Copiar link da presença</button>' +
+        (ev.attendanceState === "aberta"
+          ? '<button type="button" class="btn-reject" data-attclose>Encerrar presença agora</button>'
+          : '<button type="button" class="btn-reject" data-attopen>Abrir presença fora da data</button>') +
+      "</div>" +
+      '<div class="qr-box" data-qrbox style="display:none;">' +
+        '<img src="/api/events/' + esc(ev.id) + '/qr" alt="QR code de presença">' +
+        '<div class="qr-link">' + esc(presencaUrl) + "</div>" +
+      "</div>";
 
-    var controls = '<button type="button" class="btn-reject" data-toggle-signups>' + (l.signupsOpen ? "Encerrar inscrições" : "Abrir inscrições") + "</button>";
-    var qrBox = "";
-    if (l.signupsOpen && l.signupToken) {
-      controls +=
-        '<button type="button" class="btn-reject" data-signup-qr>QR de inscrição</button>' +
-        '<button type="button" class="btn-reject" data-copy-signup>Copiar link público</button>';
-      qrBox =
-        '<div class="qr-box" data-signup-qrbox style="display:none;">' +
-          '<img src="/api/lessons/' + esc(l.id) + '/signup-qr" alt="QR code de inscrição">' +
-          '<div class="qr-link">' + esc(window.location.origin + "/inscricao.html?t=" + l.signupToken) + "</div>" +
-        "</div>";
-    }
-    var listHtml = "";
-    if (l.signups && l.signups.length) {
-      listHtml =
-        '<div style="margin-top:6px;">' +
-          '<p class="section-label">Inscritos · ' + l.signups.length + "</p>" +
-          l.signups.map(function (s) {
-            var contact = [s.email, s.phone].filter(Boolean).join(" · ");
+    var inscricoes =
+      '<p class="section-label" style="margin-top:12px;">Inscrições</p>' +
+      '<div class="meeting-new">' +
+        '<input type="number" min="0" step="1" class="cap-input" placeholder="Vagas (vazio = ilimitado)" value="' + (ev.capacity || "") + '">' +
+        '<button type="button" class="btn-primary btn-small" data-signuptoggle>' + (ev.signupsOpen ? "Encerrar inscrições" : "Abrir inscrições") + "</button>" +
+        (ev.signupsOpen && ev.signupToken
+          ? '<button type="button" class="btn-reject" data-signupqr>QR do formulário</button>' +
+            '<button type="button" class="btn-reject" data-copysignup>Copiar link do formulário</button>'
+          : "") +
+      "</div>" +
+      (ev.signupsOpen && ev.signupToken
+        ? '<div class="qr-box" data-signupqrbox style="display:none;">' +
+            '<img src="/api/events/' + esc(ev.id) + '/signup-qr" alt="QR code de inscrição">' +
+            '<div class="qr-link">' + esc(window.location.origin + "/inscricao.html?t=" + ev.signupToken) + "</div>" +
+          "</div>"
+        : "");
+
+    var listaInscritos = ev.signups.length
+      ? ev.signups.map(function (s) {
+          var contato = [s.email, s.phone].filter(Boolean).join(" · ");
+          var tag = s.status === "waitlist"
+            ? '<span class="signup-badge done">fila</span>'
+            : '<span class="signup-badge open">' + (s.type === "member" ? "membro" : "visitante") + "</span>";
+          var presente = s.attended ? ' <span class="invite-flag">compareceu</span>' : "";
+          return (
+            '<div class="visitor-row">' +
+              "<span><strong>" + esc(s.name) + "</strong>" + (contato ? ' <span style="color:var(--graphite-soft);">' + esc(contato) + "</span>" : "") + presente + "</span>" +
+              tag +
+            "</div>"
+          );
+        }).join("")
+      : '<p class="empty-state">Ninguém inscrito ainda.</p>';
+
+    var present = {};
+    (ev.memberAttendance || []).forEach(function (a) { present[a.order] = true; });
+    var grid =
+      '<p class="section-label" style="margin-top:12px;">Presença dos membros</p>' +
+      '<div class="attendance-toggle-grid">' +
+        (manageMembers || []).map(function (mem) {
+          return '<label><input type="checkbox" data-att-order="' + mem.order + '"' + (present[mem.order] ? " checked" : "") + ">" + esc(mem.name) + "</label>";
+        }).join("") +
+      "</div>";
+
+    var visitantes =
+      '<p class="section-label" style="margin-top:12px;">Visitantes presentes</p>' +
+      (ev.visitors && ev.visitors.length
+        ? ev.visitors.map(function (v) {
+            var contato = [v.email, v.phone].filter(Boolean).join(" · ");
             return (
               '<div class="visitor-row">' +
-                "<span><strong>" + esc(s.name) + "</strong>" + (contact ? ' <span style="color:var(--graphite-soft);">' + esc(contact) + "</span>" : "") + "</span>" +
-                '<span class="signup-badge ' + (s.type === "member" ? "open" : "done") + '">' + (s.type === "member" ? "membro" : "visitante") + "</span>" +
+                "<span><strong>" + esc(v.name) + "</strong>" + (contato ? ' <span style="color:var(--graphite-soft);">' + esc(contato) + "</span>" : "") + "</span>" +
+                "<span>" + v.visits + "ª presença" + (v.inviteReady ? ' <span class="invite-flag">convidar p/ membro</span>' : "") + "</span>" +
               "</div>"
             );
-          }).join("") +
-        "</div>";
-    }
-    return '<div class="lesson-signup-bar">' + badge + meBtn + controls + countHtml + "</div>" + qrBox + listHtml;
+          }).join("")
+        : '<p class="empty-state">Nenhum visitante ainda.</p>');
+
+    var anexos =
+      '<div class="material-admin">' +
+        '<input type="text" class="mat-title" placeholder="Título do material" aria-label="Título do material" maxlength="120">' +
+        '<div class="row2">' +
+          '<input type="file" class="mat-file" accept="application/pdf" aria-label="Arquivo PDF">' +
+          '<button class="btn-primary mat-upload">Enviar PDF</button>' +
+        "</div>" +
+        '<div class="row2">' +
+          '<input type="url" class="mat-url" placeholder="ou cole um link (slides, vídeo...)" aria-label="URL do material">' +
+          '<button class="btn-primary mat-add-link">Adicionar link</button>' +
+        "</div>" +
+        '<div class="row2">' +
+          '<input type="file" class="ev-photo" accept="image/*" aria-label="Foto do aviso">' +
+          '<button class="btn-primary ev-photo-btn">Adicionar foto ao aviso</button>' +
+        "</div>" +
+      "</div>";
+
+    return '<div class="event-manage">' + codes + acoes + inscricoes + listaInscritos + grid + visitantes + anexos + "</div>";
   }
 
-  function renderLessons(me, lessons) {
-    var content = document.getElementById("lessons-content");
+  function eventCardHtml(ev, me) {
+    var fotos = ev.photos.length
+      ? '<div class="event-photos">' + ev.photos.map(function (p) {
+          return '<img src="' + esc(p.url) + '" alt="Foto do evento" loading="lazy">';
+        }).join("") + "</div>"
+      : "";
+    var presencaLinha =
+      ev.attendanceState !== "encerrada" || ev.membersPresent || ev.visitorsPresent
+        ? '<div class="event-presence">' + attendanceBadge(ev) +
+            '<span class="signup-count num">' + ev.membersPresent + " membros · " + ev.visitorsPresent + " visitantes</span>" +
+            (ev.present ? '<span class="signup-badge open">você esteve ✓</span>' : "") +
+          "</div>"
+        : "";
+    var gerir = me.director
+      ? '<button type="button" class="btn-reject" data-manage>' + (eventExpanded === ev.id ? "Fechar gestão" : "Gerenciar") + "</button>"
+      : "";
+    var apagar = me.director ? '<button class="del-btn" data-delevent title="Remover evento">×</button>' : "";
 
-    var createHtml = me.director
+    return (
+      '<div class="card event-card" data-event="' + esc(ev.id) + '">' +
+        '<div class="event-head">' +
+          '<span class="event-date num">' + fmtDateBR(ev.date) + "</span>" +
+          '<span class="mural-tag">' + esc(TIPO_LABEL[ev.type] || "Evento") + "</span>" +
+          '<span class="event-title">' + esc(ev.title) + "</span>" +
+          gerir + apagar +
+        "</div>" +
+        (ev.text ? '<p class="event-text">' + esc(ev.text) + "</p>" : "") +
+        fotos +
+        materialsHtml(ev, me) +
+        signupLineHtml(ev, me) +
+        presencaLinha +
+        (me.director && eventExpanded === ev.id ? managePanelHtml(ev) : "") +
+      "</div>"
+    );
+  }
+
+  var manageMembers = null;
+
+  function renderEvents(me, data) {
+    var content = document.getElementById("events-content");
+    var eventos = data.events;
+
+    var filtros =
+      '<div class="type-filters">' +
+        TIPOS.map(function (t) {
+          return '<button type="button" class="type-chip' + (eventFilter === t.key ? " on" : "") + '" data-type="' + t.key + '">' + t.label + "</button>";
+        }).join("") +
+      "</div>";
+
+    var checkin =
+      '<div class="card">' +
+        '<p class="section-label">Registrar presença</p>' +
+        '<div class="checkin-row">' +
+          '<input type="text" id="checkin-code" placeholder="Código do evento" maxlength="12" autocapitalize="characters">' +
+          '<button type="button" class="btn-primary" id="checkin-btn">Confirmar</button>' +
+        "</div>" +
+        // A confirmação precisa sobreviver ao re-render que vem logo depois do
+        // check-in — senão o membro aperta, a lista recarrega e ele não vê nada.
+        '<p class="questions-hint" id="checkin-msg"' + (checkinMsg ? ' style="color:' + checkinMsg.cor + '"' : "") + ">" +
+          esc(checkinMsg ? checkinMsg.texto : "O código é falado no início do evento e só funciona no dia.") +
+        "</p>" +
+      "</div>";
+
+    var novo = me.director
       ? '<div class="card">' +
-          '<p class="section-label">Nova aula (diretoria)</p>' +
+          '<p class="section-label">Novo evento (diretoria)</p>' +
           '<div class="meeting-new">' +
-            '<input type="text" id="new-lesson-title" placeholder="Título (ex.: Aula 03 — Precificação)" maxlength="100">' +
-            '<input type="date" id="new-lesson-date">' +
-            '<button type="button" class="btn-primary" id="new-lesson-btn">Criar aula</button>' +
+            '<select id="new-event-type" aria-label="Tipo de evento">' +
+              '<option value="reuniao">Reunião</option><option value="aula">Aula</option>' +
+              '<option value="visita">Visita</option><option value="social">Social</option>' +
+            "</select>" +
+            '<input type="text" id="new-event-title" placeholder="Título" maxlength="100">' +
+            '<input type="date" id="new-event-date">' +
+            '<button type="button" class="btn-primary" id="new-event-btn">Criar</button>' +
           "</div>" +
           '<div class="meeting-new" style="margin-top:8px;">' +
-            '<input type="text" id="new-lesson-desc" placeholder="Descrição (opcional)" maxlength="300" style="flex:1 1 100%;">' +
+            '<input type="text" id="new-event-text" placeholder="Aviso que aparece no mural (opcional)" maxlength="600" style="flex:1 1 100%;">' +
           "</div>" +
         "</div>"
       : "";
 
-    var listHtml = lessons.length
-      ? lessons.map(function (l) {
-          var adminHtml = me.director
-            ? '<div class="material-admin">' +
-                '<input type="text" class="mat-title" placeholder="Título do material" aria-label="Título do material" maxlength="120">' +
-                '<div class="row2">' +
-                  '<input type="file" class="mat-file" accept="application/pdf" aria-label="Arquivo PDF">' +
-                  '<button class="btn-primary mat-upload">Enviar PDF</button>' +
-                "</div>" +
-                '<div class="row2">' +
-                  '<input type="url" class="mat-url" placeholder="ou cole um link (vídeo, slides...)" aria-label="URL do material">' +
-                  '<button class="btn-primary mat-add-link">Adicionar link</button>' +
-                "</div>" +
-              "</div>"
-            : "";
-          return (
-            '<div class="card lesson-card" data-lesson="' + esc(l.id) + '">' +
-              '<div class="lesson-head">' +
-                '<span class="ldate num">' + fmtDateBR(l.date) + "</span>" +
-                '<span class="ltitle">' + esc(l.title) + "</span>" +
-                (me.director ? '<button class="del-lesson" title="Remover aula">×</button>' : "") +
-              "</div>" +
-              (l.description ? '<p class="lesson-desc">' + esc(l.description) + "</p>" : "") +
-              '<div class="lesson-materials" style="margin-top:10px;">' + lessonMaterialsHtml(l, me) + "</div>" +
-              lessonSignupBarHtml(l, me) +
-              adminHtml +
-            "</div>"
-          );
-        }).join("")
-      : '<div class="card"><p class="empty-state">Nenhuma aula cadastrada ainda.' + (me.director ? " Crie a primeira acima." : "") + "</p></div>";
+    var lista = eventos.length
+      ? eventos.map(function (ev) { return eventCardHtml(ev, me); }).join("")
+      : '<div class="card"><p class="empty-state">Nenhum evento' + (eventFilter ? " deste tipo" : "") + " ainda." + (me.director ? " Crie o primeiro acima." : "") + "</p></div>";
 
-    content.innerHTML = createHtml + listHtml;
+    content.innerHTML = filtros + checkin + novo + lista;
 
-    // Inscrição do próprio membro — vale para todo mundo, diretor ou não.
-    content.querySelectorAll(".lesson-card [data-signup]").forEach(function (btn) {
+    // A confirmação vale para a visita atual à aba, não para sempre.
+    checkinMsg = null;
+
+    content.querySelectorAll("[data-type]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        btn.disabled = true;
-        btn.textContent = "Inscrevendo...";
-        api("/api/lessons/" + btn.closest(".lesson-card").dataset.lesson + "/signup", { method: "POST" })
-          .then(function () { loadLessons(); })
-          .catch(function () { loadLessons(); });
+        eventFilter = btn.dataset.type;
+        loadEvents();
       });
     });
 
-    if (!me.director) return;
-
-    document.getElementById("new-lesson-btn").addEventListener("click", function () {
-      var title = document.getElementById("new-lesson-title").value.trim();
-      if (!title) return window.alert("Dê um título à aula.");
-      api("/api/lessons", {
+    document.getElementById("checkin-btn").addEventListener("click", function () {
+      var input = document.getElementById("checkin-code");
+      var msg = document.getElementById("checkin-msg");
+      var code = input.value.trim();
+      if (!code) return;
+      var btn = document.getElementById("checkin-btn");
+      btn.disabled = true;
+      fetch("/api/events/checkin", {
         method: "POST",
-        body: JSON.stringify({
-          title: title,
-          date: document.getElementById("new-lesson-date").value,
-          description: document.getElementById("new-lesson-desc").value,
-        }),
-      }).then(function () { loadLessons(); });
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code }),
+      })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+          btn.disabled = false;
+          if (res.ok) {
+            input.value = "";
+            checkinMsg = { texto: "Presença confirmada em " + res.data.event.title + " ✓", cor: "var(--good)" };
+            loadEvents();
+          } else {
+            checkinMsg = { texto: res.data.message || "Não deu pra registrar.", cor: "var(--red-2)" };
+            msg.textContent = checkinMsg.texto;
+            msg.style.color = checkinMsg.cor;
+          }
+        })
+        .catch(function () {
+          btn.disabled = false;
+          checkinMsg = { texto: "Erro de conexão. Tente de novo.", cor: "var(--red-2)" };
+          msg.textContent = checkinMsg.texto;
+          msg.style.color = checkinMsg.cor;
+        });
     });
 
-    content.querySelectorAll(".lesson-card").forEach(function (cardEl) {
-      var lessonId = cardEl.dataset.lesson;
-
-      var toggleSignups = cardEl.querySelector("[data-toggle-signups]");
-      if (toggleSignups) {
-        toggleSignups.addEventListener("click", function () {
-          var opening = toggleSignups.textContent.indexOf("Abrir") === 0;
-          if (!opening && !window.confirm("Encerrar as inscrições desta aula? O link público para de aceitar novas.")) return;
-          api("/api/lessons/" + lessonId + "/signups-open", {
-            method: "POST",
-            body: JSON.stringify({ open: opening }),
-          }).then(function () { loadLessons(); });
-        });
-      }
-      var qrBtn = cardEl.querySelector("[data-signup-qr]");
-      if (qrBtn) {
-        qrBtn.addEventListener("click", function () {
-          var box = cardEl.querySelector("[data-signup-qrbox]");
-          if (box) box.style.display = box.style.display === "none" ? "" : "none";
-        });
-      }
-      var copyBtn = cardEl.querySelector("[data-copy-signup]");
-      if (copyBtn) {
-        copyBtn.addEventListener("click", function (e) {
-          var link = cardEl.querySelector("[data-signup-qrbox] .qr-link");
-          if (link) copyText(link.textContent, e.currentTarget);
-        });
-      }
-
-      var delLesson = cardEl.querySelector(".del-lesson");
-      if (delLesson) {
-        delLesson.addEventListener("click", function () {
-          if (!window.confirm("Remover esta aula e todos os materiais dela?")) return;
-          api("/api/lessons/" + lessonId, { method: "DELETE" }).then(function () { loadLessons(); });
-        });
-      }
-
-      cardEl.querySelectorAll(".materials-list .del-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          if (!window.confirm("Remover este material para todo mundo?")) return;
-          var li = btn.closest("li");
-          api("/api/lessons/" + lessonId + "/materials/" + li.dataset.id, { method: "DELETE" }).then(function () { loadLessons(); });
-        });
-      });
-
-      var uploadBtn = cardEl.querySelector(".mat-upload");
-      uploadBtn.addEventListener("click", function () {
-        var title = cardEl.querySelector(".mat-title").value.trim();
-        var file = cardEl.querySelector(".mat-file").files[0];
-        if (!title) return window.alert("Dê um título ao material.");
-        if (!file) return window.alert("Escolha um arquivo PDF.");
-        uploadBtn.disabled = true;
-        uploadBtn.textContent = "Enviando...";
-        fetch("/api/lessons/" + lessonId + "/materials/upload?title=" + encodeURIComponent(title), {
+    if (me.director) {
+      document.getElementById("new-event-btn").addEventListener("click", function () {
+        var title = document.getElementById("new-event-title").value.trim();
+        if (!title) return window.alert("Dê um título ao evento.");
+        api("/api/events", {
           method: "POST",
-          headers: { "Content-Type": "application/pdf" },
-          body: file,
-        })
-          .then(function (r) { if (!r.ok) throw new Error("upload failed"); return r.json(); })
-          .then(function () { loadLessons(); })
-          .catch(function () {
-            window.alert("Falha no envio — confira se o arquivo é um PDF de até 25 MB.");
-            uploadBtn.disabled = false;
-            uploadBtn.textContent = "Enviar PDF";
-          });
+          body: JSON.stringify({
+            type: document.getElementById("new-event-type").value,
+            title: title,
+            date: document.getElementById("new-event-date").value,
+            text: document.getElementById("new-event-text").value,
+          }),
+        }).then(function () { loadEvents(); });
       });
+    }
 
-      cardEl.querySelector(".mat-add-link").addEventListener("click", function () {
-        var title = cardEl.querySelector(".mat-title").value.trim();
-        var url = cardEl.querySelector(".mat-url").value.trim();
-        if (!title) return window.alert("Dê um título ao material.");
-        if (!/^https?:\/\//i.test(url)) return window.alert("Cole um link começando com http(s)://");
-        api("/api/lessons/" + lessonId + "/materials/link", {
-          method: "POST",
-          body: JSON.stringify({ title: title, url: url }),
-        }).then(function () { loadLessons(); });
-      });
+    content.querySelectorAll(".event-card").forEach(function (card) {
+      var id = card.dataset.event;
+      wireEventCard(card, id, me);
     });
   }
 
-  function loadLessons() {
-    Promise.all([meReady, api("/api/lessons")]).then(function (r) {
-      renderLessons(r[0], r[1].lessons);
+  function wireEventCard(card, id, me) {
+    var signupBtn = card.querySelector("[data-signup]");
+    if (signupBtn) {
+      signupBtn.addEventListener("click", function () {
+        signupBtn.disabled = true;
+        api("/api/events/" + id + "/signup", { method: "POST" }).then(loadEvents).catch(loadEvents);
+      });
+    }
+    var unsignupBtn = card.querySelector("[data-unsignup]");
+    if (unsignupBtn) {
+      unsignupBtn.addEventListener("click", function () {
+        if (!window.confirm("Cancelar sua inscrição neste evento?")) return;
+        api("/api/events/" + id + "/signup", { method: "DELETE" }).then(loadEvents).catch(loadEvents);
+      });
+    }
+    if (!me.director) return;
+
+    var manage = card.querySelector("[data-manage]");
+    if (manage) {
+      manage.addEventListener("click", function () {
+        eventExpanded = eventExpanded === id ? null : id;
+        loadEvents();
+      });
+    }
+    var del = card.querySelector("[data-delevent]");
+    if (del) {
+      del.addEventListener("click", function () {
+        if (!window.confirm("Remover este evento, com fotos, materiais, inscrições e presença?")) return;
+        api("/api/events/" + id, { method: "DELETE" }).then(loadEvents);
+      });
+    }
+    card.querySelectorAll("[data-delmaterial]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (!window.confirm("Remover este material para todo mundo?")) return;
+        api("/api/events/" + id + "/materials/" + btn.closest("[data-material]").dataset.material, { method: "DELETE" }).then(loadEvents);
+      });
     });
+
+    var box = card.querySelector(".event-manage");
+    if (!box) return;
+
+    box.querySelector("[data-newcode]").addEventListener("click", function () {
+      api("/api/events/" + id + "/codes", { method: "POST" }).then(loadEvents);
+    });
+    box.querySelector("[data-showqr]").addEventListener("click", function () {
+      var qr = box.querySelector("[data-qrbox]");
+      qr.style.display = qr.style.display === "none" ? "" : "none";
+    });
+    box.querySelector("[data-copyqr]").addEventListener("click", function (e) {
+      copyText(window.location.origin + "/presenca.html?t=" + eventQrToken(id), e.currentTarget);
+    });
+    var attClose = box.querySelector("[data-attclose]");
+    if (attClose) {
+      attClose.addEventListener("click", function () {
+        api("/api/events/" + id + "/attendance-open", { method: "POST", body: JSON.stringify({ open: false }) }).then(loadEvents);
+      });
+    }
+    var attOpen = box.querySelector("[data-attopen]");
+    if (attOpen) {
+      attOpen.addEventListener("click", function () {
+        api("/api/events/" + id + "/attendance-open", { method: "POST", body: JSON.stringify({ open: true }) }).then(loadEvents);
+      });
+    }
+
+    box.querySelector("[data-signuptoggle]").addEventListener("click", function (e) {
+      var abrindo = e.currentTarget.textContent.indexOf("Abrir") === 0;
+      var cap = box.querySelector(".cap-input").value;
+      api("/api/events/" + id + "/signups-open", {
+        method: "POST",
+        body: JSON.stringify({ open: abrindo, capacity: cap === "" ? null : parseInt(cap, 10) }),
+      }).then(loadEvents);
+    });
+    var signupQr = box.querySelector("[data-signupqr]");
+    if (signupQr) {
+      signupQr.addEventListener("click", function () {
+        var qr = box.querySelector("[data-signupqrbox]");
+        qr.style.display = qr.style.display === "none" ? "" : "none";
+      });
+    }
+    var copySignup = box.querySelector("[data-copysignup]");
+    if (copySignup) {
+      copySignup.addEventListener("click", function (e) {
+        var link = box.querySelector("[data-signupqrbox] .qr-link");
+        if (link) copyText(link.textContent, e.currentTarget);
+      });
+    }
+
+    box.querySelectorAll("[data-att-order]").forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        var desired = cb.checked;
+        cb.disabled = true;
+        api("/api/events/" + id + "/member-attendance", {
+          method: "POST",
+          body: JSON.stringify({ order: parseInt(cb.dataset.attOrder, 10), present: desired }),
+        })
+          .then(function (r) {
+            cb.disabled = false;
+            if (!r || !r.ok) throw new Error("recusado");
+          })
+          .catch(function () {
+            cb.disabled = false;
+            cb.checked = !desired;
+            window.alert("Não deu pra salvar a presença. Tente de novo.");
+          });
+      });
+    });
+
+    var uploadBtn = box.querySelector(".mat-upload");
+    uploadBtn.addEventListener("click", function () {
+      var title = box.querySelector(".mat-title").value.trim();
+      var file = box.querySelector(".mat-file").files[0];
+      if (!title) return window.alert("Dê um título ao material.");
+      if (!file) return window.alert("Escolha um arquivo PDF.");
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = "Enviando...";
+      fetch("/api/events/" + id + "/materials/upload?title=" + encodeURIComponent(title), {
+        method: "POST",
+        headers: { "Content-Type": "application/pdf" },
+        body: file,
+      })
+        .then(function (r) { if (!r.ok) throw new Error("falhou"); return r.json(); })
+        .then(loadEvents)
+        .catch(function () {
+          window.alert("Falha no envio — confira se o arquivo é um PDF de até 25 MB.");
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = "Enviar PDF";
+        });
+    });
+    box.querySelector(".mat-add-link").addEventListener("click", function () {
+      var title = box.querySelector(".mat-title").value.trim();
+      var url = box.querySelector(".mat-url").value.trim();
+      if (!title) return window.alert("Dê um título ao material.");
+      if (!/^https?:\/\//i.test(url)) return window.alert("Cole um link começando com http(s)://");
+      api("/api/events/" + id + "/materials/link", { method: "POST", body: JSON.stringify({ title: title, url: url }) }).then(loadEvents);
+    });
+
+    var photoBtn = box.querySelector(".ev-photo-btn");
+    photoBtn.addEventListener("click", function () {
+      var file = box.querySelector(".ev-photo").files[0];
+      if (!file) return window.alert("Escolha uma imagem.");
+      photoBtn.disabled = true;
+      photoBtn.textContent = "Enviando...";
+      normalizePhoto(file, 1600)
+        .then(function (blob) {
+          return fetch("/api/events/" + id + "/photos", {
+            method: "POST",
+            headers: { "Content-Type": blob.type || "application/octet-stream" },
+            body: blob,
+          });
+        })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.message || "falhou"); }); })
+        .then(loadEvents)
+        .catch(function (err) {
+          window.alert(err.message || "Não deu pra enviar a foto.");
+          photoBtn.disabled = false;
+          photoBtn.textContent = "Adicionar foto ao aviso";
+        });
+    });
+  }
+
+  function eventQrToken(id) {
+    var ev = (eventsCache || []).find(function (e) { return e.id === id; });
+    return ev ? ev.qrToken : "";
+  }
+
+  function loadEvents() {
+    var pedidos = [meReady, api("/api/events" + (eventFilter ? "?type=" + eventFilter : ""))];
+    Promise.all(pedidos)
+      .then(function (r) {
+        var me = r[0], data = r[1];
+        eventsCache = data.events;
+        if (me.director && !manageMembers) {
+          return api("/api/members").then(function (members) {
+            manageMembers = members;
+            renderEvents(me, data);
+          });
+        }
+        renderEvents(me, data);
+      })
+      .catch(function () {
+        var content = document.getElementById("events-content");
+        if (content) content.innerHTML = '<div class="card"><p class="empty-state">Não deu para carregar os eventos. Verifique a conexão e recarregue.</p></div>';
+      });
   }
 
   // ---- Agenda ----
@@ -2851,8 +2795,7 @@
   var loaders = {
     inicio: loadInicio,
     membros: loadMembers,
-    reunioes: loadMeetings,
-    materiais: loadLessons,
+    eventos: loadEvents,
     legado: loadLegacy,
     resumo: loadMission,
     agenda: loadAgenda,

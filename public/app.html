@@ -1002,6 +1002,35 @@
     border: none; background: var(--red); color: #fff; font-size: 12px; line-height: 1; cursor: pointer;
   }
 
+  /* Eventos: filtros por tipo e cartão do evento */
+  .type-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+  .type-chip {
+    border: 1px solid var(--line); background: var(--white); color: var(--graphite-soft);
+    border-radius: 999px; padding: 7px 15px; cursor: pointer; font-family: var(--font-body);
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .type-chip:hover { border-color: var(--navy); color: var(--navy); }
+  .type-chip.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+  .event-card { display: flex; flex-direction: column; gap: 10px; }
+  .event-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .event-date { font-size: 12.5px; font-weight: 700; color: var(--red); white-space: nowrap; }
+  .event-title {
+    font-family: var(--font-display); font-size: 19px; font-weight: 800; text-transform: uppercase;
+    color: var(--navy); flex: 1; min-width: 0; line-height: 1.15;
+  }
+  .event-text { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0; white-space: pre-line; }
+  .event-photos { display: flex; gap: 8px; flex-wrap: wrap; }
+  .event-photos img {
+    width: 128px; height: 88px; object-fit: cover; border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+  }
+  .event-presence { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 12.5px; }
+  .event-manage { border-top: 1px solid var(--line); padding-top: 12px; }
+  .event-manage .cap-input { flex: 0 1 220px; }
+  .mural-admin-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--graphite); }
+
   /* Modal de formulário (troca de senha) — reusa a moldura do pin-modal */
   .form-modal { text-align: left; }
   .form-modal h3 { text-align: center; }
@@ -1054,9 +1083,8 @@
      aparece para quem participou, via aba Membros. -->
 <nav class="tabs" id="tabs" role="tablist" aria-label="Seções">
   <button data-tab="inicio" data-group="liga" class="active" role="tab" id="tab-inicio" aria-controls="panel-inicio" aria-selected="true">Início</button>
+  <button data-tab="eventos" data-group="liga" role="tab" id="tab-eventos" aria-controls="panel-eventos" aria-selected="false" tabindex="-1">Eventos</button>
   <button data-tab="membros" data-group="liga" role="tab" id="tab-membros" aria-controls="panel-membros" aria-selected="false" tabindex="-1">Membros</button>
-  <button data-tab="reunioes" data-group="liga" role="tab" id="tab-reunioes" aria-controls="panel-reunioes" aria-selected="false" tabindex="-1">Reuniões</button>
-  <button data-tab="materiais" data-group="liga" role="tab" id="tab-materiais" aria-controls="panel-materiais" aria-selected="false" tabindex="-1">Materiais</button>
   <button type="button" data-group="imersao" class="group-hidden back-liga" id="back-liga">← Liga</button>
   <button data-tab="legado" data-group="imersao" class="group-hidden" role="tab" id="tab-legado" aria-controls="panel-legado" aria-selected="false" tabindex="-1">Legado</button>
   <button data-tab="empresas" data-group="imersao" class="group-hidden" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
@@ -1122,14 +1150,10 @@
       </div>
     </section>
 
-    <section class="panel" id="panel-reunioes" role="tabpanel" aria-labelledby="tab-reunioes" tabindex="0">
-      <div id="meetings-content">
-        <div class="card"><p class="empty-state">Carregando...</p></div>
-      </div>
-    </section>
-
-    <section class="panel" id="panel-materiais" role="tabpanel" aria-labelledby="tab-materiais" tabindex="0">
-      <div id="lessons-content">
+    <!-- Eventos: reunião, aula, visita e social são o mesmo objeto. Cada um
+         nasce como aviso, pode abrir inscrição e tem presença que abre no dia. -->
+    <section class="panel" id="panel-eventos" role="tabpanel" aria-labelledby="tab-eventos" tabindex="0">
+      <div id="events-content">
         <div class="card"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>

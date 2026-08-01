@@ -66,6 +66,8 @@
   }
   .done .invite a { color: var(--red-2); font-weight: 700; }
   .hint { font-size: 11.5px; color: var(--graphite-soft); margin-top: -6px; }
+  .seats { font-size: 12.5px; font-weight: 700; color: var(--red); margin: 0 0 14px; }
+  .seats.full { color: var(--pending); }
 </style>
 </head>
 <body>
@@ -74,15 +76,19 @@
       <img src="/logo-liga.png" alt="LEPV" style="background:var(--white); object-fit:cover;">
       <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
       <h1>LEPV</h1>
-      <p class="sub">Inscrição em aula da liga</p>
+      <p class="sub">Inscrição em atividade da liga</p>
     </div>
 
     <div class="card">
       <div id="lesson-info">
-        <p class="eyebrow">Aula</p>
+        <p class="eyebrow" id="event-kind">Evento</p>
         <h2 id="lesson-title">Carregando...</h2>
         <p class="lesson-date" id="lesson-date"></p>
         <p class="lesson-desc" id="lesson-desc"></p>
+        <p class="seats" id="seats"></p>
+        <!-- Fora do <form>: com as inscrições encerradas o formulário some e
+             este aviso precisa continuar na tela. -->
+        <p class="error" id="s-notice"></p>
       </div>
 
       <form id="signup-form">
@@ -123,28 +129,45 @@
 
   function fail(msg) {
     document.getElementById("lesson-title").textContent = "Link inválido";
-    document.getElementById("lesson-date").textContent = msg;
+    document.getElementById("lesson-date").textContent = "";
+    var aviso = document.getElementById("s-notice");
+    aviso.textContent = msg;
+    aviso.classList.add("show");
     form.style.display = "none";
   }
 
   if (!token) {
     fail("Peça o link atualizado a alguém da diretoria.");
   } else {
-    fetch("/api/lesson-signup/" + encodeURIComponent(token))
+    fetch("/api/event-signup/" + encodeURIComponent(token))
       .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
-      .then(function (l) {
-        document.getElementById("lesson-title").textContent = l.title;
-        var p = String(l.date || "").split("-");
+      .then(function (ev) {
+        document.getElementById("event-kind").textContent = ev.kind || "Evento";
+        document.getElementById("lesson-title").textContent = ev.title;
+        var p = String(ev.date || "").split("-");
         document.getElementById("lesson-date").textContent =
-          (p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : "") + (l.open ? "" : " · inscrições encerradas");
-        if (l.description) document.getElementById("lesson-desc").textContent = l.description;
-        if (!l.open) {
+          (p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : "") + (ev.open ? "" : " · inscrições encerradas");
+        if (ev.text) document.getElementById("lesson-desc").textContent = ev.text;
+        // Vaga é informação de decisão: quem chega com a sala cheia precisa
+        // saber que está entrando numa fila, não numa vaga.
+        var seats = document.getElementById("seats");
+        if (ev.capacity) {
+          if (ev.seatsLeft > 0) {
+            seats.textContent = ev.seatsLeft + " de " + ev.capacity + " vagas ainda disponíveis";
+          } else {
+            seats.textContent = "As " + ev.capacity + " vagas acabaram — você entra na fila de espera";
+            seats.classList.add("full");
+            submitBtn.textContent = "Entrar na fila de espera";
+          }
+        }
+        if (!ev.open) {
           form.style.display = "none";
-          errorEl.textContent = "As inscrições desta aula já foram encerradas.";
-          errorEl.classList.add("show");
+          var aviso = document.getElementById("s-notice");
+          aviso.textContent = "As inscrições deste evento já foram encerradas.";
+          aviso.classList.add("show");
         }
       })
-      .catch(function () { fail("Este link não corresponde a nenhuma aula."); });
+      .catch(function () { fail("Este link não corresponde a nenhum evento."); });
   }
 
   form.addEventListener("submit", function (e) {
@@ -152,7 +175,7 @@
     errorEl.classList.remove("show");
     submitBtn.disabled = true;
     submitBtn.textContent = "Enviando...";
-    fetch("/api/lesson-signup/" + encodeURIComponent(token), {
+    fetch("/api/event-signup/" + encodeURIComponent(token), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -165,8 +188,13 @@
       .then(function (res) {
         if (res.ok) {
           form.style.display = "none";
+          document.getElementById("seats").style.display = "none";
           document.getElementById("done").classList.add("show");
-          document.getElementById("done-msg").textContent = res.data.message || "Te esperamos na aula!";
+          if (res.data.status === "waitlist") {
+            document.querySelector("#done h3").textContent = "Você está na fila";
+            document.querySelector("#done .check").textContent = "…";
+          }
+          document.getElementById("done-msg").textContent = res.data.message || "Te esperamos lá!";
         } else {
           errorEl.textContent = res.data.message || "Não foi possível se inscrever. Tente de novo.";
           errorEl.classList.add("show");
