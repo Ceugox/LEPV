@@ -142,20 +142,6 @@ if (!fs.existsSync(MATERIALS_PATH)) {
 }
 fs.mkdirSync(MATERIALS_DIR, { recursive: true });
 
-// Despesas da viagem (divisão estilo Splitwise) — tudo em centavos inteiros,
-// saldos sempre derivados da lista (nunca persistidos).
-const EXPENSES_PATH = path.join(STORAGE_DIR, "expenses.json");
-function readExpenses() {
-  return readStore(EXPENSES_PATH);
-}
-function writeExpenses(value) {
-  writeStore(EXPENSES_PATH, value);
-}
-if (!fs.existsSync(EXPENSES_PATH)) {
-  fs.mkdirSync(STORAGE_DIR, { recursive: true });
-  writeExpenses({ expenses: [] });
-}
-
 // Reuniões da liga — presença de membros (por código) e de visitantes
 // (por QR/pré-cadastro). Tudo em runtime, então mora no volume.
 const MEETINGS_PATH = path.join(STORAGE_DIR, "meetings.json");
@@ -875,9 +861,8 @@ app.post("/api/signups/:id/reject", requireSuperAdminApi, (req, res) => {
 });
 
 // Roster para membros logados. Campos escolhidos um a um: espalhar o membro
-// inteiro vazava a chave Pix (CPF de vários), o WhatsApp de todos e as flags
-// de admin/diretoria para qualquer um que abrisse o DevTools. Pix só aparece
-// para quem precisa acertar a conta, na aba Despesas da imersão.
+// inteiro vazava o WhatsApp de todos e as flags de admin/diretoria para
+// qualquer um que abrisse o DevTools.
 function memberCardView(m) {
   return {
     order: m.order,
@@ -1053,132 +1038,6 @@ app.delete("/api/materials/:id", requireDirectorApi, (req, res) => {
   res.json(materials);
 });
 
-// ---- Despesas da viagem (divisão estilo Splitwise) ----
-
-// Divisão igual em centavos: base + resto distribuído deterministicamente
-// (ordem de inscrição crescente), então a soma bate SEMPRE com o total.
-function splitEqual(amountCents, participants) {
-  const sorted = [...participants].sort((a, b) => a - b);
-  const base = Math.floor(amountCents / sorted.length);
-  const remainder = amountCents % sorted.length;
-  const shares = {};
-  sorted.forEach((order, i) => {
-    shares[order] = base + (i < remainder ? 1 : 0);
-  });
-  return shares;
-}
-
-// Saldo por membro derivado das despesas: positivo = tem a receber.
-function computeBalances(expenses) {
-  const bal = {};
-  allMembers().forEach((m) => { bal[m.order] = 0; });
-  for (const e of expenses) {
-    if (e.type === "settlement") {
-      bal[e.from] += e.amountCents;
-      bal[e.to] -= e.amountCents;
-      continue;
-    }
-    const shares = splitEqual(e.amountCents, e.participants);
-    bal[e.paidBy] += e.amountCents;
-    for (const [order, cents] of Object.entries(shares)) bal[order] -= cents;
-  }
-  return bal;
-}
-
-// Acerto final: greedy maior devedor × maior credor — máx. n-1 transações.
-function settleUp(balances) {
-  const debtors = [], creditors = [];
-  for (const [order, cents] of Object.entries(balances)) {
-    if (cents < 0) debtors.push({ order: parseInt(order, 10), amount: -cents });
-    else if (cents > 0) creditors.push({ order: parseInt(order, 10), amount: cents });
-  }
-  const byAmount = (a, b) => b.amount - a.amount || a.order - b.order;
-  debtors.sort(byAmount);
-  creditors.sort(byAmount);
-  const payments = [];
-  let i = 0, j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const pay = Math.min(debtors[i].amount, creditors[j].amount);
-    payments.push({ from: debtors[i].order, to: creditors[j].order, amountCents: pay });
-    debtors[i].amount -= pay;
-    creditors[j].amount -= pay;
-    if (debtors[i].amount === 0) i++;
-    if (creditors[j].amount === 0) j++;
-  }
-  return payments;
-}
-
-// Chaves Pix — dado sensível (na maioria é o CPF), então sai do roster geral e
-// fica aqui: só quem esteve na imersão e precisa fechar a conta enxerga.
-app.get("/api/expenses/pix", requireImmersionApi, (req, res) => {
-  res.json(
-    allMembers()
-      .filter((m) => m.pix)
-      .map((m) => ({ order: m.order, pix: String(m.pix) }))
-  );
-});
-
-app.get("/api/expenses", requireImmersionApi, (req, res) => {
-  const data = readExpenses();
-  const expenses = [...data.expenses].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-  const balances = computeBalances(data.expenses);
-  res.json({ expenses, balances, settle: settleUp(balances), closed: data.closed === true });
-});
-
-// Fecha (trava) ou reabre as contas. Contas fechadas congelam os números:
-// nenhuma despesa/acerto novo entra e nada é removido até o admin reabrir.
-app.post("/api/expenses/close", requireAdminApi, (req, res) => {
-  const data = readExpenses();
-  data.closed = Boolean(req.body.closed);
-  writeExpenses(data);
-  const balances = computeBalances(data.expenses);
-  res.json({ closed: data.closed, expenses: data.expenses, balances, settle: settleUp(balances) });
-});
-
-// Cadastro de despesas encerrado: a viagem acabou, o histórico está fechado.
-// O saldo continua sendo acertado via Pix (POST /api/expenses/settle). Rota
-// mantida só para responder de forma clara a clientes antigos em cache.
-app.post("/api/expenses", requireImmersionApi, (req, res) => {
-  return res.status(403).json({ error: "expense_creation_disabled" });
-});
-
-// Registrar um Pix feito: quem paga é sempre o usuário logado.
-app.post("/api/expenses/settle", requireImmersionApi, (req, res) => {
-  const to = parseInt(req.body.to, 10);
-  const amountCents = parseInt(req.body.amountCents, 10);
-  const from = req.session.user.order;
-  if (!findMemberAny(to) || to === from) return res.status(400).json({ error: "invalid_recipient" });
-  if (!Number.isInteger(amountCents) || amountCents <= 0) return res.status(400).json({ error: "invalid_amount" });
-  const data = readExpenses();
-  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
-  data.expenses.push({
-    id: "e" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
-    type: "settlement",
-    from,
-    to,
-    amountCents,
-    createdAt: new Date().toISOString(),
-    createdBy: from,
-  });
-  writeExpenses(data);
-  const balances = computeBalances(data.expenses);
-  res.json({ expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
-});
-
-app.delete("/api/expenses/:id", requireImmersionApi, (req, res) => {
-  const data = readExpenses();
-  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
-  const item = data.expenses.find((e) => e.id === req.params.id);
-  if (!item) return res.status(404).json({ error: "not_found" });
-  if (item.createdBy !== req.session.user.order && !req.session.user.admin) {
-    return res.status(403).json({ error: "not_owner" });
-  }
-  data.expenses = data.expenses.filter((e) => e.id !== req.params.id);
-  writeExpenses(data);
-  const balances = computeBalances(data.expenses);
-  res.json({ expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
-});
-
 // ---- Enquete do bóton limitado ----
 
 app.get("/api/pin-poll", requireImmersionApi, (req, res) => {
@@ -1186,71 +1045,18 @@ app.get("/api/pin-poll", requireImmersionApi, (req, res) => {
   res.json({ answered: entry !== undefined, want: entry ? entry.want : null });
 });
 
-// Bóton custa R$ 11,00, bancado pelo Marcell (order 1) — quem aceita já entra
-// devendo na aba Despesas. O próprio Marcell não deve a si mesmo, e o id
-// determinístico ("pin-N") garante que reenvio de resposta não duplica dívida.
-const PIN_PRICE_CENTS = 1100;
-const PIN_PAYER_ORDER = 1;
-
+// A enquete continua registrando quem quer o bóton; o pagamento dos R$ 11 é
+// combinado direto com o Marcell (a divisão de contas da viagem foi encerrada).
 app.post("/api/pin-poll", requireImmersionApi, (req, res) => {
   const order = req.session.user.order;
-  const want = Boolean(req.body.want);
   const poll = readPinPoll();
-  poll[String(order)] = { want, name: req.session.user.name };
+  poll[String(order)] = { want: Boolean(req.body.want), name: req.session.user.name };
   writePinPoll(poll);
-
-  if (want && order !== PIN_PAYER_ORDER) {
-    const data = readExpenses();
-    // Contas fechadas congelam os números — a resposta fica registrada na
-    // enquete, mas a dívida do bóton não entra até o admin reabrir.
-    if (!data.closed && !data.expenses.some((e) => e.id === "pin-" + order)) {
-      data.expenses.push({
-        id: "pin-" + order,
-        description: "Bóton LEPV " + String(order).padStart(2, "0") + "/11",
-        amountCents: PIN_PRICE_CENTS,
-        paidBy: PIN_PAYER_ORDER,
-        participants: [order],
-        createdAt: new Date().toISOString(),
-        createdBy: PIN_PAYER_ORDER, // só o admin remove (a dívida espelha a enquete)
-      });
-      writeExpenses(data);
-    }
-  }
   res.json({ ok: true });
 });
 
 app.get("/api/pin-poll/all", requireAdminApi, (req, res) => {
   res.json(readPinPoll());
-});
-
-// Todos receberam o bóton fisicamente: registra a dívida de R$ 11 pra cada
-// membro (menos o pagador) que ainda não tem. Idempotente pelo id "pin-N" —
-// pode rodar quantas vezes quiser sem duplicar, e a enquete continua batendo
-// no mesmo id (quem responder depois não gera dívida em dobro).
-app.post("/api/pin-poll/register-all", requireAdminApi, (req, res) => {
-  const data = readExpenses();
-  if (data.closed) return res.status(423).json({ error: "expenses_closed" });
-  const created = [], skipped = [];
-  // O bóton é artefato da 1ª imersão: só os 11 fundadores entram na conta,
-  // mesmo que a liga já tenha membros novos aprovados.
-  for (const m of seedMembers) {
-    if (m.order === PIN_PAYER_ORDER) continue;
-    const id = "pin-" + m.order;
-    if (data.expenses.some((e) => e.id === id)) { skipped.push(m.order); continue; }
-    data.expenses.push({
-      id,
-      description: "Bóton LEPV " + String(m.order).padStart(2, "0") + "/11",
-      amountCents: PIN_PRICE_CENTS,
-      paidBy: PIN_PAYER_ORDER,
-      participants: [m.order],
-      createdAt: new Date().toISOString(),
-      createdBy: PIN_PAYER_ORDER,
-    });
-    created.push(m.order);
-  }
-  if (created.length) writeExpenses(data);
-  const balances = computeBalances(data.expenses);
-  res.json({ created, skipped, expenses: data.expenses, balances, settle: settleUp(balances), closed: data.closed === true });
 });
 
 // ---- Perguntas do grupo (Q&A colaborativo por empresa) ----

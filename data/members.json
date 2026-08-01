@@ -12,7 +12,6 @@
     ],
     "admin": true,
     "superadmin": true,
-    "pix": "13543433440",
     "director": true,
     "cargo": "Membro",
     "turma": "XVII",
@@ -29,7 +28,6 @@
       "Fitness",
       "IA"
     ],
-    "pix": "92982016396",
     "cargo": "Membro",
     "turma": "XXX",
     "status": "reserva"
@@ -44,7 +42,6 @@
       "IA",
       "Tech"
     ],
-    "pix": "21982161514",
     "director": true,
     "cargo": "Presidente",
     "turma": "XVII",
@@ -62,7 +59,6 @@
       "Consultoria",
       "Mercado Financeiro"
     ],
-    "pix": "04162624354",
     "director": true,
     "cargo": "Diretor de Marketing",
     "turma": "XXIX",
@@ -93,7 +89,6 @@
       "Infra",
       "Tech"
     ],
-    "pix": "73988766763",
     "cargo": "Membro",
     "turma": "XVII",
     "status": "ativa"
@@ -118,7 +113,6 @@
       "Tech",
       "Consultoria"
     ],
-    "pix": "18034626716",
     "cargo": "Membro",
     "turma": "XXIX",
     "status": "ativa"
@@ -160,7 +154,6 @@
       "IA",
       "Venture Capital"
     ],
-    "pix": "20639960758",
     "cargo": "Membro",
     "turma": "XXIX",
     "status": "reserva"

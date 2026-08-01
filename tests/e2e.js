@@ -219,25 +219,40 @@ test("rate limit por IP entra antes de varrer a lista de membros", async () => {
 
 // ---- Privacidade do roster ----
 
-test("/api/members não expõe Pix, telefone nem flags de admin", async () => {
+test("/api/members não expõe telefone nem flags de admin", async () => {
   const c = client();
   await c.login(MEMBER_ORDER, MEMBER_PASS);
   const r = await c.get("/api/members");
   eq(r.status, 200, "roster");
   for (const m of r.data) {
-    assert(!("pix" in m), "não deveria vazar pix (membro " + m.order + ")");
+    assert(!("pix" in m), "não deveria existir pix (membro " + m.order + ")");
     assert(!("phone" in m), "não deveria vazar phone (membro " + m.order + ")");
     assert(!("admin" in m), "não deveria vazar flag admin (membro " + m.order + ")");
     assert(!("superadmin" in m), "não deveria vazar flag superadmin (membro " + m.order + ")");
   }
 });
 
-test("Pix vive em rota da imersão e contatos só para diretoria", async () => {
+test("nenhuma chave Pix sobrou no cadastro", async () => {
+  const seed = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "members.json"), "utf8"));
+  const comPix = seed.filter((m) => m.pix).map((m) => m.order);
+  eq(comPix.length, 0, "members.json não deveria ter pix (sobrou em: " + comPix.join(",") + ")");
+});
+
+test("as rotas de custo da viagem não existem mais", async () => {
   const member = client();
   await member.login(MEMBER_ORDER, MEMBER_PASS);
-  const pix = await member.get("/api/expenses/pix");
-  eq(pix.status, 200, "fundador da imersão acessa as chaves Pix");
-  assert(Array.isArray(pix.data), "payload de pix deveria ser lista");
+  for (const route of ["/api/expenses", "/api/expenses/pix"]) {
+    eq((await member.get(route)).status, 404, route + " deveria ter sido removida");
+  }
+  eq((await member.post("/api/expenses/settle", { to: 3, amountCents: 100 })).status, 404, "acerto via Pix removido");
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  eq((await admin.post("/api/pin-poll/register-all")).status, 404, "registro em lote do bóton removido");
+});
+
+test("contatos dos membros só para a diretoria", async () => {
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
   eq((await member.get("/api/members/contacts")).status, 403, "membro comum não vê contatos");
 
   const admin = client();
@@ -247,12 +262,21 @@ test("Pix vive em rota da imersão e contatos só para diretoria", async () => {
   assert(contacts.data.every((m) => "phone" in m), "contatos deveriam trazer phone");
 });
 
+test("enquete do bóton continua registrando sem gerar dívida", async () => {
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await member.post("/api/pin-poll", { want: true })).status, 200, "resposta da enquete");
+  const poll = await member.get("/api/pin-poll");
+  assert(poll.data.answered === true && poll.data.want === true, "resposta deveria ficar registrada");
+  assert(!fs.existsSync(path.join(volumeDir, "expenses.json")), "não deveria criar store de despesas");
+});
+
 test("anônimo não passa dos endpoints públicos", async () => {
   const c = client();
   eq((await c.get("/api/members")).status, 401, "roster exige login");
   eq((await c.get("/api/events")).status, 401, "eventos exigem login");
   eq((await c.get("/api/lessons")).status, 401, "aulas exigem login");
-  eq((await c.get("/api/expenses/pix")).status, 401, "pix exige login");
+  eq((await c.get("/api/badges")).status, 401, "selos exigem login");
   eq((await c.get("/api/members-public")).status, 200, "seletor de login é público");
 });
 
@@ -467,7 +491,7 @@ test("acervo da imersão segue restrito a quem participou", async () => {
   await novato.login(order, "NOVATO12");
   await novato.post("/api/set-password", { password: "senha-novato" });
 
-  for (const route of ["/api/legacy", "/api/companies", "/api/badges", "/api/expenses", "/api/gallery", "/api/expenses/pix"]) {
+  for (const route of ["/api/legacy", "/api/companies", "/api/badges", "/api/gallery", "/api/checklist", "/api/questions"]) {
     eq((await novato.get(route)).status, 403, "membro novo não deveria acessar " + route);
   }
   eq((await novato.get("/api/lessons")).status, 200, "aulas da liga são de todo membro");
