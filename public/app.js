@@ -876,10 +876,31 @@
   }
 
   function managePanelHtml(ev) {
+    // Edição inline: os mesmos campos da criação, já preenchidos.
+    var editar =
+      '<p class="section-label">Editar evento</p>' +
+      '<div class="meeting-new">' +
+        '<select class="edit-type" aria-label="Tipo do evento">' +
+          ["reuniao", "aula", "visita", "social"].map(function (t) {
+            return '<option value="' + t + '"' + (ev.type === t ? " selected" : "") + ">" + TIPO_LABEL[t] + "</option>";
+          }).join("") +
+        "</select>" +
+        '<input type="text" class="edit-title" maxlength="100" value="' + esc(ev.title) + '" aria-label="Título">' +
+        '<input type="date" class="edit-date" value="' + esc(ev.date) + '" aria-label="Data">' +
+        '<button type="button" class="btn-primary btn-small" data-save>Salvar</button>' +
+      "</div>" +
+      '<div class="meeting-new" style="margin-top:8px;">' +
+        '<input type="text" class="edit-text" maxlength="600" value="' + esc(ev.text || "") + '" placeholder="Aviso que aparece no mural" aria-label="Texto do aviso" style="flex:1 1 100%;">' +
+      "</div>";
+
     var codes =
-      '<p class="section-label">Códigos de presença (todos valem)</p>' +
+      '<p class="section-label" style="margin-top:12px;">Códigos de presença (todos valem)</p>' +
       '<div class="code-chips">' +
-        ev.codes.map(function (c) { return '<span class="code-chip">' + esc(c) + "</span>"; }).join("") +
+        ev.codes.map(function (c) {
+          return '<span class="code-chip">' + esc(c) +
+            (ev.codes.length > 1 ? '<button type="button" class="chip-x" data-delcode="' + esc(c) + '" title="Remover código">×</button>' : "") +
+            "</span>";
+        }).join("") +
         '<button type="button" class="btn-reject" data-newcode>+ Gerar outro</button>' +
       "</div>";
 
@@ -924,7 +945,7 @@
           return (
             '<div class="visitor-row">' +
               "<span><strong>" + esc(s.name) + "</strong>" + (contato ? ' <span style="color:var(--graphite-soft);">' + esc(contato) + "</span>" : "") + presente + "</span>" +
-              tag +
+              '<span>' + tag + '<button type="button" class="del-btn" data-delsignup="' + esc(s.id) + '" title="Remover inscrição">×</button></span>' +
             "</div>"
           );
         }).join("")
@@ -948,7 +969,8 @@
             return (
               '<div class="visitor-row">' +
                 "<span><strong>" + esc(v.name) + "</strong>" + (contato ? ' <span style="color:var(--graphite-soft);">' + esc(contato) + "</span>" : "") + "</span>" +
-                "<span>" + v.visits + "ª presença" + (v.inviteReady ? ' <span class="invite-flag">convidar p/ membro</span>' : "") + "</span>" +
+                "<span>" + v.visits + "ª presença" + (v.inviteReady ? ' <span class="invite-flag">convidar p/ membro</span>' : "") +
+                  '<button type="button" class="del-btn" data-delvisitor="' + esc(v.id) + '" title="Remover presença">×</button></span>' +
               "</div>"
             );
           }).join("")
@@ -971,7 +993,7 @@
         "</div>" +
       "</div>";
 
-    return '<div class="event-manage">' + codes + acoes + inscricoes + listaInscritos + grid + visitantes + anexos + "</div>";
+    return '<div class="event-manage">' + editar + codes + acoes + inscricoes + listaInscritos + grid + visitantes + anexos + "</div>";
   }
 
   function eventCardHtml(ev, me) {
@@ -1167,8 +1189,49 @@
     var box = card.querySelector(".event-manage");
     if (!box) return;
 
+    box.querySelector("[data-save]").addEventListener("click", function (e) {
+      var btn = e.currentTarget;
+      btn.disabled = true;
+      btn.textContent = "Salvando...";
+      api("/api/events/" + id, {
+        method: "PATCH",
+        body: JSON.stringify({
+          type: box.querySelector(".edit-type").value,
+          title: box.querySelector(".edit-title").value,
+          date: box.querySelector(".edit-date").value,
+          text: box.querySelector(".edit-text").value,
+        }),
+      })
+        .then(function (r) {
+          if (!r || !r.ok) throw new Error((r && r.message) || "falhou");
+          loadEvents();
+        })
+        .catch(function (err) {
+          window.alert(err.message || "Não deu pra salvar as alterações.");
+          btn.disabled = false;
+          btn.textContent = "Salvar";
+        });
+    });
+
     box.querySelector("[data-newcode]").addEventListener("click", function () {
       api("/api/events/" + id + "/codes", { method: "POST" }).then(loadEvents);
+    });
+    box.querySelectorAll("[data-delcode]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        api("/api/events/" + id + "/codes/" + encodeURIComponent(btn.dataset.delcode), { method: "DELETE" }).then(loadEvents);
+      });
+    });
+    box.querySelectorAll("[data-delsignup]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (!window.confirm("Remover esta inscrição? Se houver fila de espera, a vaga passa para o próximo.")) return;
+        api("/api/events/" + id + "/signups/" + btn.dataset.delsignup, { method: "DELETE" }).then(loadEvents);
+      });
+    });
+    box.querySelectorAll("[data-delvisitor]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (!window.confirm("Remover a presença deste visitante neste evento?")) return;
+        api("/api/events/" + id + "/visitors/" + btn.dataset.delvisitor, { method: "DELETE" }).then(loadEvents);
+      });
     });
     box.querySelector("[data-showqr]").addEventListener("click", function () {
       var qr = box.querySelector("[data-qrbox]");

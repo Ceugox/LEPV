@@ -161,6 +161,7 @@ function client() {
   return {
     get: (u) => req("GET", u),
     post: (u, b, h) => req("POST", u, b, h),
+    patch: (u, b) => req("PATCH", u, b),
     del: (u) => req("DELETE", u),
     login: async (order, password) => req("POST", "/api/login", { order, password }),
   };
@@ -584,6 +585,69 @@ test("migração trouxe reuniões e aulas antigas como eventos", async () => {
   assert(!fs.existsSync(path.join(volumeDir, "meetings.json")), "meetings.json deveria ter sido renomeado");
   assert(fs.existsSync(path.join(volumeDir, "meetings.json.migrated")), "o original deveria virar .migrated");
   assert(!fs.existsSync(path.join(volumeDir, "lessons.json")), "lessons.json deveria ter sido renomeado");
+});
+
+test("CRUD completo: editar o evento, remover inscrição, presença, código e o próprio evento", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  let ev = (await admin.post("/api/events", { type: "reuniao", title: "Reunião de teste", date: hoje })).data.event;
+
+  // Update: tipo, título, data e texto
+  const editado = await admin.patch("/api/events/" + ev.id, {
+    type: "visita",
+    title: "Visita à Mirow",
+    date: "2026-10-05",
+    text: "Encontro no escritório às 14h.",
+  });
+  eq(editado.status, 200, "edição do evento");
+  eq(editado.data.event.type, "visita", "tipo atualizado");
+  eq(editado.data.event.title, "Visita à Mirow", "título atualizado");
+  eq(editado.data.event.date, "2026-10-05", "data atualizada");
+  eq(editado.data.event.text, "Encontro no escritório às 14h.", "texto atualizado");
+  eq((await admin.patch("/api/events/" + ev.id, { title: "  " })).status, 400, "título vazio recusado");
+
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await member.patch("/api/events/" + ev.id, { title: "Pirata" })).status, 403, "membro não edita evento");
+
+  // Delete de inscrição, com promoção da fila
+  const token = (await admin.post("/api/events/" + ev.id + "/signups-open", { open: true, capacity: 1 })).data.event.signupToken;
+  const visitante = client();
+  await visitante.post("/api/event-signup/" + token, { name: "Primeiro Inscrito", email: "um@x.com", phone: "21911112222" });
+  await visitante.post("/api/event-signup/" + token, { name: "Segundo Espera", email: "dois@x.com", phone: "21933334444" });
+  let atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  const primeiro = atual.signups.find((s) => s.name === "Primeiro Inscrito");
+  assert(primeiro.id, "inscrição deveria ter id próprio");
+
+  const removida = await admin.del("/api/events/" + ev.id + "/signups/" + primeiro.id);
+  eq(removida.status, 200, "remoção da inscrição");
+  const segundo = removida.data.event.signups.find((s) => s.name === "Segundo Espera");
+  eq(segundo.status, "confirmed", "quem estava na fila assume a vaga liberada");
+  eq((await member.del("/api/events/" + ev.id + "/signups/" + segundo.id)).status, 403, "membro não remove inscrição alheia");
+
+  // Delete de código, com o último protegido
+  eq((await admin.del("/api/events/" + ev.id + "/codes/" + atual.codes[0])).status, 400, "não dá para remover o único código");
+  const comDois = await admin.post("/api/events/" + ev.id + "/codes");
+  const removidoCodigo = await admin.del("/api/events/" + ev.id + "/codes/" + comDois.data.codes[0]);
+  eq(removidoCodigo.status, 200, "remoção de código extra");
+  eq(removidoCodigo.data.codes.length, 1, "sobrou um código");
+
+  // Delete de presença de visitante
+  await admin.patch("/api/events/" + ev.id, { date: hoje });
+  await visitante.post("/api/presence/" + ev.qrToken, { name: "Visita Errada", email: "errada@x.com", phone: "21955556666" });
+  atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  eq(atual.visitorsPresent, 1, "presença registrada");
+  const semVisitante = await admin.del("/api/events/" + ev.id + "/visitors/" + atual.visitors[0].id);
+  eq(semVisitante.status, 200, "remoção da presença do visitante");
+  eq(semVisitante.data.event.visitorsPresent, 0, "presença desfeita");
+
+  // Delete do evento
+  eq((await member.del("/api/events/" + ev.id)).status, 403, "membro não apaga evento");
+  eq((await admin.del("/api/events/" + ev.id)).status, 200, "diretoria apaga o evento");
+  const depois = (await admin.get("/api/events")).data.events;
+  assert(!depois.some((e) => e.id === ev.id), "evento removido some da lista");
+  eq((await admin.del("/api/events/" + ev.id)).status, 404, "apagar de novo devolve 404");
 });
 
 // ---- Papéis vivos e persistência ----

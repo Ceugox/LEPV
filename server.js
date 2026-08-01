@@ -1235,6 +1235,11 @@ function normalizeEvent(ev) {
   if (!Array.isArray(ev.visitorAttendance)) ev.visitorAttendance = [];
   if (!ev.signups || typeof ev.signups !== "object") ev.signups = {};
   if (!Array.isArray(ev.signups.list)) ev.signups.list = [];
+  // Inscrição precisa de identidade própria para a diretoria remover uma linha
+  // específica; as que vieram da migração não tinham.
+  ev.signups.list.forEach((s) => {
+    if (!s.id) s.id = "s" + crypto.randomBytes(5).toString("hex");
+  });
   if (typeof ev.signups.open !== "boolean") ev.signups.open = false;
   if (!("capacity" in ev.signups)) ev.signups.capacity = null;
   if (!ev.qrToken) ev.qrToken = crypto.randomBytes(8).toString("hex");
@@ -1429,6 +1434,7 @@ function promoteFromWaitlist(ev) {
 function addSignup(ev, entry) {
   const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
   const lotado = ev.signups.capacity !== null && confirmed >= ev.signups.capacity;
+  entry.id = "s" + crypto.randomBytes(5).toString("hex");
   entry.status = lotado ? "waitlist" : "confirmed";
   ev.signups.list.push(entry);
   return entry.status;
@@ -1690,6 +1696,48 @@ app.delete("/api/events/:id/signup", requireAuthApi, (req, res) => {
     writeEvents(data);
   }
   res.json({ ok: true, event: eventView(ev, req.session.user) });
+});
+
+// A diretoria tira uma inscrição da lista (desistência avisada no grupo,
+// duplicata, inscrição de teste) — e a vaga liberada puxa a fila.
+app.delete("/api/events/:id/signups/:signupId", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const antes = ev.signups.list.length;
+  ev.signups.list = ev.signups.list.filter((s) => s.id !== req.params.signupId);
+  if (ev.signups.list.length === antes) return res.status(404).json({ error: "not_found" });
+  promoteFromWaitlist(ev);
+  writeEvents(data);
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+// Presença de visitante marcada por engano (nome errado, teste do QR).
+app.delete("/api/events/:id/visitors/:visitorId", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const antes = ev.visitorAttendance.length;
+  ev.visitorAttendance = ev.visitorAttendance.filter((v) => v !== req.params.visitorId);
+  if (ev.visitorAttendance.length === antes) return res.status(404).json({ error: "not_found" });
+  writeEvents(data);
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+// Código queimado (vazou no grupo errado, gerado por engano). Some sempre um:
+// sem código nenhum ninguém faz check-in.
+app.delete("/api/events/:id/codes/:code", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  if (ev.codes.length <= 1) {
+    return res.status(400).json({ error: "last_code", message: "Gere outro código antes de remover este." });
+  }
+  const antes = ev.codes.length;
+  ev.codes = ev.codes.filter((c) => c !== String(req.params.code).toUpperCase());
+  if (ev.codes.length === antes) return res.status(404).json({ error: "not_found" });
+  writeEvents(data);
+  res.json({ ok: true, codes: ev.codes });
 });
 
 app.get("/api/events/:id/signup-qr", requireDirectorApi, (req, res) => {
