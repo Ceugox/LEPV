@@ -6,3 +6,16 @@ data/pin-poll.json
 data/materials.json
 data/materials/
 data/expenses.json
+data/signups.json
+data/meetings.json
+data/lessons.json
+data/lesson-materials/
+data/events.json
+data/event-photos/
+data/avatars/
+data/sessions.json
+# cópias de segurança da escrita atômica dos stores
+*.json.bak
+*.json.tmp
+# saída do Playwright durante inspeção visual
+.playwright-mcp/

@@ -2,7 +2,7 @@
 // Nasceu pra agenda/trajetos sobreviverem ao sinal ruim do metrô; hoje serve
 // pro acervo continuar legível offline usando a última resposta vista.
 // Nada de cache-first — deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v7"; // v7: identidade da liga (preto+vinho), aba Início, WhatsApp nos cadastros
+var CACHE = "lepv-sp-v8"; // v8: mural de eventos, inscrições por aula, troca de senha
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();
@@ -18,12 +18,27 @@ self.addEventListener("activate", function (e) {
   );
 });
 
+// O que NUNCA entra no cache:
+// - /api/*: respostas privadas por sessão. Guardadas, sobreviveriam ao logout e
+//   ficariam legíveis pelo próximo dono do dispositivo — e o próximo membro a
+//   logar no mesmo navegador veria dados do anterior.
+// - "/": o corpo varia por sessão (app.html se logado, home.html se não), então
+//   uma cópia cacheada mostra a página errada para o próximo visitante.
+// - PDFs: arquivos de até 25 MB, tanto os da imersão quanto os das aulas.
+function isPrivate(url) {
+  return (
+    url.pathname === "/" ||
+    url.pathname.indexOf("/api/") === 0 ||
+    /\/file$/.test(url.pathname)
+  );
+}
+
 self.addEventListener("fetch", function (e) {
   var req = e.request;
   if (req.method !== "GET") return;
   var url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // fontes do Google etc. ficam de fora
-  if (/^\/api\/materials\/[^/]+\/file$/.test(url.pathname)) return; // PDFs grandes não entram no cache
+  if (isPrivate(url)) return;
 
   e.respondWith(
     fetch(req)
@@ -41,4 +56,12 @@ self.addEventListener("fetch", function (e) {
         });
       })
   );
+});
+
+// Logout limpa o cache: mesmo com /api/* fora, restam HTML/JS e fotos de perfil
+// que não devem sobrar para o próximo usuário do navegador.
+self.addEventListener("message", function (e) {
+  if (e.data === "clear-cache") {
+    e.waitUntil(caches.delete(CACHE));
+  }
 });

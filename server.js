@@ -18,15 +18,54 @@ const CHECKLIST_PATH = path.join(STORAGE_DIR, "checklist.json");
 function readJson(name) {
   return JSON.parse(fs.readFileSync(path.join(DATA_DIR, name), "utf8"));
 }
-function writeJson(name, value) {
-  fs.writeFileSync(path.join(DATA_DIR, name), JSON.stringify(value, null, 2) + "\n", "utf8");
+
+// ---- Persistência do volume: escrita atômica + cópia de segurança ----
+//
+// fs.writeFileSync abre com O_TRUNC: zera o arquivo e só depois escreve. Se o
+// processo morrer nessa janela (SIGTERM de redeploy, OOM), o JSON fica
+// truncado — e o app não sobe mais, porque o re-seed só roda quando o arquivo
+// NÃO existe. Então toda escrita do volume passa por aqui: grava .tmp, fsync,
+// guarda a versão boa anterior em .bak e só então renomeia (rename é atômico
+// no mesmo filesystem). Na leitura, JSON quebrado cai no .bak em vez de
+// derrubar a liga inteira.
+function writeStore(filePath, value) {
+  const body = JSON.stringify(value, null, 2) + "\n";
+  const tmp = filePath + ".tmp";
+  const fd = fs.openSync(tmp, "w");
+  try {
+    fs.writeFileSync(fd, body, "utf8");
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.copyFileSync(filePath, filePath + ".bak");
+    } catch (err) {
+      console.error("Falha ao gravar backup de " + path.basename(filePath) + ":", err.message);
+    }
+  }
+  fs.renameSync(tmp, filePath);
+}
+
+function readStore(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch (err) {
+    const bak = filePath + ".bak";
+    if (!fs.existsSync(bak)) throw err;
+    console.error(
+      "ATENÇÃO: " + path.basename(filePath) + " ilegível (" + err.message + "). Usando o .bak."
+    );
+    return JSON.parse(fs.readFileSync(bak, "utf8"));
+  }
 }
 
 function readChecklist() {
-  return JSON.parse(fs.readFileSync(CHECKLIST_PATH, "utf8"));
+  return readStore(CHECKLIST_PATH);
 }
 function writeChecklist(value) {
-  fs.writeFileSync(CHECKLIST_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(CHECKLIST_PATH, value);
 }
 if (!fs.existsSync(CHECKLIST_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -37,10 +76,10 @@ if (!fs.existsSync(CHECKLIST_PATH)) {
 // então segue o mesmo padrão do checklist: persiste no volume, não em data/.
 const ATTENDANCE_PATH = path.join(STORAGE_DIR, "attendance.json");
 function readAttendance() {
-  return JSON.parse(fs.readFileSync(ATTENDANCE_PATH, "utf8"));
+  return readStore(ATTENDANCE_PATH);
 }
 function writeAttendance(value) {
-  fs.writeFileSync(ATTENDANCE_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(ATTENDANCE_PATH, value);
 }
 if (!fs.existsSync(ATTENDANCE_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -51,10 +90,10 @@ if (!fs.existsSync(ATTENDANCE_PATH)) {
 // criadas em runtime pelos membros, mesmo padrão de persistência do checklist.
 const QUESTIONS_PATH = path.join(STORAGE_DIR, "questions.json");
 function readQuestions() {
-  return JSON.parse(fs.readFileSync(QUESTIONS_PATH, "utf8"));
+  return readStore(QUESTIONS_PATH);
 }
 function writeQuestions(value) {
-  fs.writeFileSync(QUESTIONS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(QUESTIONS_PATH, value);
 }
 if (!fs.existsSync(QUESTIONS_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -64,10 +103,10 @@ if (!fs.existsSync(QUESTIONS_PATH)) {
 // Aprendizados pós-visita (memória coletiva da imersão) — mesmo padrão.
 const LEARNINGS_PATH = path.join(STORAGE_DIR, "learnings.json");
 function readLearnings() {
-  return JSON.parse(fs.readFileSync(LEARNINGS_PATH, "utf8"));
+  return readStore(LEARNINGS_PATH);
 }
 function writeLearnings(value) {
-  fs.writeFileSync(LEARNINGS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(LEARNINGS_PATH, value);
 }
 if (!fs.existsSync(LEARNINGS_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -77,10 +116,10 @@ if (!fs.existsSync(LEARNINGS_PATH)) {
 // Enquete do bóton limitado (1ª imersão) — resposta por membro, no volume.
 const PIN_POLL_PATH = path.join(STORAGE_DIR, "pin-poll.json");
 function readPinPoll() {
-  return JSON.parse(fs.readFileSync(PIN_POLL_PATH, "utf8"));
+  return readStore(PIN_POLL_PATH);
 }
 function writePinPoll(value) {
-  fs.writeFileSync(PIN_POLL_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(PIN_POLL_PATH, value);
 }
 if (!fs.existsSync(PIN_POLL_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -92,10 +131,10 @@ if (!fs.existsSync(PIN_POLL_PATH)) {
 const MATERIALS_PATH = path.join(STORAGE_DIR, "materials.json");
 const MATERIALS_DIR = path.join(STORAGE_DIR, "materials");
 function readMaterials() {
-  return JSON.parse(fs.readFileSync(MATERIALS_PATH, "utf8"));
+  return readStore(MATERIALS_PATH);
 }
 function writeMaterials(value) {
-  fs.writeFileSync(MATERIALS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(MATERIALS_PATH, value);
 }
 if (!fs.existsSync(MATERIALS_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -107,10 +146,10 @@ fs.mkdirSync(MATERIALS_DIR, { recursive: true });
 // saldos sempre derivados da lista (nunca persistidos).
 const EXPENSES_PATH = path.join(STORAGE_DIR, "expenses.json");
 function readExpenses() {
-  return JSON.parse(fs.readFileSync(EXPENSES_PATH, "utf8"));
+  return readStore(EXPENSES_PATH);
 }
 function writeExpenses(value) {
-  fs.writeFileSync(EXPENSES_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(EXPENSES_PATH, value);
 }
 if (!fs.existsSync(EXPENSES_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -121,10 +160,10 @@ if (!fs.existsSync(EXPENSES_PATH)) {
 // (por QR/pré-cadastro). Tudo em runtime, então mora no volume.
 const MEETINGS_PATH = path.join(STORAGE_DIR, "meetings.json");
 function readMeetings() {
-  return JSON.parse(fs.readFileSync(MEETINGS_PATH, "utf8"));
+  return readStore(MEETINGS_PATH);
 }
 function writeMeetings(value) {
-  fs.writeFileSync(MEETINGS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(MEETINGS_PATH, value);
 }
 if (!fs.existsSync(MEETINGS_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -163,16 +202,32 @@ function sniffImage(buf) {
 const LESSONS_PATH = path.join(STORAGE_DIR, "lessons.json");
 const LESSON_FILES_DIR = path.join(STORAGE_DIR, "lesson-materials");
 function readLessons() {
-  return JSON.parse(fs.readFileSync(LESSONS_PATH, "utf8"));
+  return readStore(LESSONS_PATH);
 }
 function writeLessons(value) {
-  fs.writeFileSync(LESSONS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(LESSONS_PATH, value);
 }
 if (!fs.existsSync(LESSONS_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
   writeLessons({ lessons: [] });
 }
 fs.mkdirSync(LESSON_FILES_DIR, { recursive: true });
+
+// Mural de eventos da liga — qualquer diretor publica um aviso (título, texto
+// e fotos) que roda no carrossel da aba Início. Fotos no volume, como avatars.
+const EVENTS_PATH = path.join(STORAGE_DIR, "events.json");
+const EVENT_PHOTOS_DIR = path.join(STORAGE_DIR, "event-photos");
+function readEvents() {
+  return readStore(EVENTS_PATH);
+}
+function writeEvents(value) {
+  writeStore(EVENTS_PATH, value);
+}
+if (!fs.existsSync(EVENTS_PATH)) {
+  fs.mkdirSync(STORAGE_DIR, { recursive: true });
+  writeEvents({ events: [] });
+}
+fs.mkdirSync(EVENT_PHOTOS_DIR, { recursive: true });
 
 // Códigos de presença sem caracteres ambíguos (sem 0/O, 1/I/L).
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -196,10 +251,10 @@ const seedCredentials = readJson("credentials.json");
 
 const SIGNUPS_PATH = path.join(STORAGE_DIR, "signups.json");
 function readSignups() {
-  return JSON.parse(fs.readFileSync(SIGNUPS_PATH, "utf8"));
+  return readStore(SIGNUPS_PATH);
 }
 function writeSignups(value) {
-  fs.writeFileSync(SIGNUPS_PATH, JSON.stringify(value, null, 2) + "\n", "utf8");
+  writeStore(SIGNUPS_PATH, value);
 }
 if (!fs.existsSync(SIGNUPS_PATH)) {
   fs.mkdirSync(STORAGE_DIR, { recursive: true });
@@ -248,19 +303,125 @@ function sessionUser(member, cred) {
   };
 }
 
+// Sessões no volume, não na memória do processo. Com o MemoryStore padrão do
+// express-session, todo deploy (que aqui é manual e frequente) derrubava a
+// sessão da liga inteira — SESSION_SECRET fixo não resolve isso, ele só evita
+// que o cookie fique inválido. As sessões vivem em memória para leitura rápida
+// e são persistidas em lote: uma gravação por segundo no máximo, e sempre uma
+// no SIGTERM, que é exatamente o sinal que o Railway manda antes de trocar a
+// versão.
+const SESSIONS_PATH = path.join(STORAGE_DIR, "sessions.json");
+class VolumeSessionStore extends session.Store {
+  constructor() {
+    super();
+    this.sessions = new Map();
+    this.dirty = false;
+    try {
+      if (fs.existsSync(SESSIONS_PATH)) {
+        const saved = readStore(SESSIONS_PATH);
+        const now = Date.now();
+        for (const [sid, rec] of Object.entries(saved)) {
+          if (!rec.expiresAt || rec.expiresAt > now) this.sessions.set(sid, rec);
+        }
+      }
+    } catch (err) {
+      console.error("Sessões do volume ilegíveis, começando vazio:", err.message);
+    }
+    this.timer = setInterval(() => this.flush(), 1000);
+    this.timer.unref();
+  }
+  expiryOf(sess) {
+    const ms = (sess.cookie && sess.cookie.originalMaxAge) || 1000 * 60 * 60 * 24 * 7;
+    return Date.now() + ms;
+  }
+  flush() {
+    if (!this.dirty) return;
+    this.dirty = false;
+    const out = {};
+    const now = Date.now();
+    for (const [sid, rec] of this.sessions) {
+      if (rec.expiresAt && rec.expiresAt <= now) this.sessions.delete(sid);
+      else out[sid] = rec;
+    }
+    try {
+      writeStore(SESSIONS_PATH, out);
+    } catch (err) {
+      console.error("Falha ao persistir sessões:", err.message);
+    }
+  }
+  get(sid, cb) {
+    const rec = this.sessions.get(sid);
+    if (!rec) return cb(null, null);
+    if (rec.expiresAt && rec.expiresAt <= Date.now()) {
+      this.sessions.delete(sid);
+      this.dirty = true;
+      return cb(null, null);
+    }
+    return cb(null, JSON.parse(JSON.stringify(rec.data)));
+  }
+  set(sid, sess, cb) {
+    this.sessions.set(sid, { data: sess, expiresAt: this.expiryOf(sess) });
+    this.dirty = true;
+    if (cb) cb(null);
+  }
+  destroy(sid, cb) {
+    this.sessions.delete(sid);
+    this.dirty = true;
+    if (cb) cb(null);
+  }
+  touch(sid, sess, cb) {
+    const rec = this.sessions.get(sid);
+    if (rec) {
+      rec.expiresAt = this.expiryOf(sess);
+      this.dirty = true;
+    }
+    if (cb) cb(null);
+  }
+  length(cb) {
+    cb(null, this.sessions.size);
+  }
+}
+const sessionStore = new VolumeSessionStore();
+for (const sig of ["SIGTERM", "SIGINT"]) {
+  process.on(sig, () => {
+    sessionStore.flush();
+    process.exit(0);
+  });
+}
+
 const app = express();
 // Atrás do proxy do Railway: sem isso req.ip é o IP do proxy e o rate limit
 // do cadastro valeria para todo mundo junto.
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
 app.use(express.json());
+// Headers de segurança básicos. Sem CSP com nonce (o front tem script inline
+// em toda página), mas o resto é barato e fecha classes inteiras de ataque.
+app.use((req, res, next) => {
+  res.set({
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",
+    "Strict-Transport-Security": "max-age=15552000; includeSubDomains",
+  });
+  next();
+});
 // Secret fixo via env em produção: sem ele, cada deploy/restart invalida a
 // sessão de todo mundo no meio da viagem. O fallback aleatório fica só pra dev.
 app.use(
   session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex"),
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, sameSite: "lax", maxAge: 1000 * 60 * 60 * 24 * 7 },
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      // Railway sempre serve HTTPS; em dev (http://localhost) o secure
+      // impediria o cookie de ser gravado.
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    },
   })
 );
 
@@ -269,50 +430,105 @@ function isLockedOut(key) {
   const rec = loginAttempts.get(key);
   return rec && rec.lockUntil && rec.lockUntil > Date.now();
 }
-function registerFailure(key) {
+function registerFailure(key, limit) {
   const rec = loginAttempts.get(key) || { count: 0, lockUntil: 0 };
   rec.count += 1;
-  if (rec.count >= 5) {
+  if (rec.count >= (limit || 5)) {
     rec.lockUntil = Date.now() + 30_000;
     rec.count = 0;
   }
+  rec.seenAt = Date.now();
   loginAttempts.set(key, rec);
 }
 function clearFailures(key) {
   loginAttempts.delete(key);
 }
 
+// Os mapas de rate limit vivem em memória e cresceriam para sempre com IPs de
+// passagem. Uma poda por hora basta: janelas curtas, entradas descartáveis.
+const RATE_LIMIT_TTL = 60 * 60 * 1000;
+function pruneRateLimits() {
+  const cutoff = Date.now() - RATE_LIMIT_TTL;
+  for (const [key, rec] of loginAttempts) {
+    if ((rec.seenAt || 0) < cutoff && !isLockedOut(key)) loginAttempts.delete(key);
+  }
+  for (const map of [registerAttempts, presenceAttempts, lessonSignupAttempts]) {
+    for (const [key, rec] of map) {
+      if (rec.resetAt < Date.now()) map.delete(key);
+    }
+  }
+}
+setInterval(pruneRateLimits, RATE_LIMIT_TTL).unref();
+
 function requireAuthPage(req, res, next) {
   if (req.session.user) return next();
   return res.redirect("/login.html");
 }
+// Papel é dado do cadastro, não da sessão: quem foi desativado ou perdeu a
+// diretoria não fica com o privilégio na mão até o cookie expirar (a sessão
+// dura 7 dias e uma aba aberta pode nunca passar por /api/me de novo).
+function liveRole(req) {
+  if (!req.session.user) return null;
+  const member = findMember(req.session.user.order);
+  if (!member) return null;
+  return sessionUser(member, findCredential(member.order));
+}
+// Sessão válida, sem exigir senha própria: é o que /api/me e /api/set-password
+// precisam para o primeiro acesso funcionar.
+function requireSessionApi(req, res, next) {
+  const role = liveRole(req);
+  if (!role) return res.status(401).json({ error: "not_authenticated" });
+  req.session.user = role;
+  return next();
+}
 function requireAuthApi(req, res, next) {
-  if (req.session.user) return next();
-  return res.status(401).json({ error: "not_authenticated" });
+  const role = liveRole(req);
+  if (!role) return res.status(401).json({ error: "not_authenticated" });
+  // Quem entrou com código inicial só usa /api/me, /api/logout e set-password
+  // (liberados antes deste gate) — o resto da API espera a senha própria.
+  if (role.mustChangePassword) {
+    return res.status(403).json({ error: "must_change_password", message: "Defina sua senha antes de usar o app." });
+  }
+  req.session.user = role;
+  return next();
 }
 function requireAdminApi(req, res, next) {
-  if (req.session.user && req.session.user.admin) return next();
-  return res.status(403).json({ error: "not_admin" });
+  const role = liveRole(req);
+  if (!role) return res.status(401).json({ error: "not_authenticated" });
+  if (!role.admin) return res.status(403).json({ error: "not_admin" });
+  req.session.user = role;
+  return next();
 }
 // Só o super admin (hoje o Marcell) aprova quem entra na liga — admins
 // futuros de diretoria não herdam esse poder automaticamente.
 function requireSuperAdminApi(req, res, next) {
-  if (req.session.user && req.session.user.superadmin) return next();
-  return res.status(403).json({ error: "not_superadmin" });
+  const role = liveRole(req);
+  if (!role) return res.status(401).json({ error: "not_authenticated" });
+  if (!role.superadmin) return res.status(403).json({ error: "not_superadmin" });
+  req.session.user = role;
+  return next();
 }
 // Diretores: gestão do dia a dia da liga — materiais e presença em reuniões.
 // O super admin também é diretor; o inverso não vale.
 function requireDirectorApi(req, res, next) {
-  if (req.session.user && (req.session.user.director || req.session.user.superadmin)) return next();
-  return res.status(403).json({ error: "not_director" });
+  const role = liveRole(req);
+  if (!role) return res.status(401).json({ error: "not_authenticated" });
+  if (!role.director && !role.superadmin) return res.status(403).json({ error: "not_director" });
+  req.session.user = role;
+  return next();
 }
 // O acervo da imersão é só de quem esteve lá. Checa direto no seed (e não na
 // flag de sessão) para valer também para sessões abertas antes do deploy.
 function requireImmersionApi(req, res, next) {
-  if (!req.session.user) return res.status(401).json({ error: "not_authenticated" });
-  if (!seedMembers.some((s) => s.order === req.session.user.order)) {
+  const role = liveRole(req);
+  if (!role) return res.status(401).json({ error: "not_authenticated" });
+  if (role.mustChangePassword) {
+    return res.status(403).json({ error: "must_change_password", message: "Defina sua senha antes de usar o app." });
+  }
+  if (!seedMembers.some((s) => s.order === role.order)) {
     return res.status(403).json({ error: "not_immersion_member" });
   }
+  req.session.user = role;
   return next();
 }
 
@@ -375,10 +591,12 @@ app.post(
       return res.status(400).json({ error: "invalid_image", message: "Envie uma imagem JPG, PNG ou WebP." });
     }
     const order = req.session.user.order;
-    for (const e of AVATAR_EXTS) {
-      fs.rmSync(path.join(AVATARS_DIR, order + "." + e), { force: true });
-    }
+    // Grava a nova primeiro e só então limpa as outras extensões: se a escrita
+    // falhar, o membro continua com a foto antiga em vez de ficar sem nenhuma.
     fs.writeFileSync(path.join(AVATARS_DIR, order + "." + ext), req.body);
+    for (const e of AVATAR_EXTS) {
+      if (e !== ext) fs.rmSync(path.join(AVATARS_DIR, order + "." + e), { force: true });
+    }
     res.json({ ok: true, photo: memberPhoto(findMember(order)) });
   }
 );
@@ -388,7 +606,10 @@ app.post("/api/login", (req, res) => {
   const password = String(req.body.password || "");
   const key = String(order);
 
-  if (isLockedOut(key)) {
+  // Dois limites: por conta (protege a senha de uma pessoa) e por IP (senão
+  // um atacante varre a lista pública de membros trocando de order a cada
+  // tentativa e nunca esbarra no lockout).
+  if (isLockedOut(key) || isLockedOut("ip:" + req.ip)) {
     return res.status(429).json({ error: "too_many_attempts", message: "Muitas tentativas. Aguarde 30s e tente de novo." });
   }
 
@@ -396,19 +617,26 @@ app.post("/api/login", (req, res) => {
   const cred = findCredential(order);
   if (!member || !cred || !bcrypt.compareSync(password, cred.passwordHash)) {
     registerFailure(key);
+    registerFailure("ip:" + req.ip, 15);
     return res.status(401).json({ error: "invalid_credentials", message: "Membro ou senha incorretos." });
   }
 
   clearFailures(key);
-  req.session.user = sessionUser(member, cred);
-  res.json({ ok: true, ...req.session.user });
+  clearFailures("ip:" + req.ip);
+  // Sessão nova a cada login: um id de sessão vazado antes da autenticação
+  // (link com querystring, dispositivo compartilhado) não vira sessão logada.
+  return req.session.regenerate((err) => {
+    if (err) return res.status(500).json({ error: "session_failed" });
+    req.session.user = sessionUser(member, cred);
+    res.json({ ok: true, ...req.session.user });
+  });
 });
 
 app.post("/api/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
-app.get("/api/me", requireAuthApi, (req, res) => {
+app.get("/api/me", requireSessionApi, (req, res) => {
   // Recarrega flags do cadastro: quem virou diretor ganha o painel sem
   // relogar, e quem foi desativado (ex.: Carol/Ana) perde a sessão.
   const member = findMember(req.session.user.order);
@@ -422,12 +650,22 @@ app.get("/api/me", requireAuthApi, (req, res) => {
 // Troca de senha do próprio usuário. Membros importados entram com um código
 // pré-setado (mustChangePassword) e são obrigados a passar por aqui antes de
 // usar o app; qualquer membro pode usar para trocar a senha depois.
-app.post("/api/set-password", requireAuthApi, (req, res) => {
+app.post("/api/set-password", requireSessionApi, (req, res) => {
   const password = String(req.body.password || "");
   if (password.length < 4 || password.length > 72) {
     return res.status(400).json({ error: "invalid_password", message: "A senha precisa ter pelo menos 4 caracteres." });
   }
   const order = req.session.user.order;
+  // Troca voluntária exige a senha atual — uma sessão esquecida aberta não
+  // pode virar dono da conta. No 1º acesso (mustChangePassword) o código
+  // inicial acabou de ser digitado no login, então não pede de novo.
+  const current = findCredential(order);
+  if (!(current && current.mustChangePassword === true)) {
+    const currentPassword = String(req.body.currentPassword || "");
+    if (!current || !bcrypt.compareSync(currentPassword, current.passwordHash)) {
+      return res.status(403).json({ error: "wrong_current_password", message: "Senha atual incorreta." });
+    }
+  }
   const signups = readSignups();
   const hash = bcrypt.hashSync(password, 10);
   const cred = signups.credentials.find((c) => c.order === order);
@@ -447,6 +685,29 @@ app.post("/api/set-password", requireAuthApi, (req, res) => {
   writeSignups(signups);
   req.session.user.mustChangePassword = false;
   res.json({ ok: true });
+});
+
+// Reset de senha pelo super admin: gera um código novo (devolvido em claro UMA
+// vez, para entregar à pessoa) e marca troca obrigatória no 1º login. É o
+// caminho para aposentar as senhas iniciais dos fundadores — que eram o próprio
+// número de inscrição, um dado público via /api/members-public — e para
+// socorrer quem esqueceu a senha, já que não há e-mail de recuperação.
+app.post("/api/admin/reset-password", requireSuperAdminApi, (req, res) => {
+  const order = parseInt(req.body.order, 10);
+  const member = findMemberAny(order);
+  if (!member) return res.status(400).json({ error: "invalid_member" });
+  const code = generateCode(8);
+  const signups = readSignups();
+  const cred = signups.credentials.find((c) => c.order === order);
+  const passwordHash = bcrypt.hashSync(code, 10);
+  if (cred) {
+    cred.passwordHash = passwordHash;
+    cred.mustChangePassword = true;
+  } else {
+    signups.credentials.push({ order, passwordHash, mustChangePassword: true });
+  }
+  writeSignups(signups);
+  res.json({ ok: true, order, name: member.name, code });
 });
 
 // Import em lote (super admin): a planilha de membros vira rows aqui. Cada um
@@ -612,8 +873,39 @@ app.post("/api/signups/:id/reject", requireSuperAdminApi, (req, res) => {
   res.json({ ok: true, pending: signups.pending.map(stripHash) });
 });
 
+// Roster para membros logados. Campos escolhidos um a um: espalhar o membro
+// inteiro vazava a chave Pix (CPF de vários), o WhatsApp de todos e as flags
+// de admin/diretoria para qualquer um que abrisse o DevTools. Pix só aparece
+// para quem precisa acertar a conta, na aba Despesas da imersão.
+function memberCardView(m) {
+  return {
+    order: m.order,
+    name: m.name,
+    photo: memberPhoto(m),
+    course: m.course || "",
+    year: m.year || "",
+    cargo: m.cargo || "",
+    turma: m.turma || "",
+    interests: m.interests || [],
+    director: m.director === true || m.superadmin === true,
+  };
+}
+
 app.get("/api/members", requireAuthApi, (req, res) => {
-  res.json(activeMembers().map((m) => ({ ...m, photo: memberPhoto(m) })));
+  res.json(activeMembers().map(memberCardView));
+});
+
+// Contatos completos (WhatsApp) — gestão da liga, só para a diretoria.
+app.get("/api/members/contacts", requireDirectorApi, (req, res) => {
+  res.json(
+    activeMembers().map((m) => ({
+      order: m.order,
+      name: m.name,
+      phone: m.phone || "",
+      cargo: m.cargo || "",
+      turma: m.turma || "",
+    }))
+  );
 });
 
 app.get("/api/mission", requireImmersionApi, (req, res) => {
@@ -814,6 +1106,16 @@ function settleUp(balances) {
   }
   return payments;
 }
+
+// Chaves Pix — dado sensível (na maioria é o CPF), então sai do roster geral e
+// fica aqui: só quem esteve na imersão e precisa fechar a conta enxerga.
+app.get("/api/expenses/pix", requireImmersionApi, (req, res) => {
+  res.json(
+    allMembers()
+      .filter((m) => m.pix)
+      .map((m) => ({ order: m.order, pix: String(m.pix) }))
+  );
+});
 
 app.get("/api/expenses", requireImmersionApi, (req, res) => {
   const data = readExpenses();
@@ -1338,7 +1640,28 @@ function findLessonMaterial(data, materialId) {
 
 app.get("/api/lessons", requireAuthApi, (req, res) => {
   const data = readLessons();
-  const lessons = [...data.lessons].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  const isDirector = req.session.user.director || req.session.user.superadmin;
+  const lessons = [...data.lessons]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .map((l) => {
+      ensureLessonSignups(l);
+      // Membro vê o resumo das inscrições (aberta? quantos? eu estou?); a
+      // lista nominal com contato de visitante é coisa da diretoria.
+      const view = {
+        id: l.id,
+        title: l.title,
+        date: l.date,
+        description: l.description || "",
+        materials: l.materials || [],
+        createdByName: l.createdByName || "",
+        ...lessonSignupView(l, req.session.user),
+      };
+      if (isDirector) {
+        view.signups = l.signups;
+        view.signupToken = l.signupToken || null;
+      }
+      return view;
+    });
   res.json({ lessons });
 });
 
@@ -1455,6 +1778,239 @@ app.delete("/api/lessons/:lessonId/materials/:id", requireDirectorApi, (req, res
   res.json({ ok: true, lesson });
 });
 
+// ---- Mural de eventos da liga (avisos da diretoria com fotos) ----
+
+const EVENT_TEXT_MAX = 600;
+const EVENT_PHOTOS_MAX = 6;
+
+function eventView(ev) {
+  return {
+    id: ev.id,
+    title: ev.title,
+    text: ev.text || "",
+    date: ev.date,
+    photos: (ev.photos || []).map((p) => ({ id: p.id, url: "/api/events/" + ev.id + "/photos/" + p.id })),
+    createdByName: ev.createdByName || "",
+    createdAt: ev.createdAt,
+  };
+}
+
+app.get("/api/events", requireAuthApi, (req, res) => {
+  const data = readEvents();
+  const events = [...data.events]
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .map(eventView);
+  res.json({ events });
+});
+
+app.post("/api/events", requireDirectorApi, (req, res) => {
+  const title = String(req.body.title || "").trim().slice(0, 100);
+  if (!title) return res.status(400).json({ error: "empty_title", message: "Dê um título ao aviso." });
+  const text = String(req.body.text || "").trim().slice(0, EVENT_TEXT_MAX);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date || ""))
+    ? String(req.body.date)
+    : new Date().toISOString().slice(0, 10);
+  const data = readEvents();
+  const event = {
+    id: "ev" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    title,
+    text,
+    date,
+    photos: [],
+    createdBy: req.session.user.order,
+    createdByName: req.session.user.name,
+    createdAt: new Date().toISOString(),
+  };
+  data.events.push(event);
+  writeEvents(data);
+  res.json({ ok: true, event: eventView(event) });
+});
+
+app.delete("/api/events/:id", requireDirectorApi, (req, res) => {
+  const data = readEvents();
+  const event = data.events.find((e) => e.id === req.params.id);
+  if (!event) return res.status(404).json({ error: "not_found" });
+  for (const p of event.photos || []) {
+    fs.unlink(path.join(EVENT_PHOTOS_DIR, p.file), () => {});
+  }
+  data.events = data.events.filter((e) => e.id !== req.params.id);
+  writeEvents(data);
+  res.json({ ok: true });
+});
+
+// Upload de foto do evento — corpo cru + sniff de magic bytes, como o avatar.
+app.post(
+  "/api/events/:id/photos",
+  requireDirectorApi,
+  express.raw({ type: ["image/*", "application/octet-stream"], limit: "6mb" }),
+  (req, res) => {
+    const data = readEvents();
+    const event = data.events.find((e) => e.id === req.params.id);
+    if (!event) return res.status(404).json({ error: "not_found" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      return res.status(400).json({ error: "empty_file" });
+    }
+    const ext = sniffImage(req.body);
+    if (!ext) {
+      return res.status(400).json({ error: "invalid_image", message: "Envie uma imagem JPG, PNG ou WebP." });
+    }
+    if (!event.photos) event.photos = [];
+    if (event.photos.length >= EVENT_PHOTOS_MAX) {
+      return res.status(400).json({ error: "too_many_photos", message: "Máximo de " + EVENT_PHOTOS_MAX + " fotos por aviso." });
+    }
+    const id = "p" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+    const file = event.id + "-" + id + "." + ext;
+    fs.writeFileSync(path.join(EVENT_PHOTOS_DIR, file), req.body);
+    event.photos.push({ id, file, addedAt: new Date().toISOString() });
+    writeEvents(data);
+    res.json({ ok: true, event: eventView(event) });
+  }
+);
+
+app.get("/api/events/:id/photos/:photoId", requireAuthApi, (req, res) => {
+  const event = readEvents().events.find((e) => e.id === req.params.id);
+  const photo = event && (event.photos || []).find((p) => p.id === req.params.photoId);
+  if (!photo) return res.status(404).end();
+  res.set("Cache-Control", "private, max-age=86400");
+  res.sendFile(path.join(EVENT_PHOTOS_DIR, photo.file));
+});
+
+app.delete("/api/events/:id/photos/:photoId", requireDirectorApi, (req, res) => {
+  const data = readEvents();
+  const event = data.events.find((e) => e.id === req.params.id);
+  if (!event) return res.status(404).json({ error: "not_found" });
+  const photo = (event.photos || []).find((p) => p.id === req.params.photoId);
+  if (!photo) return res.status(404).json({ error: "not_found" });
+  event.photos = event.photos.filter((p) => p.id !== req.params.photoId);
+  writeEvents(data);
+  fs.unlink(path.join(EVENT_PHOTOS_DIR, photo.file), () => {});
+  res.json({ ok: true, event: eventView(event) });
+});
+
+// ---- Inscrições por aula (membros com 1 clique, visitantes por link/QR) ----
+
+// Aulas criadas antes desta feature não têm os campos de inscrição — completa
+// na leitura, e o token só nasce (e persiste) quando o diretor abre inscrições.
+function ensureLessonSignups(lesson) {
+  if (!Array.isArray(lesson.signups)) lesson.signups = [];
+  if (typeof lesson.signupsOpen !== "boolean") lesson.signupsOpen = false;
+  return lesson;
+}
+
+function lessonSignupView(lesson, me) {
+  ensureLessonSignups(lesson);
+  const view = {
+    signupsOpen: lesson.signupsOpen,
+    signupCount: lesson.signups.length,
+    signedUp: me ? lesson.signups.some((s) => s.type === "member" && s.order === me.order) : false,
+  };
+  return view;
+}
+
+const lessonSignupAttempts = new Map();
+function lessonSignupRateLimited(ip) {
+  const now = Date.now();
+  const rec = lessonSignupAttempts.get(ip);
+  if (!rec || rec.resetAt < now) {
+    lessonSignupAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > 20;
+}
+
+app.post("/api/lessons/:id/signups-open", requireDirectorApi, (req, res) => {
+  const data = readLessons();
+  const lesson = findLesson(data, req.params.id);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  ensureLessonSignups(lesson);
+  lesson.signupsOpen = Boolean(req.body.open);
+  if (lesson.signupsOpen && !lesson.signupToken) {
+    lesson.signupToken = crypto.randomBytes(8).toString("hex");
+  }
+  writeLessons(data);
+  res.json({ ok: true, signupsOpen: lesson.signupsOpen, signupToken: lesson.signupToken || null });
+});
+
+// Membro logado se inscreve com 1 clique — nome e WhatsApp vêm do cadastro.
+app.post("/api/lessons/:id/signup", requireAuthApi, (req, res) => {
+  const data = readLessons();
+  const lesson = findLesson(data, req.params.id);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  ensureLessonSignups(lesson);
+  if (!lesson.signupsOpen) {
+    return res.status(423).json({ error: "signups_closed", message: "As inscrições desta aula estão fechadas." });
+  }
+  const order = req.session.user.order;
+  if (!lesson.signups.some((s) => s.type === "member" && s.order === order)) {
+    const member = findMember(order);
+    lesson.signups.push({
+      type: "member",
+      order,
+      name: req.session.user.name,
+      phone: (member && member.phone) || "",
+      at: new Date().toISOString(),
+    });
+    writeLessons(data);
+  }
+  res.json({ ok: true, ...lessonSignupView(lesson, req.session.user) });
+});
+
+// QR do formulário público de inscrição (mesmo padrão do QR de reunião).
+app.get("/api/lessons/:id/signup-qr", requireDirectorApi, (req, res) => {
+  const data = readLessons();
+  const lesson = findLesson(data, req.params.id);
+  if (!lesson || !lesson.signupToken) return res.status(404).json({ error: "not_found" });
+  const url = req.protocol + "://" + req.get("host") + "/inscricao.html?t=" + lesson.signupToken;
+  QRCode.toString(url, { type: "svg", margin: 1, width: 480 }, (err, svg) => {
+    if (err) return res.status(500).json({ error: "qr_failed" });
+    res.set({ "Content-Type": "image/svg+xml", "Cache-Control": "private, max-age=3600" });
+    res.send(svg);
+  });
+});
+
+// ---- Inscrição pública em aula (via link/QR, sem login) ----
+
+app.get("/api/lesson-signup/:token", (req, res) => {
+  const data = readLessons();
+  const lesson = data.lessons.find((l) => l.signupToken === req.params.token);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  ensureLessonSignups(lesson);
+  res.json({ title: lesson.title, date: lesson.date, description: lesson.description || "", open: lesson.signupsOpen });
+});
+
+app.post("/api/lesson-signup/:token", (req, res) => {
+  if (lessonSignupRateLimited(req.ip)) {
+    return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
+  }
+  const data = readLessons();
+  const lesson = data.lessons.find((l) => l.signupToken === req.params.token);
+  if (!lesson) return res.status(404).json({ error: "not_found" });
+  ensureLessonSignups(lesson);
+  if (!lesson.signupsOpen) {
+    return res.status(423).json({ error: "signups_closed", message: "As inscrições desta aula já foram encerradas." });
+  }
+  const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
+  const email = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
+  const phone = String(req.body.phone || "").trim().slice(0, 30);
+  if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
+    return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
+  }
+  if (phone.replace(/\D/g, "").length < 10) {
+    return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
+  }
+  // Reenvio do mesmo formulário não duplica: reconhece por e-mail ou nome.
+  const sameName = (n) => n.trim().toLowerCase() === name.toLowerCase();
+  const existing = lesson.signups.find(
+    (s) => s.type === "external" && ((email && s.email && s.email === email) || sameName(s.name))
+  );
+  if (!existing) {
+    lesson.signups.push({ type: "external", name, email, phone, at: new Date().toISOString() });
+    writeLessons(data);
+  }
+  res.json({ ok: true, message: "Inscrição confirmada! Te esperamos na aula." });
+});
+
 // ---- Selos (presença por empresa → gamificação individualizada) ----
 
 // Visão de cada membro: quais empresas ele já tem selo, mais o progresso
@@ -1495,6 +2051,11 @@ app.post("/api/attendance", requireAdminApi, (req, res) => {
   attendance[companyKey] = Array.from(set).sort((a, b) => a - b);
   writeAttendance(attendance);
   res.json({ companyKey, members: attendance[companyKey] });
+});
+
+// Healthcheck (Railway e monitoramento): responde sem tocar sessão nem stores.
+app.get("/health", (req, res) => {
+  res.json({ ok: true, uptime: Math.floor(process.uptime()) });
 });
 
 app.use(express.static(PUBLIC_DIR, { index: false }));

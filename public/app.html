@@ -1028,6 +1028,97 @@
   .pin-status.no { background: var(--internal-soft); color: var(--internal); }
   .pin-status.pending { background: var(--pending-soft); color: var(--pending); }
 
+  /* Mural de eventos (aba Início): carrossel de avisos + atividades */
+  .mural-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .mural-head .section-label { margin: 0; }
+  .mural-nav { display: flex; gap: 6px; }
+  .mural-nav button {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--white); color: var(--graphite); font-size: 17px; line-height: 1;
+    cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .mural-nav button:hover { border-color: var(--navy); color: var(--navy); }
+  .mural-stage { margin-top: 12px; }
+  .mural-slide { display: none; gap: 18px; align-items: stretch; }
+  .mural-slide.active { display: flex; animation: fadeSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+  .mural-photo {
+    flex: 0 0 42%; max-width: 42%; min-height: 190px; border-radius: var(--radius-md);
+    border: 1px solid var(--line); background-size: cover; background-position: center;
+  }
+  .mural-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .mural-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .mural-tag {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 9px; border-radius: 2px; background: var(--gradient-primary-15); color: var(--red);
+  }
+  .mural-tag.auto { background: var(--internal-soft); color: var(--internal); }
+  .mural-date { font-size: 12px; color: var(--graphite-soft); }
+  .mural-title {
+    font-family: var(--font-display); font-size: 22px; font-weight: 800;
+    text-transform: uppercase; color: var(--navy); line-height: 1.15; margin: 0 0 8px;
+  }
+  .mural-text { font-size: 13.5px; line-height: 1.65; color: var(--graphite); margin: 0; white-space: pre-line; }
+  .mural-by { font-size: 11.5px; color: var(--graphite-soft); margin-top: auto; padding-top: 12px; }
+  .mural-thumbs { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .mural-thumbs img {
+    width: 52px; height: 52px; object-fit: cover; border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+  }
+  .mural-cta { margin-top: 10px; }
+  .mural-cta button {
+    border: 1px solid var(--navy); background: transparent; color: var(--navy); cursor: pointer;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 8px 14px; border-radius: var(--radius-sm); transition: background 0.15s, color 0.15s;
+  }
+  .mural-cta button:hover { background: var(--navy); color: var(--white); }
+  .mural-dots { display: flex; gap: 7px; justify-content: center; margin-top: 14px; }
+  .mural-dots button {
+    width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0;
+    background: var(--line); cursor: pointer; transition: background 0.15s, transform 0.15s;
+  }
+  .mural-dots button.active { background: var(--red); transform: scale(1.25); }
+  @media (max-width: 640px) {
+    .mural-slide { flex-direction: column; }
+    .mural-photo { flex: none; max-width: none; width: 100%; min-height: 160px; }
+  }
+
+  /* Miniaturas com remoção no painel da diretoria do mural */
+  .event-admin-row { padding: 12px 0; border-top: 1px solid var(--line); }
+  .event-admin-row:first-of-type { border-top: none; }
+  .event-admin-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .event-admin-head .etitle { font-weight: 700; font-size: 13.5px; color: var(--navy); flex: 1; min-width: 0; }
+  .event-photo-strip { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .event-photo-strip .ph { position: relative; }
+  .event-photo-strip img { width: 64px; height: 64px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--line); display: block; }
+  .event-photo-strip .ph button {
+    position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%;
+    border: none; background: var(--red); color: #fff; font-size: 12px; line-height: 1; cursor: pointer;
+  }
+
+  /* Modal de formulário (troca de senha) — reusa a moldura do pin-modal */
+  .form-modal { text-align: left; }
+  .form-modal h3 { text-align: center; }
+  .form-modal form { display: flex; flex-direction: column; gap: 13px; margin-top: 6px; }
+  .form-modal .form-error {
+    display: none; font-size: 12.5px; color: #991B1B; background: #FEEBEB;
+    border: 1px solid #F5C6C6; border-radius: var(--radius-sm); padding: 9px 12px;
+  }
+  .form-modal .form-error.show { display: block; }
+  .form-modal .pin-actions { margin-top: 4px; }
+
+  /* Inscrições por aula */
+  .lesson-signup-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px;
+  }
+  .signup-count { font-size: 12.5px; color: var(--graphite-soft); }
+  .signup-badge {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 3px 8px; border-radius: 2px;
+  }
+  .signup-badge.open { background: var(--good-soft); color: var(--good); }
+  .signup-badge.done { background: var(--internal-soft); color: var(--internal); }
+
   /* Quartos — ficha do arquivo (era widget flutuante durante a viagem) */
   .room-group { margin-bottom: 14px; }
   .room-group:last-child { margin-bottom: 0; }
@@ -1089,6 +1180,21 @@
         <div class="stat-cell"><div class="sv">12</div><div class="sk">Empresas visitadas</div></div>
         <div class="stat-cell"><div class="sv">1ª</div><div class="sk">Imersão · SP 2026</div></div>
       </div>
+
+      <!-- Mural da liga: avisos da diretoria + próximas atividades, em carrossel.
+           Só aparece quando há algo a mostrar; a diretoria gerencia logo abaixo. -->
+      <div class="card mural-card" id="mural-card" style="display:none;">
+        <div class="mural-head">
+          <p class="section-label">Mural da liga</p>
+          <div class="mural-nav">
+            <button type="button" id="mural-prev" aria-label="Slide anterior">‹</button>
+            <button type="button" id="mural-next" aria-label="Próximo slide">›</button>
+          </div>
+        </div>
+        <div class="mural-stage" id="mural-stage" aria-live="polite"></div>
+        <div class="mural-dots" id="mural-dots" role="tablist" aria-label="Slides do mural"></div>
+      </div>
+      <div id="mural-admin"></div>
 
       <div class="card strip-card">
         <p class="section-label">Nossas atividades</p>

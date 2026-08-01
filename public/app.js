@@ -36,6 +36,10 @@
   });
   document.getElementById("logout-btn").addEventListener("click", function () {
     api("/api/logout", { method: "POST" }).then(function () {
+      // Fotos e telas em cache não são do próximo usuário deste navegador.
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage("clear-cache");
+      }
       window.location.href = "/login.html";
     });
   });
@@ -172,10 +176,218 @@
   }
   var inicioBuilt = false;
 
+  // ---- Mural da liga: carrossel de avisos da diretoria + próximas atividades ----
+  var muralSlides = [];
+  var muralIndex = 0;
+  var muralTimer = null;
+  var muralWired = false;
+
+  function muralShow(i) {
+    if (!muralSlides.length) return;
+    muralIndex = (i + muralSlides.length) % muralSlides.length;
+    document.querySelectorAll("#mural-stage .mural-slide").forEach(function (el, idx) {
+      el.classList.toggle("active", idx === muralIndex);
+    });
+    document.querySelectorAll("#mural-dots button").forEach(function (d, idx) {
+      d.classList.toggle("active", idx === muralIndex);
+    });
+  }
+  function muralRestartTimer() {
+    if (muralTimer) { clearInterval(muralTimer); muralTimer = null; }
+    if (muralSlides.length < 2) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    muralTimer = setInterval(function () { muralShow(muralIndex + 1); }, 7000);
+  }
+  function muralSlideHtml(s) {
+    var photoHtml = s.photos && s.photos.length
+      ? '<div class="mural-photo" style="background-image:url(\'' + esc(s.photos[0]) + '\')"></div>'
+      : "";
+    var thumbsHtml = s.photos && s.photos.length > 1
+      ? '<div class="mural-thumbs">' + s.photos.slice(1).map(function (u) {
+          return '<img src="' + esc(u) + '" alt="Foto do aviso" loading="lazy">';
+        }).join("") + "</div>"
+      : "";
+    var ctaHtml = s.cta
+      ? '<div class="mural-cta"><button type="button" data-goto-tab="' + esc(s.cta.tab) + '">' + esc(s.cta.label) + "</button></div>"
+      : "";
+    return (
+      '<div class="mural-slide">' +
+        photoHtml +
+        '<div class="mural-body">' +
+          '<div class="mural-meta">' +
+            '<span class="mural-tag' + (s.auto ? " auto" : "") + '">' + esc(s.tag) + "</span>" +
+            '<span class="mural-date num">' + fmtDateBR(s.date) + "</span>" +
+          "</div>" +
+          '<h3 class="mural-title">' + esc(s.title) + "</h3>" +
+          (s.text ? '<p class="mural-text">' + esc(s.text) + "</p>" : "") +
+          thumbsHtml +
+          ctaHtml +
+          (s.by ? '<div class="mural-by">Publicado por ' + esc(s.by) + "</div>" : "") +
+        "</div>" +
+      "</div>"
+    );
+  }
+  function renderMural(events, lessons, meetings) {
+    var card = document.getElementById("mural-card");
+    var today = new Date();
+    today = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+
+    muralSlides = events.map(function (e) {
+      return {
+        tag: "Aviso", date: e.date, title: e.title, text: e.text,
+        photos: (e.photos || []).map(function (p) { return p.url; }),
+        by: e.createdByName,
+      };
+    });
+    // "Outras atividades": aulas futuras e reuniões abertas entram sozinhas.
+    lessons.filter(function (l) { return l.date >= today; }).forEach(function (l) {
+      muralSlides.push({
+        tag: "Aula", auto: true, date: l.date, title: l.title,
+        text: (l.description || "") + (l.signupsOpen ? (l.description ? "\n" : "") + "Inscrições abertas — garanta sua vaga." : ""),
+        cta: { label: l.signupsOpen ? "Inscrever-se" : "Ver materiais", tab: "materiais" },
+      });
+    });
+    meetings.filter(function (m) { return m.open; }).forEach(function (m) {
+      muralSlides.push({
+        tag: "Reunião", auto: true, date: m.date, title: m.title,
+        text: "Reunião com presença aberta — registre a sua com o código falado no encontro.",
+        cta: { label: "Fazer check-in", tab: "reunioes" },
+      });
+    });
+
+    if (!muralSlides.length) {
+      card.style.display = "none";
+      muralRestartTimer();
+      return;
+    }
+    card.style.display = "";
+    document.getElementById("mural-stage").innerHTML = muralSlides.map(muralSlideHtml).join("");
+    document.getElementById("mural-dots").innerHTML = muralSlides.map(function (_, i) {
+      return '<button type="button" aria-label="Slide ' + (i + 1) + '"></button>';
+    }).join("");
+    document.querySelectorAll("#mural-dots button").forEach(function (d, i) {
+      d.addEventListener("click", function () { muralShow(i); muralRestartTimer(); });
+    });
+
+    if (!muralWired) {
+      muralWired = true;
+      document.getElementById("mural-prev").addEventListener("click", function () { muralShow(muralIndex - 1); muralRestartTimer(); });
+      document.getElementById("mural-next").addEventListener("click", function () { muralShow(muralIndex + 1); muralRestartTimer(); });
+      var stage = document.getElementById("mural-stage");
+      stage.addEventListener("mouseenter", function () { if (muralTimer) { clearInterval(muralTimer); muralTimer = null; } });
+      stage.addEventListener("mouseleave", muralRestartTimer);
+      stage.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-goto-tab]");
+        if (btn) activateTab(btn.dataset.gotoTab);
+      });
+    }
+    muralShow(Math.min(muralIndex, muralSlides.length - 1));
+    muralRestartTimer();
+  }
+
+  function renderMuralAdmin(me, events) {
+    var box = document.getElementById("mural-admin");
+    if (!me.director) { box.innerHTML = ""; return; }
+
+    var listHtml = events.length
+      ? events.map(function (e) {
+          var photosHtml = (e.photos || []).map(function (p) {
+            return '<span class="ph"><img src="' + esc(p.url) + '" alt=""><button type="button" title="Remover foto" data-delphoto="' + esc(p.id) + '">×</button></span>';
+          }).join("");
+          return (
+            '<div class="event-admin-row" data-event="' + esc(e.id) + '">' +
+              '<div class="event-admin-head">' +
+                '<span class="mural-date num">' + fmtDateBR(e.date) + "</span>" +
+                '<span class="etitle">' + esc(e.title) + "</span>" +
+                '<button type="button" class="btn-reject" data-addphoto>+ Foto</button>' +
+                '<button type="button" class="del-btn" title="Remover aviso" data-delevent>×</button>' +
+              "</div>" +
+              (photosHtml ? '<div class="event-photo-strip">' + photosHtml + "</div>" : "") +
+            "</div>"
+          );
+        }).join("")
+      : '<p class="empty-state">Nenhum aviso publicado ainda.</p>';
+
+    box.innerHTML =
+      '<div class="card">' +
+        '<p class="section-label">Mural (diretoria)</p>' +
+        '<div class="meeting-new">' +
+          '<input type="text" id="new-event-title" placeholder="Título do aviso" maxlength="100">' +
+          '<input type="date" id="new-event-date">' +
+          '<button type="button" class="btn-primary" id="new-event-btn">Publicar</button>' +
+        "</div>" +
+        '<div class="meeting-new" style="margin-top:8px;">' +
+          '<input type="text" id="new-event-text" placeholder="Texto do aviso (opcional)" maxlength="600" style="flex:1 1 100%;">' +
+        "</div>" +
+        '<div style="margin-top:14px;">' + listHtml + "</div>" +
+      "</div>";
+
+    document.getElementById("new-event-btn").addEventListener("click", function () {
+      var title = document.getElementById("new-event-title").value.trim();
+      if (!title) return window.alert("Dê um título ao aviso.");
+      api("/api/events", {
+        method: "POST",
+        body: JSON.stringify({
+          title: title,
+          date: document.getElementById("new-event-date").value,
+          text: document.getElementById("new-event-text").value,
+        }),
+      }).then(loadMural);
+    });
+
+    box.querySelectorAll(".event-admin-row").forEach(function (row) {
+      var eventId = row.dataset.event;
+      row.querySelector("[data-delevent]").addEventListener("click", function () {
+        if (!window.confirm("Remover este aviso do mural?")) return;
+        api("/api/events/" + eventId, { method: "DELETE" }).then(loadMural);
+      });
+      row.querySelectorAll("[data-delphoto]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          api("/api/events/" + eventId + "/photos/" + btn.dataset.delphoto, { method: "DELETE" }).then(loadMural);
+        });
+      });
+      var addBtn = row.querySelector("[data-addphoto]");
+      addBtn.addEventListener("click", function () {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.addEventListener("change", function () {
+          var file = input.files[0];
+          if (!file) return;
+          addBtn.disabled = true;
+          addBtn.textContent = "Enviando...";
+          normalizePhoto(file, 1600).then(function (blob) {
+            return fetch("/api/events/" + eventId + "/photos", {
+              method: "POST",
+              headers: { "Content-Type": blob.type || "application/octet-stream" },
+              body: blob,
+            });
+          }).then(function (r) {
+            return r.json().then(function (data) {
+              if (!r.ok) throw new Error(data.message || "Falha no envio da foto.");
+            });
+          }).then(loadMural).catch(function (err) {
+            window.alert(err.message || "Não deu pra enviar a foto.");
+            loadMural();
+          });
+        });
+        input.click();
+      });
+    });
+  }
+
+  function loadMural() {
+    Promise.all([meReady, api("/api/events"), api("/api/lessons"), api("/api/meetings")]).then(function (r) {
+      renderMural(r[1].events, r[2].lessons, r[3].meetings);
+      renderMuralAdmin(r[0], r[1].events);
+    }).catch(function () {});
+  }
+
   function loadInicio() {
     api("/api/members").then(function (members) {
       document.getElementById("stat-membros").textContent = members.length;
     }).catch(function () {});
+    loadMural();
     if (inicioBuilt) return;
     inicioBuilt = true;
 
@@ -433,13 +645,95 @@
     document.getElementById("open-immersion").addEventListener("click", openImmersion);
   }
 
-  // Normaliza a foto no cliente: redimensiona para 512px e converte para JPEG
-  // (foto de iPhone vem HEIC — o canvas decodifica e o servidor recebe JPG).
-  function normalizePhoto(file) {
+  // Troca voluntária de senha — o endpoint exige a senha atual (o fluxo de
+  // 1º acesso continua no login.html, sem passar por aqui).
+  function openPasswordModal() {
+    var backdrop = document.createElement("div");
+    backdrop.className = "pin-backdrop";
+    var modal = document.createElement("div");
+    modal.className = "pin-modal form-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "pass-modal-title");
+    modal.innerHTML =
+      '<h3 id="pass-modal-title">Trocar senha</h3>' +
+      '<form id="pass-form">' +
+        '<div class="field"><label for="pass-current">Senha atual</label>' +
+          '<input type="password" id="pass-current" autocomplete="current-password" required></div>' +
+        '<div class="field"><label for="pass-new">Nova senha</label>' +
+          '<input type="password" id="pass-new" autocomplete="new-password" minlength="4" maxlength="72" required></div>' +
+        '<div class="field"><label for="pass-new2">Repita a nova senha</label>' +
+          '<input type="password" id="pass-new2" autocomplete="new-password" required></div>' +
+        '<p class="form-error" id="pass-error"></p>' +
+        '<div class="pin-actions">' +
+          '<button type="submit" class="btn-primary" id="pass-submit">Salvar nova senha</button>' +
+          '<button type="button" class="pin-later" id="pass-cancel">Cancelar</button>' +
+        "</div>" +
+      "</form>";
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+    requestAnimationFrame(function () {
+      backdrop.classList.add("open");
+      modal.classList.add("open");
+    });
+    function close() {
+      backdrop.classList.remove("open");
+      modal.classList.remove("open");
+      setTimeout(function () { backdrop.remove(); modal.remove(); }, 300);
+    }
+    backdrop.addEventListener("click", close);
+    modal.querySelector("#pass-cancel").addEventListener("click", close);
+    document.getElementById("pass-current").focus();
+
+    modal.querySelector("#pass-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var errorEl = modal.querySelector("#pass-error");
+      errorEl.classList.remove("show");
+      var p1 = modal.querySelector("#pass-new").value;
+      if (p1 !== modal.querySelector("#pass-new2").value) {
+        errorEl.textContent = "As senhas não conferem.";
+        errorEl.classList.add("show");
+        return;
+      }
+      var submitBtn = modal.querySelector("#pass-submit");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Salvando...";
+      fetch("/api/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: modal.querySelector("#pass-current").value,
+          password: p1,
+        }),
+      })
+        .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            submitBtn.textContent = "Senha trocada ✓";
+            setTimeout(close, 900);
+          } else {
+            errorEl.textContent = res.data.message || "Não foi possível trocar a senha.";
+            errorEl.classList.add("show");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Salvar nova senha";
+          }
+        })
+        .catch(function () {
+          errorEl.textContent = "Erro de conexão com o servidor.";
+          errorEl.classList.add("show");
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Salvar nova senha";
+        });
+    });
+  }
+
+  // Normaliza a foto no cliente: redimensiona (512px avatar, 1600px evento) e
+  // converte para JPEG (foto de iPhone vem HEIC — o canvas decodifica).
+  function normalizePhoto(file, maxDim) {
     return new Promise(function (resolve) {
       var img = new Image();
       img.onload = function () {
-        var max = 512;
+        var max = maxDim || 512;
         var scale = Math.min(1, max / Math.max(img.width, img.height));
         var canvas = document.createElement("canvas");
         canvas.width = Math.round(img.width * scale);
@@ -491,8 +785,13 @@
             ? '<div class="interests">' + m.interests.map(function (i) { return '<span class="interest-chip">' + esc(i) + "</span>"; }).join("") + "</div>"
             : "";
           var photoBtnHtml = isMe
-            ? '<button type="button" class="avatar-edit" id="avatar-edit-btn">' + (m.photo ? "Trocar foto" : "Adicionar foto") + "</button>"
-            : "";
+            ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+                '<button type="button" class="avatar-edit" id="avatar-edit-btn">' + (m.photo ? "Trocar foto" : "Adicionar foto") + "</button>" +
+                '<button type="button" class="avatar-edit" id="pass-edit-btn">Trocar senha</button>' +
+              "</div>"
+            : (me.superadmin
+                ? '<button type="button" class="avatar-edit" data-reset-pass="' + m.order + '">Resetar senha</button>'
+                : "");
 
           return (
             '<div class="member-card stagger-in" style="animation-delay:' + (i * 45) + 'ms">' +
@@ -507,6 +806,30 @@
           );
         })
         .join("");
+
+      var passBtn = document.getElementById("pass-edit-btn");
+      if (passBtn) passBtn.addEventListener("click", openPasswordModal);
+
+      // Reset pelo super admin: o código novo aparece uma única vez, para ser
+      // entregue à pessoa (não fica guardado em claro em lugar nenhum).
+      grid.querySelectorAll("[data-reset-pass]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var order = parseInt(btn.dataset.resetPass, 10);
+          if (!window.confirm("Gerar um código novo para este membro? A senha atual dele deixa de funcionar na hora.")) return;
+          btn.disabled = true;
+          btn.textContent = "Gerando...";
+          api("/api/admin/reset-password", { method: "POST", body: JSON.stringify({ order: order }) })
+            .then(function (r) {
+              if (!r.code) throw new Error("falhou");
+              window.prompt("Código novo de " + r.name + " — entregue a ele(a) agora, não aparece de novo:", r.code);
+              loadMembers();
+            })
+            .catch(function () {
+              window.alert("Não foi possível resetar a senha.");
+              loadMembers();
+            });
+        });
+      });
 
       var editBtn = document.getElementById("avatar-edit-btn");
       if (editBtn) {
@@ -766,10 +1089,23 @@
           });
           detailBox.querySelectorAll("[data-att-order]").forEach(function (cb) {
             cb.addEventListener("change", function () {
+              var desired = cb.checked;
+              cb.disabled = true;
               api("/api/meetings/" + meeting.id + "/member-attendance", {
                 method: "POST",
-                body: JSON.stringify({ order: parseInt(cb.dataset.attOrder, 10), present: cb.checked }),
-              });
+                body: JSON.stringify({ order: parseInt(cb.dataset.attOrder, 10), present: desired }),
+              })
+                .then(function (r) {
+                  cb.disabled = false;
+                  // Se o servidor não confirmou, o check volta: presença
+                  // marcada na tela e ausente no servidor é pior que erro.
+                  if (!r || !r.ok) throw new Error("recusado");
+                })
+                .catch(function () {
+                  cb.disabled = false;
+                  cb.checked = !desired;
+                  window.alert("Não deu pra salvar a presença. Tente de novo.");
+                });
             });
           });
         }
@@ -822,6 +1158,53 @@
     );
   }
 
+  // Barra de inscrições da aula: membro se inscreve com 1 clique; a diretoria
+  // abre/fecha, distribui o link público (QR) e vê a lista nominal.
+  function lessonSignupBarHtml(l, me) {
+    var badge = l.signupsOpen
+      ? '<span class="signup-badge open">inscrições abertas</span>'
+      : (l.signupCount ? '<span class="signup-badge done">inscrições encerradas</span>' : "");
+    var countHtml = '<span class="signup-count num">' + l.signupCount + " inscrito" + (l.signupCount === 1 ? "" : "s") + "</span>";
+    var meBtn = l.signedUp
+      ? '<button type="button" class="btn-primary btn-small" disabled>Inscrito ✓</button>'
+      : (l.signupsOpen ? '<button type="button" class="btn-primary btn-small" data-signup>Inscrever-se</button>' : "");
+
+    if (!me.director) {
+      if (!badge && !meBtn) return "";
+      return '<div class="lesson-signup-bar">' + badge + meBtn + (l.signupsOpen || l.signupCount ? countHtml : "") + "</div>";
+    }
+
+    var controls = '<button type="button" class="btn-reject" data-toggle-signups>' + (l.signupsOpen ? "Encerrar inscrições" : "Abrir inscrições") + "</button>";
+    var qrBox = "";
+    if (l.signupsOpen && l.signupToken) {
+      controls +=
+        '<button type="button" class="btn-reject" data-signup-qr>QR de inscrição</button>' +
+        '<button type="button" class="btn-reject" data-copy-signup>Copiar link público</button>';
+      qrBox =
+        '<div class="qr-box" data-signup-qrbox style="display:none;">' +
+          '<img src="/api/lessons/' + esc(l.id) + '/signup-qr" alt="QR code de inscrição">' +
+          '<div class="qr-link">' + esc(window.location.origin + "/inscricao.html?t=" + l.signupToken) + "</div>" +
+        "</div>";
+    }
+    var listHtml = "";
+    if (l.signups && l.signups.length) {
+      listHtml =
+        '<div style="margin-top:6px;">' +
+          '<p class="section-label">Inscritos · ' + l.signups.length + "</p>" +
+          l.signups.map(function (s) {
+            var contact = [s.email, s.phone].filter(Boolean).join(" · ");
+            return (
+              '<div class="visitor-row">' +
+                "<span><strong>" + esc(s.name) + "</strong>" + (contact ? ' <span style="color:var(--graphite-soft);">' + esc(contact) + "</span>" : "") + "</span>" +
+                '<span class="signup-badge ' + (s.type === "member" ? "open" : "done") + '">' + (s.type === "member" ? "membro" : "visitante") + "</span>" +
+              "</div>"
+            );
+          }).join("") +
+        "</div>";
+    }
+    return '<div class="lesson-signup-bar">' + badge + meBtn + controls + countHtml + "</div>" + qrBox + listHtml;
+  }
+
   function renderLessons(me, lessons) {
     var content = document.getElementById("lessons-content");
 
@@ -863,6 +1246,7 @@
               "</div>" +
               (l.description ? '<p class="lesson-desc">' + esc(l.description) + "</p>" : "") +
               '<div class="lesson-materials" style="margin-top:10px;">' + lessonMaterialsHtml(l, me) + "</div>" +
+              lessonSignupBarHtml(l, me) +
               adminHtml +
             "</div>"
           );
@@ -870,6 +1254,17 @@
       : '<div class="card"><p class="empty-state">Nenhuma aula cadastrada ainda.' + (me.director ? " Crie a primeira acima." : "") + "</p></div>";
 
     content.innerHTML = createHtml + listHtml;
+
+    // Inscrição do próprio membro — vale para todo mundo, diretor ou não.
+    content.querySelectorAll(".lesson-card [data-signup]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        btn.disabled = true;
+        btn.textContent = "Inscrevendo...";
+        api("/api/lessons/" + btn.closest(".lesson-card").dataset.lesson + "/signup", { method: "POST" })
+          .then(function () { loadLessons(); })
+          .catch(function () { loadLessons(); });
+      });
+    });
 
     if (!me.director) return;
 
@@ -888,6 +1283,32 @@
 
     content.querySelectorAll(".lesson-card").forEach(function (cardEl) {
       var lessonId = cardEl.dataset.lesson;
+
+      var toggleSignups = cardEl.querySelector("[data-toggle-signups]");
+      if (toggleSignups) {
+        toggleSignups.addEventListener("click", function () {
+          var opening = toggleSignups.textContent.indexOf("Abrir") === 0;
+          if (!opening && !window.confirm("Encerrar as inscrições desta aula? O link público para de aceitar novas.")) return;
+          api("/api/lessons/" + lessonId + "/signups-open", {
+            method: "POST",
+            body: JSON.stringify({ open: opening }),
+          }).then(function () { loadLessons(); });
+        });
+      }
+      var qrBtn = cardEl.querySelector("[data-signup-qr]");
+      if (qrBtn) {
+        qrBtn.addEventListener("click", function () {
+          var box = cardEl.querySelector("[data-signup-qrbox]");
+          if (box) box.style.display = box.style.display === "none" ? "" : "none";
+        });
+      }
+      var copyBtn = cardEl.querySelector("[data-copy-signup]");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", function (e) {
+          var link = cardEl.querySelector("[data-signup-qrbox] .qr-link");
+          if (link) copyText(link.textContent, e.currentTarget);
+        });
+      }
 
       var delLesson = cardEl.querySelector(".del-lesson");
       if (delLesson) {
@@ -1449,13 +1870,13 @@
         var checked = present.indexOf(m.order) !== -1;
         var initials = m.name.trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0]; }).join("").toUpperCase();
         var avatarHtml = m.photo
-          ? '<img class="av" src="' + m.photo + '" alt="">'
-          : '<span class="av">' + initials + "</span>";
+          ? '<img class="av" src="' + esc(m.photo) + '" alt="">'
+          : '<span class="av">' + esc(initials) + "</span>";
         return (
           '<label class="attendance-row">' +
             '<input type="checkbox" data-order="' + m.order + '" ' + (checked ? "checked" : "") + ">" +
             avatarHtml +
-            '<span class="rn">' + m.name + "</span>" +
+            '<span class="rn">' + esc(m.name) + "</span>" +
           "</label>"
         );
       })
@@ -1885,7 +2306,7 @@
                 : entry.want
                   ? '<span class="pin-status yes">quer</span>'
                   : '<span class="pin-status no">não quer</span>';
-              return '<div class="pin-row"><span class="pn">' + m.name + "</span>" + status + "</div>";
+              return '<div class="pin-row"><span class="pn">' + esc(m.name) + "</span>" + status + "</div>";
             })
             .join("");
           var wants = members.filter(function (m) { return (poll[String(m.order)] || {}).want; }).length;
@@ -1916,13 +2337,16 @@
 
   // ---- Despesas (divisão estilo Splitwise, tudo em centavos) ----
   var expenseMembers = null;
+  var expensePix = null;
 
   function fmtBRL(cents) {
     return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
+  // Nome de membro pode vir de cadastro público, então já sai escapado — o
+  // retorno destas funções entra direto em innerHTML.
   function firstName(order) {
     var m = expenseMembers.find(function (x) { return x.order === order; });
-    return m ? m.name.split(" ")[0] : "?";
+    return m ? esc(m.name.split(" ")[0]) : "?";
   }
   // Parte de um membro numa despesa — espelha splitEqual do servidor
   // (base + resto distribuído por ordem crescente, soma sempre = total).
@@ -1962,8 +2386,8 @@
     return m ? m.name : "?";
   }
   function pixKey(order) {
-    var m = expenseMembers.find(function (x) { return x.order === order; });
-    return m && m.pix ? String(m.pix) : "";
+    var p = (expensePix || []).find(function (x) { return x.order === order; });
+    return p ? String(p.pix) : "";
   }
   // Texto do acerto final pronto pra colar no grupo — usa o plano de mínimo de
   // Pix (data.settle) com a chave de quem recebe.
@@ -2006,16 +2430,23 @@
   }
 
   function loadExpenses() {
-    Promise.all([meReady, api("/api/expenses"), expenseMembers ? Promise.resolve(expenseMembers) : api("/api/members")]).then(function (results) {
+    Promise.all([
+      meReady,
+      api("/api/expenses"),
+      expenseMembers ? Promise.resolve(expenseMembers) : api("/api/members"),
+      // As chaves Pix (CPF de vários) vêm de rota própria da imersão, e não do
+      // roster da liga — ver o comentário de memberCardView no server.
+      expensePix ? Promise.resolve(expensePix) : api("/api/expenses/pix"),
+    ]).then(function (results) {
       var me = results[0], data = results[1];
       expenseMembers = results[2];
+      expensePix = results[3];
       var container = document.getElementById("expenses-content");
       var myBalance = data.balances[String(me.order)] || 0;
       var closed = data.closed === true;
 
       function pixOf(order) {
-        var m = expenseMembers.find(function (x) { return x.order === order; });
-        return m && m.pix ? String(m.pix) : "";
+        return pixKey(order);
       }
 
       var heroClass = myBalance < 0 ? "owe" : myBalance > 0 ? "receive" : "even";
