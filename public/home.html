@@ -35,6 +35,35 @@
   .home-top a.solid { color: var(--white); background: var(--red); }
   .home-top a.solid:hover { background: var(--red-hover); }
 
+  /* Destaque de abertura: a reunião mais próxima com inscrições abertas.
+     Só aparece quando existe evento — sem evento, a home abre no hero. */
+  #next-event { display: none; margin-top: 18px; }
+  #next-event.show { display: block; }
+  .next-card {
+    position: relative; overflow: hidden;
+    background: var(--navy); border-radius: var(--radius-lg);
+    padding: 24px 22px; color: var(--white);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px;
+  }
+  .next-card::before {
+    content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--red);
+  }
+  .next-info { flex: 1 1 300px; min-width: 0; }
+  .next-card .tag {
+    display: inline-block; background: var(--red); color: var(--white);
+    font-family: var(--font-display); font-weight: 800; font-size: 12.5px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 4px 10px; border-radius: var(--radius-sm); margin-bottom: 10px;
+  }
+  .next-card h2 {
+    font-size: clamp(22px, 4vw, 30px); font-weight: 800; text-transform: uppercase;
+    line-height: 1.05; margin: 0 0 8px;
+  }
+  .next-card .when { font-size: 14px; font-weight: 700; letter-spacing: 0.03em; margin-bottom: 4px; }
+  .next-card .meta { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.72); }
+  .next-card .seats { display: block; font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,0.72); margin-top: 6px; }
+  .next-card .btn-primary { text-decoration: none; white-space: nowrap; margin-top: 12px; }
+
   /* Hero */
   .hero {
     position: relative; overflow: hidden;
@@ -139,6 +168,10 @@
         <a class="solid" href="/login.html">Entrar</a>
       </nav>
     </header>
+
+    <section id="next-event" aria-label="Próximo evento">
+      <div class="next-card" id="next-card"></div>
+    </section>
 
     <section class="hero">
       <span class="hero-gear" aria-hidden="true"></span>
@@ -268,34 +301,63 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+  function quandoDe(ev) {
+    var p = String(ev.date || "").split("-");
+    var dia = p.length === 3 ? p[2] + "/" + p[1] : "";
+    var semana = "";
+    if (p.length === 3) {
+      // T12:00 evita o dia voltar por fuso ao formatar
+      semana = new Date(ev.date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+    }
+    return (semana ? semana.toUpperCase() + " · " : "") + dia + (ev.time ? " · " + ev.time : "");
+  }
+  function lugarDe(ev) {
+    return ev.location
+      ? ev.location + (ev.travelMinutes > 0 ? " · ~" + ev.travelMinutes + " min do IME" : "")
+      : "";
+  }
+  function vagasDe(ev) {
+    if (!ev.capacity) return "";
+    return ev.seatsLeft > 0
+      ? '<span class="seats">' + ev.seatsLeft + " de " + ev.capacity + " vagas disponíveis</span>"
+      : '<span class="seats">Vagas esgotadas — inscrição vai para a fila de espera</span>';
+  }
   fetch("/api/public-events")
     .then(function (r) { return r.ok ? r.json() : { events: [] }; })
     .then(function (data) {
       if (!data.events || !data.events.length) return;
-      document.getElementById("agenda-grid").innerHTML = data.events.map(function (ev) {
-        var p = String(ev.date || "").split("-");
-        var quando = (p.length === 3 ? p[2] + "/" + p[1] : "") + (ev.time ? " · " + ev.time : "");
-        var lugar = ev.location
-          ? ev.location + (ev.travelMinutes > 0 ? " · ~" + ev.travelMinutes + " min do IME" : "")
-          : "";
-        var vagas = "";
-        if (ev.capacity) {
-          vagas = ev.seatsLeft > 0
-            ? '<span class="seats">' + ev.seatsLeft + " de " + ev.capacity + " vagas disponíveis</span>"
-            : '<span class="seats">Vagas esgotadas — inscrição vai para a fila de espera</span>';
-        }
-        return (
-          '<div class="ev-card">' +
-            '<div class="ev-top"><span class="kind">' + escHtml(ev.kind) + '</span><span class="when">' + escHtml(quando) + "</span></div>" +
-            "<h3>" + escHtml(ev.title) + "</h3>" +
-            (lugar ? '<span class="meta">' + escHtml(lugar) + "</span>" : "") +
-            (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
-            vagas +
-            '<a class="btn-primary" href="' + escHtml(ev.signupUrl) + '">Inscrever-se</a>' +
-          "</div>"
-        );
-      }).join("");
-      document.getElementById("agenda").classList.add("show");
+      var events = data.events.slice().sort(function (a, b) {
+        return (a.date + " " + (a.time || "")) < (b.date + " " + (b.time || "")) ? -1 : 1;
+      });
+      // O mais próximo abre o site em destaque; os demais ficam na grade.
+      var destaque = events[0];
+      var resto = events.slice(1);
+      var lugar = lugarDe(destaque);
+      document.getElementById("next-card").innerHTML =
+        '<div class="next-info">' +
+          '<span class="tag">' + escHtml("Próxima " + (destaque.kind === "Reunião" ? "reunião" : destaque.kind.toLowerCase())) + "</span>" +
+          "<h2>" + escHtml(destaque.title) + "</h2>" +
+          '<div class="when">' + escHtml(quandoDe(destaque)) + "</div>" +
+          (lugar ? '<div class="meta">' + escHtml(lugar) + "</div>" : "") +
+          vagasDe(destaque) +
+        "</div>" +
+        '<a class="btn-primary" href="' + escHtml(destaque.signupUrl) + '">Inscrever-se</a>';
+      document.getElementById("next-event").classList.add("show");
+      if (resto.length) {
+        document.getElementById("agenda-grid").innerHTML = resto.map(function (ev) {
+          return (
+            '<div class="ev-card">' +
+              '<div class="ev-top"><span class="kind">' + escHtml(ev.kind) + '</span><span class="when">' + escHtml(quandoDe(ev)) + "</span></div>" +
+              "<h3>" + escHtml(ev.title) + "</h3>" +
+              (lugarDe(ev) ? '<span class="meta">' + escHtml(lugarDe(ev)) + "</span>" : "") +
+              (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
+              vagasDe(ev) +
+              '<a class="btn-primary" href="' + escHtml(ev.signupUrl) + '">Inscrever-se</a>' +
+            "</div>"
+          );
+        }).join("");
+        document.getElementById("agenda").classList.add("show");
+      }
     })
     .catch(function () {});
 })();

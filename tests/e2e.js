@@ -106,11 +106,12 @@ function setupVolume() {
   );
 }
 
-function startServer() {
+function startServer(extraEnv) {
   return new Promise((resolve, reject) => {
     server = spawn(process.execPath, [path.join(ROOT, "server.js")], {
       cwd: ROOT,
       // TRAVEL_ESTIMATE=off: o e2e não pode depender de Nominatim/OSRM na rede.
+      // (o teste de trajeto longo sobrepõe com fixed:N, ainda sem rede)
       // PUBLIC_FORM_MAX alto: a suíte inteira dispara do mesmo IP.
       env: {
         ...process.env,
@@ -119,6 +120,7 @@ function startServer() {
         SESSION_SECRET: "e2e",
         TRAVEL_ESTIMATE: "off",
         PUBLIC_FORM_MAX: "500",
+        ...(extraEnv || {}),
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -811,6 +813,39 @@ test("sessão sobrevive a restart do processo (store no volume)", async () => {
 
   const after = await c.get("/api/members");
   eq(after.status, 200, "a mesma sessão deveria continuar valendo depois do restart");
+});
+
+test("trajeto acima de 30 min pede confirmação antes de gravar", async () => {
+  // Sobe o servidor com estimativa fixa de 45 min — acima do limite, sem rede.
+  server.kill("SIGKILL");
+  await new Promise((r) => setTimeout(r, 500));
+  await startServer({ TRAVEL_ESTIMATE: "fixed:45" });
+
+  const admin = client();
+  eq((await admin.login(1, ADMIN_PASS)).status, 200, "login do superadmin");
+
+  const barrado = await admin.post("/api/events", { title: "Evento longe", date: "2030-01-10", ...EV_LOCAL });
+  eq(barrado.status, 409, "criação sem confirmTravel deveria parar no aviso");
+  eq(barrado.data.error, "travel_confirm", "erro esperado");
+  eq(barrado.data.travelMinutes, 45, "aviso informa a estimativa");
+
+  const criado = await admin.post("/api/events", { title: "Evento longe", date: "2030-01-10", confirmTravel: true, ...EV_LOCAL });
+  eq(criado.status, 200, "com confirmTravel:true grava");
+  eq(criado.data.event.travelMinutes, 45, "estimativa gravada no evento");
+  const id = criado.data.event.id;
+
+  const editBarrado = await admin.patch("/api/events/" + id, { location: "Outro lugar distante" });
+  eq(editBarrado.status, 409, "edição de local sem confirmTravel também para");
+  eq(editBarrado.data.error, "travel_confirm", "erro esperado na edição");
+  const editOk = await admin.patch("/api/events/" + id, { location: "Outro lugar distante", confirmTravel: true });
+  eq(editOk.status, 200, "edição confirmada grava");
+
+  await admin.del("/api/events/" + id);
+
+  // Devolve o servidor ao estado padrão da suíte.
+  server.kill("SIGKILL");
+  await new Promise((r) => setTimeout(r, 500));
+  await startServer();
 });
 
 // ---- Gate da imersão ----

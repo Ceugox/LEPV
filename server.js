@@ -1225,10 +1225,19 @@ function todayBR() {
 // "Ciente do local?" só vale se der para dimensionar o trajeto: ao lado do
 // local o site mostra quanto tempo leva saindo do IME (Praça General
 // Tibúrcio, 80). A estimativa é calculada UMA vez, ao criar ou editar o
-// evento (Nominatim para geocodificar + OSRM para a rota, públicos e sem
-// chave), e fica gravada em travelMinutes. Falhou a rede? Fica null e a
-// linha simplesmente não aparece. TRAVEL_ESTIMATE=off desliga (usado no e2e
-// para não depender de internet).
+// evento (Nominatim + Photon para geocodificar + OSRM para a rota, públicos
+// e sem chave), e fica gravada em travelMinutes. Falhou a rede? Fica null e
+// a linha simplesmente não aparece. TRAVEL_ESTIMATE=off desliga (usado no
+// e2e para não depender de internet).
+//
+// Dois geocodificadores porque um só erra com grafia imprecisa: "General
+// Goes Monteiro" casou com a rua homônima de São Gonçalo (33 min) em vez da
+// de Botafogo ("Góis", 5 min). Entre todos os candidatos vale o mais
+// próximo do IME — para reunião da liga, o homônimo distante é quase sempre
+// o errado.
+// Acima disso, o local provavelmente foi geocodificado errado (homônimo em
+// outra cidade): o salvamento para e pede confirmação da diretoria.
+const TRAVEL_CONFIRM_MINUTES = 30;
 const IME_COORDS = { lat: -22.9556, lon: -43.1661 };
 const AT_IME_RE = /\bIME\b|tib[uú]rcio|praia vermelha/i;
 const travelCache = new Map();
@@ -1239,23 +1248,61 @@ async function fetchJson(url, headers) {
   return res.json();
 }
 
+function distanceToIME(c) {
+  const dLat = c.lat - IME_COORDS.lat;
+  const dLon = (c.lon - IME_COORDS.lon) * Math.cos((IME_COORDS.lat * Math.PI) / 180);
+  return dLat * dLat + dLon * dLon;
+}
+
+async function geocodeNominatim(query) {
+  const geo = await fetchJson(
+    "https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=br&q=" +
+      encodeURIComponent(query),
+    { "User-Agent": "LEPV/1.0 (https://lepv.org)" }
+  );
+  if (!Array.isArray(geo)) return [];
+  return geo.map((r) => ({ lat: Number(r.lat), lon: Number(r.lon) }));
+}
+
+async function geocodePhoton(query) {
+  const geo = await fetchJson(
+    "https://photon.komoot.io/api/?limit=5&lat=" + IME_COORDS.lat + "&lon=" + IME_COORDS.lon +
+      "&q=" + encodeURIComponent(query)
+  );
+  if (!geo || !Array.isArray(geo.features)) return [];
+  return geo.features.map((f) => ({
+    lat: f.geometry.coordinates[1],
+    lon: f.geometry.coordinates[0],
+  }));
+}
+
 async function estimateTravelMinutes(location) {
   if (process.env.TRAVEL_ESTIMATE === "off") return null;
+  // TRAVEL_ESTIMATE=fixed:N devolve N sem rede — o e2e usa para exercitar a
+  // confirmação de trajeto longo.
+  const fixed = /^fixed:(\d+)$/.exec(process.env.TRAVEL_ESTIMATE || "");
+  if (fixed) return Number(fixed[1]);
   // Evento no próprio IME não precisa de trajeto.
   if (AT_IME_RE.test(location)) return 0;
   const key = location.trim().toLowerCase();
   if (travelCache.has(key)) return travelCache.get(key);
   let minutes = null;
   try {
-    const geo = await fetchJson(
-      "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" +
-        encodeURIComponent(location + ", Rio de Janeiro"),
-      { "User-Agent": "LEPV/1.0 (https://lepv.org)" }
-    );
-    if (Array.isArray(geo) && geo.length) {
+    const query = location + ", Rio de Janeiro";
+    const [nomi, photon] = await Promise.allSettled([
+      geocodeNominatim(query),
+      geocodePhoton(query),
+    ]);
+    const candidates = []
+      .concat(nomi.status === "fulfilled" ? nomi.value : [])
+      .concat(photon.status === "fulfilled" ? photon.value : [])
+      .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lon));
+    if (candidates.length) {
+      candidates.sort((a, b) => distanceToIME(a) - distanceToIME(b));
+      const best = candidates[0];
       const route = await fetchJson(
         "https://router.project-osrm.org/route/v1/driving/" +
-          IME_COORDS.lon + "," + IME_COORDS.lat + ";" + geo[0].lon + "," + geo[0].lat + "?overview=false"
+          IME_COORDS.lon + "," + IME_COORDS.lat + ";" + best.lon + "," + best.lat + "?overview=false"
       );
       if (route.routes && route.routes.length) {
         minutes = Math.max(1, Math.round(route.routes[0].duration / 60));
@@ -1415,6 +1462,35 @@ function migrateLegacyStores() {
 }
 migrateLegacyStores();
 
+// ---- Correção pontual via env var ----
+//
+// A rede local bloqueia a porta 22, então railway ssh/volume files não
+// conectam — o jeito de consertar um dado do volume é uma rotina de boot
+// condicionada a env var. EVENT_LOCATION_FIX="<token de inscrição>|<local>"
+// acha o evento pelo token, troca o local e recalcula o trajeto. Idempotente:
+// sem a var (ou já aplicado), não faz nada.
+async function applyEventLocationFix() {
+  const fix = process.env.EVENT_LOCATION_FIX;
+  if (!fix || fix.indexOf("|") === -1) return;
+  const token = fix.slice(0, fix.indexOf("|")).trim();
+  const location = fix.slice(fix.indexOf("|") + 1).trim();
+  if (!token || !location) return;
+  const found = readEventsStore().events.find((e) => e.signups && e.signups.token === token);
+  if (!found) return console.error("EVENT_LOCATION_FIX: nenhum evento com esse token.");
+  if (found.location === location) return;
+  const travelMinutes = await estimateTravelMinutes(location);
+  // Relê o store depois do await: a estimativa espera serviço externo e a
+  // leitura+escrita precisa ficar atômica, como nas rotas.
+  const data = readEventsStore();
+  const ev = data.events.find((e) => e.signups && e.signups.token === token);
+  if (!ev) return;
+  ev.location = location;
+  ev.travelMinutes = travelMinutes;
+  writeEvents(data);
+  console.log('EVENT_LOCATION_FIX: "' + ev.title + '" agora em "' + location + '" (~' + travelMinutes + " min).");
+}
+applyEventLocationFix().catch((err) => console.error("EVENT_LOCATION_FIX falhou:", err.message));
+
 // ---- Views ----
 
 // O que todo membro vê. A lista nominal de inscritos, os códigos de presença e
@@ -1540,6 +1616,13 @@ app.post("/api/events", requireDirectorApi, async (req, res) => {
   // A estimativa vem antes da leitura do store: nada de segurar o JSON aberto
   // enquanto se espera serviço externo.
   const travelMinutes = await estimateTravelMinutes(location);
+  if (travelMinutes > TRAVEL_CONFIRM_MINUTES && req.body.confirmTravel !== true) {
+    return res.status(409).json({
+      error: "travel_confirm",
+      travelMinutes,
+      message: "O trajeto estimado do IME até esse local é de ~" + travelMinutes + " min. Confirma que o local está certo?",
+    });
+  }
   const data = readEventsStore();
   const ev = normalizeEvent({
     id: "ev" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
@@ -1575,6 +1658,13 @@ app.patch("/api/events/:id", requireDirectorApi, async (req, res) => {
     return res.status(400).json({ error: "empty_time", message: "Informe o horário do evento." });
   }
   const travelMinutes = newLocation !== undefined ? await estimateTravelMinutes(newLocation) : undefined;
+  if (travelMinutes > TRAVEL_CONFIRM_MINUTES && req.body.confirmTravel !== true) {
+    return res.status(409).json({
+      error: "travel_confirm",
+      travelMinutes,
+      message: "O trajeto estimado do IME até esse local é de ~" + travelMinutes + " min. Confirma que o local está certo?",
+    });
+  }
   const data = readEventsStore();
   const ev = findEvent(data, req.params.id);
   if (!ev) return res.status(404).json({ error: "not_found" });

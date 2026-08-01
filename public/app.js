@@ -1155,17 +1155,29 @@
         if (!title) return window.alert("Dê um título ao evento.");
         if (!document.getElementById("new-event-local").value.trim()) return window.alert("Informe o local do evento.");
         if (!document.getElementById("new-event-time").value) return window.alert("Informe o horário do evento.");
-        api("/api/events", {
-          method: "POST",
-          body: JSON.stringify({
-            type: document.getElementById("new-event-type").value,
-            title: title,
-            date: document.getElementById("new-event-date").value,
-            time: document.getElementById("new-event-time").value,
-            location: document.getElementById("new-event-local").value,
-            text: document.getElementById("new-event-text").value,
-          }),
-        }).then(function () { loadEvents(); });
+        // Trajeto acima de 30 min do IME costuma ser local geocodificado
+        // errado: o servidor segura e a gente confirma antes de gravar.
+        function criar(confirmTravel) {
+          api("/api/events", {
+            method: "POST",
+            body: JSON.stringify({
+              type: document.getElementById("new-event-type").value,
+              title: title,
+              date: document.getElementById("new-event-date").value,
+              time: document.getElementById("new-event-time").value,
+              location: document.getElementById("new-event-local").value,
+              text: document.getElementById("new-event-text").value,
+              confirmTravel: confirmTravel === true,
+            }),
+          }).then(function (r) {
+            if (r && r.error === "travel_confirm") {
+              if (window.confirm(r.message)) return criar(true);
+              return;
+            }
+            loadEvents();
+          });
+        }
+        criar(false);
       });
     }
 
@@ -1220,26 +1232,36 @@
       var btn = e.currentTarget;
       btn.disabled = true;
       btn.textContent = "Salvando...";
-      api("/api/events/" + id, {
-        method: "PATCH",
-        body: JSON.stringify({
-          type: box.querySelector(".edit-type").value,
-          title: box.querySelector(".edit-title").value,
-          date: box.querySelector(".edit-date").value,
-          time: box.querySelector(".edit-time").value,
-          location: box.querySelector(".edit-local").value,
-          text: box.querySelector(".edit-text").value,
-        }),
-      })
-        .then(function (r) {
-          if (!r || !r.ok) throw new Error((r && r.message) || "falhou");
-          loadEvents();
+      function salvar(confirmTravel) {
+        api("/api/events/" + id, {
+          method: "PATCH",
+          body: JSON.stringify({
+            type: box.querySelector(".edit-type").value,
+            title: box.querySelector(".edit-title").value,
+            date: box.querySelector(".edit-date").value,
+            time: box.querySelector(".edit-time").value,
+            location: box.querySelector(".edit-local").value,
+            text: box.querySelector(".edit-text").value,
+            confirmTravel: confirmTravel === true,
+          }),
         })
-        .catch(function (err) {
-          window.alert(err.message || "Não deu pra salvar as alterações.");
-          btn.disabled = false;
-          btn.textContent = "Salvar";
-        });
+          .then(function (r) {
+            if (r && r.error === "travel_confirm") {
+              if (window.confirm(r.message)) return salvar(true);
+              btn.disabled = false;
+              btn.textContent = "Salvar";
+              return;
+            }
+            if (!r || !r.ok) throw new Error((r && r.message) || "falhou");
+            loadEvents();
+          })
+          .catch(function (err) {
+            window.alert(err.message || "Não deu pra salvar as alterações.");
+            btn.disabled = false;
+            btn.textContent = "Salvar";
+          });
+      }
+      salvar(false);
     });
 
     box.querySelector("[data-newcode]").addEventListener("click", function () {
