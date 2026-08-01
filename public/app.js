@@ -140,9 +140,10 @@
   // Conteúdo institucional fixo: fotos das atividades (acervo público em
   // /gallery) e as empresas que já receberam a liga.
   var INICIO_FOTOS = [
-    "day-seg20", "co-nomad", "co-mottu", "day-ter21", "co-insper", "co-mirow",
-    "co-sharpi", "day-qua22", "co-bain", "co-revolut", "day-qui23", "co-link",
-    "co-pax", "co-enter", "day-sex24", "co-tivita",
+    "liga-01", "liga-02", "liga-03", "liga-04", "liga-05", "liga-06",
+    "liga-07", "liga-08", "liga-09", "liga-10", "liga-11", "liga-12",
+    "liga-13", "liga-14", "liga-15", "liga-16", "liga-17", "liga-18",
+    "liga-19", "liga-20", "liga-21",
   ];
   // Marquee escuro de logos (referência aprovada): band preto, logos
   // monocromáticos brancos — sharpi/segura têm fundo opaco, viram wordmark.
