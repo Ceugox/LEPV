@@ -417,9 +417,10 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      // Railway sempre serve HTTPS; em dev (http://localhost) o secure
-      // impediria o cookie de ser gravado.
-      secure: process.env.NODE_ENV === "production",
+      // "auto" liga o secure quando a conexão é HTTPS (via trust proxy, é o
+      // caso no Railway) e mantém o cookie funcionando no http de dev. Melhor
+      // que depender de NODE_ENV, que não está setado em produção.
+      secure: "auto",
       maxAge: 1000 * 60 * 60 * 24 * 7,
     },
   })
