@@ -972,6 +972,44 @@ test("acervo da imersão segue restrito a quem participou", async () => {
   eq((await novato.get("/api/events")).status, 200, "mural é de todo membro");
 });
 
+// ---- Motor de resiliência ----
+
+test("job de background que explode não derruba o server e fica registrado", async () => {
+  server.kill("SIGKILL");
+  await new Promise((r) => setTimeout(r, 500));
+  // O gancho reproduz o incidente do 502: um job agendado que lança logo após
+  // o boot, mais uma promise rejeitada sem catch.
+  await startServer({ RESILIENCE_TEST: "on" });
+  await new Promise((r) => setTimeout(r, 800));
+
+  const h = await client().get("/health");
+  eq(h.status, 200, "server deveria continuar de pé depois das falhas");
+  assert(h.data.failures >= 2, "contador de falhas no /health");
+  assert(h.data.lastFailureAt, "/health deveria apontar a última falha");
+
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const r = await admin.get("/api/admin/failures");
+  eq(r.status, 200, "painel de falhas do superadmin");
+  assert(r.data.failures.some((f) => f.scope === "job:teste-resiliencia"), "falha do job registrada");
+  assert(r.data.failures.some((f) => f.scope === "unhandledRejection"), "rejeição solta registrada");
+
+  const m = client();
+  await m.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await m.get("/api/admin/failures")).status, 403, "painel de falhas não é de membro comum");
+});
+
+test("histórico de falhas sobrevive a restart (failures.json no volume)", async () => {
+  server.kill("SIGKILL");
+  await new Promise((r) => setTimeout(r, 500));
+  await startServer();
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const r = await admin.get("/api/admin/failures");
+  eq(r.status, 200, "painel responde depois do restart");
+  assert(r.data.failures.some((f) => f.scope === "job:teste-resiliencia"), "falhas persistidas voltaram do volume");
+});
+
 async function main() {
   setupVolume();
   await startServer();

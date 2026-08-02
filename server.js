@@ -61,6 +61,88 @@ function readStore(filePath) {
   }
 }
 
+// ---- Motor de resiliência: falha registrada, respondida e visível ----
+//
+// Lição do incidente de 02/08/2026: um ReferenceError dentro de um timer
+// matava o processo 1h depois do boot, o Railway esgotou as 10 tentativas de
+// restart e o site ficou em 502 até alguém notar. A resposta vem em camadas:
+// (1) todo job de background roda via safeJob e nunca derruba o processo;
+// (2) promise rejeitada sem catch é registrada e o server segue de pé;
+// (3) exceção síncrona solta é registrada ANTES do exit, os stores em memória
+//     são persistidos e o Railway reinicia (railway.json);
+// (4) o histórico vive em failures.json no volume, aparece no /health e num
+//     painel do superadmin — falha silenciosa deixa de existir.
+const FAILURES_PATH = path.join(STORAGE_DIR, "failures.json");
+const FAILURES_MAX = 100;
+let failuresCache = null;
+function readFailures() {
+  if (!failuresCache) {
+    try {
+      failuresCache = fs.existsSync(FAILURES_PATH) ? readStore(FAILURES_PATH) : [];
+    } catch {
+      failuresCache = [];
+    }
+    if (!Array.isArray(failuresCache)) failuresCache = [];
+  }
+  return failuresCache;
+}
+function recordFailure(scope, err, { fatal = false } = {}) {
+  const entry = {
+    at: new Date().toISOString(),
+    scope,
+    fatal,
+    message: err && err.message ? err.message : String(err),
+    stack: err && err.stack ? String(err.stack).split("\n").slice(0, 6).join("\n") : null,
+  };
+  console.error("[falha:" + scope + "]", entry.message);
+  try {
+    const list = readFailures();
+    list.push(entry);
+    while (list.length > FAILURES_MAX) list.shift();
+    // No caminho fatal o processo está caindo agora: escrita direta, sem o
+    // rito tmp+fsync+bak — o arquivo é telemetria, não dado da liga.
+    if (fatal) fs.writeFileSync(FAILURES_PATH, JSON.stringify(list, null, 2) + "\n", "utf8");
+    else writeStore(FAILURES_PATH, list);
+  } catch (writeErr) {
+    console.error("Falha ao registrar a própria falha:", writeErr.message);
+  }
+}
+// Flush de sessões, log de acessos, poda de rate limit: trabalho de fundo
+// falhar não pode custar o site inteiro — vira registro e a vida segue.
+function safeJob(name, fn) {
+  return (...args) => {
+    try {
+      const out = fn(...args);
+      if (out && typeof out.catch === "function") out.catch((err) => recordFailure("job:" + name, err));
+      return out;
+    } catch (err) {
+      recordFailure("job:" + name, err);
+    }
+  };
+}
+process.on("unhandledRejection", (err) => {
+  // Rota async ou geocodificador que rejeitou sem catch: o estado do processo
+  // continua íntegro e as escritas do volume são atômicas — registra e segue.
+  recordFailure("unhandledRejection", err);
+});
+process.on("uncaughtException", (err) => {
+  // Exceção síncrona solta pode ter deixado estado inconsistente no meio de
+  // um request: registra, salva o que está em memória e deixa o Railway subir
+  // um processo limpo.
+  recordFailure("uncaughtException", err, { fatal: true });
+  try { sessionStore.flush(); } catch {}
+  try { flushAccessLog(); } catch {}
+  process.exit(1);
+});
+// Gancho do e2e: reproduz o incidente (job agendado que explode logo após o
+// boot, mais uma promise rejeitada) e prova que o motor segura o processo.
+if (process.env.RESILIENCE_TEST === "on") {
+  setImmediate(safeJob("teste-resiliencia", () => {
+    throw new Error("falha proposital do teste de resiliência");
+  }));
+  setImmediate(() => Promise.reject(new Error("rejeição proposital do teste de resiliência")));
+}
+
 function readChecklist() {
   return readStore(CHECKLIST_PATH);
 }
@@ -292,7 +374,7 @@ class VolumeSessionStore extends session.Store {
     } catch (err) {
       console.error("Sessões do volume ilegíveis, começando vazio:", err.message);
     }
-    this.timer = setInterval(() => this.flush(), 1000);
+    this.timer = setInterval(safeJob("flush-sessoes", () => this.flush()), 1000);
     this.timer.unref();
   }
   expiryOf(sess) {
@@ -392,7 +474,7 @@ function flushAccessLog() {
     console.error("Falha ao persistir log de acessos:", err.message);
   }
 }
-setInterval(flushAccessLog, 5000).unref();
+setInterval(safeJob("flush-acessos", flushAccessLog), 5000).unref();
 
 // User-Agent → rótulo curto e legível. Não precisa ser perfeito: a pergunta
 // que o painel responde é "celular ou computador, e de quem".
@@ -533,13 +615,18 @@ function pruneRateLimits() {
   for (const [key, rec] of loginAttempts) {
     if ((rec.seenAt || 0) < cutoff && !isLockedOut(key)) loginAttempts.delete(key);
   }
-  for (const map of [registerAttempts, presenceAttempts, lessonSignupAttempts]) {
+  for (const map of [registerAttempts, publicFormAttempts]) {
     for (const [key, rec] of map) {
       if (rec.resetAt < Date.now()) map.delete(key);
     }
   }
 }
-setInterval(pruneRateLimits, RATE_LIMIT_TTL).unref();
+setInterval(safeJob("poda-rate-limit", pruneRateLimits), RATE_LIMIT_TTL).unref();
+// Uma passada SEM rede de proteção logo após o boot, de propósito: se a poda
+// referenciar algo que não existe mais, o processo cai no deploy — e com o
+// healthcheck do railway.json a versão antiga continua no ar — em vez de
+// estourar em produção uma hora depois, que foi o incidente de 02/08/2026.
+setImmediate(pruneRateLimits);
 
 function requireAuthPage(req, res, next) {
   if (req.session.user) return next();
@@ -743,6 +830,13 @@ app.post("/api/ping", requireSessionApi, (req, res) => {
     }
   }
   res.json({ ok: true });
+});
+
+// Painel de falhas — só o superadmin. É o outro lado do motor de resiliência:
+// tudo que o safeJob e os handlers globais seguraram aparece aqui, mais
+// recente primeiro, em vez de morrer num log de container que ninguém abre.
+app.get("/api/admin/failures", requireSuperAdminApi, (req, res) => {
+  res.json({ failures: readFailures().slice().reverse() });
 });
 
 // Painel de acessos — só o super admin (o Marcell) lê. Tudo é derivado do log
@@ -2492,9 +2586,18 @@ app.post("/api/attendance", requireAdminApi, (req, res) => {
   res.json({ companyKey, members: attendance[companyKey] });
 });
 
-// Healthcheck (Railway e monitoramento): responde sem tocar sessão nem stores.
+// Healthcheck (Railway e monitoramento): responde sem tocar sessão nem disco
+// (as falhas vêm do cache em memória). O contador dá o sinal de "algo quebrou
+// por dentro" mesmo com o site de pé.
 app.get("/health", (req, res) => {
-  res.json({ ok: true, uptime: Math.floor(process.uptime()) });
+  const failures = readFailures();
+  const last = failures.length ? failures[failures.length - 1] : null;
+  res.json({
+    ok: true,
+    uptime: Math.floor(process.uptime()),
+    failures: failures.length,
+    lastFailureAt: last ? last.at : null,
+  });
 });
 
 app.use(express.static(PUBLIC_DIR, { index: false }));
