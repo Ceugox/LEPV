@@ -347,9 +347,107 @@ class VolumeSessionStore extends session.Store {
   }
 }
 const sessionStore = new VolumeSessionStore();
+
+// ---- Monitoramento de acessos (leitura só do super admin) ----
+//
+// Uma "visita" agrupa a atividade de uma mesma sessão até 30 min de silêncio:
+// quem entrou, quando, de que dispositivo/IP, quantas requisições e em quais
+// abas ficou (o front manda um batimento com a aba ativa). Anônimos não são
+// identificados — viram só um contador diário de page views das páginas
+// públicas. Mesmo padrão das sessões: memória para leitura rápida, flush em
+// lote para o volume.
+const ACCESS_LOG_PATH = path.join(STORAGE_DIR, "access-log.json");
+const VISIT_IDLE_MS = 30 * 60 * 1000;
+const VISIT_RETENTION_DAYS = 90;
+const VISIT_MAX = 2000;
+
+let accessLog = { visits: [], days: {} };
+try {
+  if (fs.existsSync(ACCESS_LOG_PATH)) accessLog = readStore(ACCESS_LOG_PATH);
+} catch (err) {
+  console.error("Log de acessos ilegível, começando vazio:", err.message);
+}
+if (!Array.isArray(accessLog.visits)) accessLog.visits = [];
+if (!accessLog.days || typeof accessLog.days !== "object") accessLog.days = {};
+let accessDirty = false;
+
+function accessDay(date) {
+  const rec = accessLog.days[date] || (accessLog.days[date] = { public: 0, logins: 0 });
+  if (typeof rec.public !== "number") rec.public = 0;
+  if (typeof rec.logins !== "number") rec.logins = 0;
+  return rec;
+}
+
+function flushAccessLog() {
+  if (!accessDirty) return;
+  accessDirty = false;
+  const cutoff = new Date(Date.now() - VISIT_RETENTION_DAYS * 86400000).toISOString();
+  accessLog.visits = accessLog.visits.filter((v) => v.last >= cutoff).slice(-VISIT_MAX);
+  for (const day of Object.keys(accessLog.days)) {
+    if (day < cutoff.slice(0, 10)) delete accessLog.days[day];
+  }
+  try {
+    writeStore(ACCESS_LOG_PATH, accessLog);
+  } catch (err) {
+    console.error("Falha ao persistir log de acessos:", err.message);
+  }
+}
+setInterval(flushAccessLog, 5000).unref();
+
+// User-Agent → rótulo curto e legível. Não precisa ser perfeito: a pergunta
+// que o painel responde é "celular ou computador, e de quem".
+function parseDevice(ua) {
+  ua = String(ua || "");
+  let os = "Outro";
+  if (/windows/i.test(ua)) os = "Windows";
+  else if (/iphone/i.test(ua)) os = "iPhone";
+  else if (/ipad/i.test(ua)) os = "iPad";
+  else if (/android/i.test(ua)) os = "Android";
+  else if (/mac os x|macintosh/i.test(ua)) os = "Mac";
+  else if (/linux/i.test(ua)) os = "Linux";
+  let browser = "outro navegador";
+  if (/edg(a|ios)?\//i.test(ua)) browser = "Edge";
+  else if (/samsungbrowser/i.test(ua)) browser = "Samsung Internet";
+  else if (/opr\/|opera/i.test(ua)) browser = "Opera";
+  else if (/firefox\/|fxios\//i.test(ua)) browser = "Firefox";
+  else if (/chrome\/|crios\//i.test(ua)) browser = "Chrome";
+  else if (/safari\//i.test(ua)) browser = "Safari";
+  return os + " · " + browser;
+}
+
+// Visita ativa por id de sessão. O login regenera a sessão, então cada login
+// começa uma visita nova mesmo dentro da janela de 30 min.
+const activeVisits = new Map();
+
+function trackMemberHit(req, user) {
+  const now = Date.now();
+  let visit = activeVisits.get(req.sessionID);
+  if (visit && (now - Date.parse(visit.last) > VISIT_IDLE_MS || visit.order !== user.order)) visit = null;
+  if (!visit) {
+    visit = {
+      id: "a" + now.toString(36) + crypto.randomBytes(3).toString("hex"),
+      order: user.order,
+      name: user.name,
+      device: parseDevice(req.get("user-agent")),
+      ip: req.ip,
+      start: new Date(now).toISOString(),
+      last: new Date(now).toISOString(),
+      hits: 0,
+      tabs: {},
+    };
+    accessLog.visits.push(visit);
+    activeVisits.set(req.sessionID, visit);
+  }
+  visit.last = new Date(now).toISOString();
+  visit.hits += 1;
+  accessDirty = true;
+  return visit;
+}
+
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, () => {
     sessionStore.flush();
+    flushAccessLog();
     process.exit(0);
   });
 }
@@ -390,6 +488,23 @@ app.use(
     },
   })
 );
+
+// Rastreio de acessos: membro logado alimenta a visita da sessão; anônimo nas
+// páginas públicas vira contador do dia. Estáticos, fotos e o próprio painel
+// de acessos ficam de fora — o painel aberto não pode inflar as métricas.
+app.use((req, res, next) => {
+  const p = req.path;
+  const user = req.session && req.session.user;
+  if (user) {
+    if (p === "/" || p.endsWith(".html") || (p.startsWith("/api/") && p !== "/api/admin/access-log")) {
+      trackMemberHit(req, user);
+    }
+  } else if (p === "/" || p === "/login.html" || p === "/inscricao.html" || p === "/presenca.html") {
+    accessDay(todayBR()).public += 1;
+    accessDirty = true;
+  }
+  next();
+});
 
 const loginAttempts = new Map();
 function isLockedOut(key) {
@@ -594,6 +709,8 @@ app.post("/api/login", (req, res) => {
   return req.session.regenerate((err) => {
     if (err) return res.status(500).json({ error: "session_failed" });
     req.session.user = sessionUser(member, cred);
+    accessDay(todayBR()).logins += 1;
+    accessDirty = true;
     res.json({ ok: true, ...req.session.user });
   });
 });
@@ -611,6 +728,61 @@ app.get("/api/me", requireSessionApi, (req, res) => {
   }
   req.session.user = sessionUser(member, findCredential(member.order));
   res.json({ authenticated: true, ...req.session.user });
+});
+
+// Batimento do front: a cada minuto com a página visível (e a cada troca de
+// aba) chega um ping com a aba ativa. É o que transforma "requisições" em
+// "quanto tempo ficou e onde" — sem ele, uma aba parada não conta permanência.
+app.post("/api/ping", requireSessionApi, (req, res) => {
+  const visit = activeVisits.get(req.sessionID);
+  if (visit) {
+    const tab = String(req.body.tab || "").slice(0, 30);
+    if (tab) {
+      visit.tabs[tab] = (visit.tabs[tab] || 0) + 1;
+      accessDirty = true;
+    }
+  }
+  res.json({ ok: true });
+});
+
+// Painel de acessos — só o super admin (o Marcell) lê. Tudo é derivado do log
+// de visitas: quem está no site agora, o histórico recente e o resumo por
+// membro (quantas visitas, tempo somado, dispositivos usados).
+app.get("/api/admin/access-log", requireSuperAdminApi, (req, res) => {
+  const now = Date.now();
+  const ONLINE_MS = 5 * 60 * 1000;
+  const minutesOf = (v) => Math.max(1, Math.round((Date.parse(v.last) - Date.parse(v.start)) / 60000));
+  const view = (v) => ({
+    order: v.order,
+    name: v.name,
+    device: v.device,
+    ip: v.ip,
+    start: v.start,
+    last: v.last,
+    hits: v.hits,
+    tabs: v.tabs,
+    minutes: minutesOf(v),
+  });
+  const visits = accessLog.visits.slice().sort((a, b) => (a.last < b.last ? 1 : a.last > b.last ? -1 : 0));
+
+  const byMember = new Map();
+  for (const v of visits) {
+    // Ordenado do mais recente para o mais antigo: a primeira ocorrência já
+    // traz o nome atual e o último acesso do membro.
+    const m = byMember.get(v.order) ||
+      { order: v.order, name: v.name, visits: 0, minutes: 0, lastSeen: v.last, devices: [] };
+    m.visits += 1;
+    m.minutes += minutesOf(v);
+    if (v.device && m.devices.indexOf(v.device) === -1) m.devices.push(v.device);
+    byMember.set(v.order, m);
+  }
+
+  res.json({
+    online: visits.filter((v) => now - Date.parse(v.last) <= ONLINE_MS).map(view),
+    visits: visits.slice(0, 100).map(view),
+    members: Array.from(byMember.values()),
+    days: accessLog.days,
+  });
 });
 
 // Troca de senha do próprio usuário. Membros importados entram com um código
@@ -1891,6 +2063,75 @@ app.delete("/api/events/:id/signups/:signupId", requireDirectorApi, (req, res) =
   promoteFromWaitlist(ev);
   writeEvents(data);
   res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+// ---- Base consolidada de visitantes (aba Membros, diretoria) ----
+//
+// Uma pessoa de fora aparece em dois lugares que não conversavam: nas
+// inscrições externas dos eventos (formulário público) e em data.visitors
+// (presença pelo QR). Aqui as duas fontes viram uma ficha só, agrupada por
+// e-mail (ou nome normalizado, quando o formulário de presença não pediu
+// e-mail) — é a visão de "quem orbita a liga" para convidar a virar membro.
+app.get("/api/visitors", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const people = new Map();
+  const keyOf = (email, name) => (email ? "e:" + email : "n:" + name.trim().toLowerCase());
+  const ensure = (email, name) => {
+    const k = keyOf(email, name);
+    if (!people.has(k)) {
+      people.set(k, {
+        key: k, name, email: email || "", phone: "",
+        turma: "", especialidade: "", idade: null,
+        signups: [], visits: 0, visitorId: null, lastActivity: "",
+      });
+    }
+    return people.get(k);
+  };
+  for (const ev of data.events) {
+    for (const s of ev.signups.list) {
+      if (s.type !== "external") continue;
+      const p = ensure(s.email || "", s.name);
+      if (!p.phone && s.phone) p.phone = s.phone;
+      if (!p.turma && s.turma) p.turma = s.turma;
+      if (!p.especialidade && s.especialidade) p.especialidade = s.especialidade;
+      if (p.idade === null && s.idade) p.idade = s.idade;
+      if ((s.at || "") > p.lastActivity) p.lastActivity = s.at || "";
+      p.signups.push({
+        eventId: ev.id,
+        signupId: s.id,
+        title: ev.title,
+        date: ev.date,
+        status: s.status,
+        attended: s.attended === true,
+      });
+    }
+  }
+  for (const v of data.visitors) {
+    const p = ensure(v.email || "", v.name);
+    p.visitorId = v.id;
+    if (!p.phone && v.phone) p.phone = v.phone;
+    p.visits = visitorVisits(data, v.id);
+    if ((v.createdAt || "") > p.lastActivity) p.lastActivity = v.createdAt || "";
+  }
+  const list = Array.from(people.values())
+    .map((p) => ({ ...p, inviteReady: p.visits >= VISITOR_INVITE_THRESHOLD }))
+    .sort((a, b) => (a.lastActivity < b.lastActivity ? 1 : a.lastActivity > b.lastActivity ? -1 : 0));
+  res.json({ people: list, inviteThreshold: VISITOR_INVITE_THRESHOLD });
+});
+
+// Apagar a ficha de um visitante (pedido da pessoa, teste, duplicata): some o
+// cadastro e as presenças dele em todos os eventos. Inscrições em eventos são
+// removidas uma a uma pela rota própria — são registro do evento, não da pessoa.
+app.delete("/api/visitors/:id", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const before = data.visitors.length;
+  data.visitors = data.visitors.filter((v) => v.id !== req.params.id);
+  if (data.visitors.length === before) return res.status(404).json({ error: "not_found" });
+  for (const ev of data.events) {
+    ev.visitorAttendance = ev.visitorAttendance.filter((x) => x !== req.params.id);
+  }
+  writeEvents(data);
+  res.json({ ok: true });
 });
 
 // Presença de visitante marcada por engano (nome errado, teste do QR).

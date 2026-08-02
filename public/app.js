@@ -92,7 +92,10 @@
   wireTablist(document.getElementById("tabs"));
 
   function activateTab(name) {
-    tabButtons.forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
+    currentTab = name;
+    // Consulta viva (não a NodeList do load): a aba Acessos do super admin é
+    // injetada depois e precisa entrar na dança de ativação como as demais.
+    document.querySelectorAll("nav.tabs button[data-tab]").forEach(function (b) { b.classList.toggle("active", b.dataset.tab === name); });
     syncTabState(document.getElementById("tabs"));
     panels.forEach(function (p) {
       var isActive = p.id === "panel-" + name;
@@ -107,9 +110,44 @@
     // material publicado) — recarrega a aba a cada ativação. Os JSONs são
     // pequenos e os loaders preservam o dia/empresa selecionados.
     loaders[name] && loaders[name]();
+    sendPing();
   }
   tabButtons.forEach(function (b) {
     b.addEventListener("click", function () { activateTab(b.dataset.tab); });
+  });
+
+  // Batimento de permanência: um ping por minuto com a página visível (e um a
+  // cada troca de aba) conta ao servidor quanto tempo cada um fica e onde —
+  // sem isso, uma aba aberta parada não vira tempo no painel de acessos.
+  // fetch cru de propósito: um 401 aqui não deve redirecionar ninguém no
+  // meio do uso; a próxima ação real do usuário cuida disso.
+  var currentTab = "inicio";
+  function sendPing() {
+    if (document.visibilityState !== "visible") return;
+    fetch("/api/ping", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tab: currentTab }),
+    }).catch(function () {});
+  }
+  setInterval(sendPing, 60000);
+
+  // A aba Acessos só existe para o super admin — nem chega ao DOM dos demais
+  // (e o servidor exige o papel de novo na rota, o botão é só a porta).
+  meReady.then(function (me) {
+    if (!me.superadmin || document.getElementById("tab-acessos")) return;
+    var btn = document.createElement("button");
+    btn.dataset.tab = "acessos";
+    btn.dataset.group = "liga";
+    btn.id = "tab-acessos";
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-controls", "panel-acessos");
+    btn.setAttribute("aria-selected", "false");
+    btn.setAttribute("tabindex", "-1");
+    btn.textContent = "Acessos";
+    var membros = document.getElementById("tab-membros");
+    membros.parentNode.insertBefore(btn, membros.nextSibling);
+    btn.addEventListener("click", function () { activateTab("acessos"); });
   });
 
   // A nav tem dois grupos: a liga (padrão, identidade preto+vinho da logo) e
@@ -244,7 +282,7 @@
           ev.seatsLeft === 0
             ? "As vagas acabaram — dá para entrar na fila de espera."
             : ev.seatsLeft
-              ? "Inscrições abertas — restam " + ev.seatsLeft + " vagas."
+              ? "Inscrições abertas — " + ev.seatsLeft + " de " + ev.capacity + " vagas disponíveis."
               : "Inscrições abertas — garanta a sua."
         );
       } else if (ev.attendanceState === "aberta") {
@@ -556,6 +594,67 @@
     });
   }
 
+  // Base de visitantes na aba Membros — diretoria enxerga, num lugar só, quem
+  // se inscreveu pelo formulário público e quem registrou presença pelo QR.
+  function renderVisitorsPanel(me) {
+    var panel = document.getElementById("visitors-panel");
+    if (!panel) return;
+    if (!me.director && !me.superadmin) { panel.innerHTML = ""; return; }
+    api("/api/visitors").then(function (data) {
+      if (!data.people.length) { panel.innerHTML = ""; return; }
+      var rows = data.people.map(function (p) {
+        var contato = [p.email, p.phone].filter(Boolean).join(" · ");
+        var perfil = [p.turma ? "Turma " + p.turma : "", p.especialidade, p.idade ? p.idade + " anos" : ""]
+          .filter(Boolean).join(" · ");
+        var inscricoes = p.signups.length
+          ? p.signups.map(function (s) {
+              var tag = s.status === "waitlist" ? " (fila)" : s.attended ? " ✓ compareceu" : "";
+              return '<div class="meta">' + esc(s.title) + " · " + s.date.split("-").reverse().join("/") + esc(tag) +
+                ' <button type="button" class="del-btn" data-delsignup="' + esc(s.eventId) + ":" + esc(s.signupId) + '" title="Remover inscrição">×</button></div>';
+            }).join("")
+          : '<span class="meta">—</span>';
+        var badge = p.inviteReady ? ' <span class="invite-flag">convidar para a liga</span>' : "";
+        var apagar = p.visitorId
+          ? '<button type="button" class="del-btn" data-delvisitor="' + esc(p.visitorId) + '" title="Apagar ficha do visitante">×</button>'
+          : "";
+        return (
+          "<tr><td><strong>" + esc(p.name) + "</strong>" + badge +
+            (perfil ? '<div class="meta">' + esc(perfil) + "</div>" : "") + "</td>" +
+          "<td>" + (contato ? esc(contato) : '<span class="meta">—</span>') + "</td>" +
+          "<td>" + inscricoes + "</td>" +
+          '<td class="num">' + (p.visits || 0) + "</td>" +
+          "<td>" + apagar + "</td></tr>"
+        );
+      }).join("");
+      panel.innerHTML =
+        '<div class="card">' +
+          '<p class="section-label">Visitantes · formulários e presenças (diretoria) · ' + data.people.length + "</p>" +
+          '<p class="questions-hint">Quem se inscreveu em eventos pelo formulário público ou registrou presença pelo QR sem ser membro. Com ' + data.inviteThreshold + '+ presenças, vale o convite para entrar na liga.</p>' +
+          '<div class="table-scroll"><table class="access-table"><thead><tr>' +
+            "<th>Nome</th><th>Contato</th><th>Inscrições em eventos</th><th>Presenças</th><th></th>" +
+          "</tr></thead><tbody>" + rows + "</tbody></table></div>" +
+        "</div>";
+
+      panel.querySelectorAll("[data-delsignup]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (!window.confirm("Remover esta inscrição do evento?")) return;
+          var parts = btn.dataset.delsignup.split(":");
+          api("/api/events/" + parts[0] + "/signups/" + parts[1], { method: "DELETE" })
+            .then(function () { renderVisitorsPanel(me); })
+            .catch(function () { renderVisitorsPanel(me); });
+        });
+      });
+      panel.querySelectorAll("[data-delvisitor]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (!window.confirm("Apagar a ficha deste visitante? As presenças dele somem de todos os eventos.")) return;
+          api("/api/visitors/" + btn.dataset.delvisitor, { method: "DELETE" })
+            .then(function () { renderVisitorsPanel(me); })
+            .catch(function () { renderVisitorsPanel(me); });
+        });
+      });
+    }).catch(function () { panel.innerHTML = ""; });
+  }
+
   // Entrada do acervo da imersão — só quem esteve lá vê o card.
   function renderImmersionEntry(me) {
     var box = document.getElementById("immersion-entry");
@@ -694,6 +793,7 @@
     Promise.all([meReady, api("/api/members")]).then(function (results) {
       var me = results[0], members = results[1];
       renderSignupPanel(me);
+      renderVisitorsPanel(me);
       renderImmersionEntry(me);
       var grid = document.getElementById("member-grid");
       grid.innerHTML = members
@@ -831,10 +931,13 @@
     if (ev.signupsOpen) partes.push('<span class="signup-badge open">inscrições abertas</span>');
     else partes.push('<span class="signup-badge done">inscrições encerradas</span>');
 
+    // Mesmo texto da home pública ("X de Y vagas disponíveis"): o mesmo número
+    // dito de dois jeitos ("1/30 vagas" vs "restam 29") parecia dessincronizado.
+    var inscritos = ev.signupCount + " inscrito" + (ev.signupCount === 1 ? "" : "s");
     var vagas = ev.capacity
-      ? '<span class="signup-count num">' + ev.signupCount + "/" + ev.capacity + " vagas" +
+      ? '<span class="signup-count num">' + inscritos + " · " + ev.seatsLeft + " de " + ev.capacity + " vagas disponíveis" +
         (ev.waitlistCount ? " · " + ev.waitlistCount + " na espera" : "") + "</span>"
-      : '<span class="signup-count num">' + ev.signupCount + " inscrito" + (ev.signupCount === 1 ? "" : "s") + "</span>";
+      : '<span class="signup-count num">' + inscritos + "</span>";
     partes.push(vagas);
 
     if (ev.myStatus === "confirmed") {
@@ -2906,10 +3009,131 @@
     navigator.serviceWorker.register("/sw.js").catch(function () {});
   }
 
+  // ---- Acessos (monitoramento — só o super admin) ----
+
+  var TAB_LABELS = {
+    inicio: "Início", eventos: "Eventos", membros: "Membros", acessos: "Acessos",
+    legado: "Legado", empresas: "Empresas", selos: "Selos", agenda: "Roteiro",
+    resumo: "A missão", arquivo: "Arquivo",
+  };
+
+  function fmtDur(min) {
+    if (!min || min < 1) return "1 min";
+    if (min < 60) return min + " min";
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + "h" + (m ? ("0" + m).slice(-2) : "");
+  }
+  function fmtWhen(iso) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+  // Cada entrada em tabs é ~1 minuto de página visível naquela aba.
+  function tabsSummary(tabs) {
+    return Object.keys(tabs || {})
+      .map(function (k) { return { k: k, n: tabs[k] }; })
+      .sort(function (a, b) { return b.n - a.n; })
+      .map(function (e) { return (TAB_LABELS[e.k] || e.k) + " (" + fmtDur(e.n) + ")"; })
+      .join(", ");
+  }
+
+  function loadAccess() {
+    api("/api/admin/access-log").then(function (data) {
+      var el = document.getElementById("access-content");
+      if (!el) return;
+      var today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      var dToday = data.days[today] || { public: 0, logins: 0 };
+      var weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      var activeWeek = data.members.filter(function (m) { return m.lastSeen >= weekAgo; }).length;
+
+      var onlineHtml = data.online.length
+        ? '<div class="table-scroll"><table class="access-table"><thead><tr>' +
+            "<th>Membro</th><th>Desde</th><th>Tempo</th><th>Dispositivo</th><th>Abas</th>" +
+          "</tr></thead><tbody>" +
+          data.online.map(function (v) {
+            return "<tr><td><span class=\"online-dot\"></span>" + esc(v.name) + "</td>" +
+              "<td>" + fmtWhen(v.start) + "</td>" +
+              '<td class="num">' + fmtDur(v.minutes) + "</td>" +
+              "<td>" + esc(v.device) + "</td>" +
+              "<td>" + esc(tabsSummary(v.tabs)) + "</td></tr>";
+          }).join("") +
+          "</tbody></table></div>"
+        : '<p class="empty-state">Ninguém no site neste momento.</p>';
+
+      var membersHtml = data.members.length
+        ? '<div class="table-scroll"><table class="access-table"><thead><tr>' +
+            "<th>Membro</th><th>Último acesso</th><th>Visitas</th><th>Tempo total</th><th>Dispositivos</th>" +
+          "</tr></thead><tbody>" +
+          data.members.map(function (m) {
+            return "<tr><td>" + esc(m.name) + ' <span class="meta">nº ' + m.order + "</span></td>" +
+              "<td>" + fmtWhen(m.lastSeen) + "</td>" +
+              '<td class="num">' + m.visits + "</td>" +
+              '<td class="num">' + fmtDur(m.minutes) + "</td>" +
+              "<td>" + esc(m.devices.join(", ")) + "</td></tr>";
+          }).join("") +
+          "</tbody></table></div>"
+        : '<p class="empty-state">Nenhum acesso registrado ainda.</p>';
+
+      var visitsHtml = data.visits.length
+        ? '<div class="table-scroll"><table class="access-table"><thead><tr>' +
+            "<th>Membro</th><th>Entrou</th><th>Duração</th><th>Dispositivo</th><th>IP</th><th>Abas</th>" +
+          "</tr></thead><tbody>" +
+          data.visits.slice(0, 30).map(function (v) {
+            return "<tr><td>" + esc(v.name) + "</td>" +
+              "<td>" + fmtWhen(v.start) + "</td>" +
+              '<td class="num">' + fmtDur(v.minutes) + "</td>" +
+              "<td>" + esc(v.device) + "</td>" +
+              '<td class="meta">' + esc(v.ip || "") + "</td>" +
+              "<td>" + esc(tabsSummary(v.tabs)) + "</td></tr>";
+          }).join("") +
+          "</tbody></table></div>"
+        : '<p class="empty-state">Nenhuma visita registrada ainda.</p>';
+
+      var dayKeys = Object.keys(data.days).sort().reverse().slice(0, 14);
+      var daysHtml = dayKeys.length
+        ? '<div class="table-scroll"><table class="access-table"><thead><tr>' +
+            "<th>Dia</th><th>Páginas públicas</th><th>Logins</th>" +
+          "</tr></thead><tbody>" +
+          dayKeys.map(function (d) {
+            var rec = data.days[d];
+            return "<tr><td>" + d.split("-").reverse().join("/") + "</td>" +
+              '<td class="num">' + (rec.public || 0) + "</td>" +
+              '<td class="num">' + (rec.logins || 0) + "</td></tr>";
+          }).join("") +
+          "</tbody></table></div>"
+        : '<p class="empty-state">Sem tráfego registrado ainda.</p>';
+
+      el.innerHTML =
+        '<div class="card">' +
+          '<div class="access-refresh">' +
+            '<p class="section-label">Monitoramento de acessos (super admin)</p>' +
+            '<button type="button" class="avatar-edit" id="access-refresh-btn">Atualizar</button>' +
+          "</div>" +
+          '<p class="hint" style="font-size:11.5px; color: var(--graphite-soft); margin: 4px 0 12px;">Visitas de membros logados (uma visita = atividade contínua, até 30 min de pausa). Visitantes anônimos entram só como contagem diária, sem identificação.</p>' +
+          '<div class="access-stats">' +
+            '<div class="stat-cell"><div class="sv">' + data.online.length + '</div><div class="sk">No site agora</div></div>' +
+            '<div class="stat-cell"><div class="sv">' + (dToday.logins || 0) + '</div><div class="sk">Logins hoje</div></div>' +
+            '<div class="stat-cell"><div class="sv">' + (dToday.public || 0) + '</div><div class="sk">Páginas públicas hoje</div></div>' +
+            '<div class="stat-cell"><div class="sv">' + activeWeek + '</div><div class="sk">Membros ativos · 7 dias</div></div>' +
+          "</div>" +
+        "</div>" +
+        '<div class="card"><p class="section-label">No site agora</p>' + onlineHtml + "</div>" +
+        '<div class="card"><p class="section-label">Resumo por membro</p>' + membersHtml + "</div>" +
+        '<div class="card"><p class="section-label">Últimas visitas</p>' + visitsHtml + "</div>" +
+        '<div class="card"><p class="section-label">Tráfego por dia</p>' + daysHtml + "</div>";
+
+      var refreshBtn = document.getElementById("access-refresh-btn");
+      if (refreshBtn) refreshBtn.addEventListener("click", loadAccess);
+    }).catch(function () {
+      var el = document.getElementById("access-content");
+      if (el) el.innerHTML = '<div class="card"><p class="empty-state">Não foi possível carregar os acessos.</p></div>';
+    });
+  }
+
   var loaders = {
     inicio: loadInicio,
     membros: loadMembers,
     eventos: loadEvents,
+    acessos: loadAccess,
     legado: loadLegacy,
     resumo: loadMission,
     agenda: loadAgenda,

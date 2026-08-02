@@ -1072,6 +1072,27 @@
   .room-group li { font-size: 13.5px; padding: 6px 0; border-top: 1px solid var(--line); color: var(--graphite); }
   .room-group li:first-child { border-top: none; }
 
+  /* Monitoramento de acessos (super admin) */
+  .access-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 4px; }
+  .access-stats .stat-cell { border: none; padding: 10px 12px; }
+  .access-stats .sv { font-size: 22px; }
+  .access-refresh { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .access-refresh .hint { font-size: 11.5px; color: var(--graphite-soft); margin: 0; }
+  .table-scroll { overflow-x: auto; }
+  .access-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .access-table th {
+    text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--graphite-soft); padding: 6px 8px;
+    border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  .access-table td { padding: 8px; border-top: 1px solid var(--line); color: var(--graphite); vertical-align: top; }
+  .access-table td .meta { font-size: 11.5px; color: var(--graphite-soft); }
+  .access-table .num { text-align: right; white-space: nowrap; }
+  .online-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--good); margin-right: 7px; vertical-align: middle;
+  }
+
 </style>
 </head>
 <body>
@@ -1181,6 +1202,16 @@
         <div class="member-grid" id="member-grid">
           <p class="empty-state">Carregando...</p>
         </div>
+      </div>
+      <!-- Visitantes (formulário público + presença por QR) — só a diretoria vê. -->
+      <div id="visitors-panel"></div>
+    </section>
+
+    <!-- Acessos: monitoramento de quem usa o site. A aba só é injetada no nav
+         para o super admin; o conteúdo vem de uma rota que também exige. -->
+    <section class="panel" id="panel-acessos" role="tabpanel" aria-labelledby="tab-acessos" tabindex="0">
+      <div id="access-content">
+        <div class="card"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 

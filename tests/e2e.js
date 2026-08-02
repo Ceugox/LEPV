@@ -848,6 +848,110 @@ test("trajeto acima de 30 min pede confirmação antes de gravar", async () => {
   await startServer();
 });
 
+// ---- Base de visitantes (aba Membros) ----
+
+test("base de visitantes consolida formulário e presença numa ficha só (diretoria)", async () => {
+  eq((await client().get("/api/visitors")).status, 401, "anônimo não vê a base");
+  const m = client();
+  await m.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await m.get("/api/visitors")).status, 403, "membro comum não vê a base");
+
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  // Evento hoje: a presença pelo QR abre sozinha no dia.
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const criado = await admin.post("/api/events", { title: "Evento da base de visitantes", date: hoje, ...EV_LOCAL });
+  const ev = criado.data.event;
+
+  const anon = client();
+  const insc = await anon.post("/api/event-signup/" + ev.signupToken, {
+    name: "Visita Consolidada", email: "visita.consolidada@x.com", phone: "21988887777", ...FORM_IME,
+  });
+  eq(insc.status, 200, "inscrição pelo formulário público");
+  const pres = await anon.post("/api/presence/" + ev.qrToken, {
+    name: "Visita Consolidada", email: "visita.consolidada@x.com", phone: "21988887777",
+  });
+  eq(pres.status, 200, "presença pelo QR");
+
+  const r = await admin.get("/api/visitors");
+  eq(r.status, 200, "diretoria lê a base");
+  const p = r.data.people.find((x) => x.email === "visita.consolidada@x.com");
+  assert(p, "o visitante deveria estar na base");
+  eq(p.signups.length, 1, "inscrição e presença viram UMA ficha, não duas");
+  assert(p.signups[0].attended === true, "a inscrição ficou marcada como compareceu");
+  eq(p.visits, 1, "presença contada");
+  assert(p.turma === FORM_IME.turma, "dados do formulário na ficha");
+  assert(typeof p.visitorId === "string", "ficha aponta o cadastro de visitante");
+
+  // Apagar a ficha remove cadastro e presenças; a inscrição é registro do
+  // evento e fica (some pela rota própria de inscrições).
+  eq((await admin.del("/api/visitors/" + p.visitorId)).status, 200, "apagar ficha");
+  eq((await admin.del("/api/visitors/" + p.visitorId)).status, 404, "apagar de novo é 404");
+  const depois = (await admin.get("/api/visitors")).data.people.find((x) => x.email === "visita.consolidada@x.com");
+  assert(depois && !depois.visitorId && depois.visits === 0, "presenças zeradas, inscrição preservada");
+
+  await admin.del("/api/events/" + ev.id);
+});
+
+// ---- Monitoramento de acessos ----
+
+test("painel de acessos é só do superadmin", async () => {
+  eq((await client().get("/api/admin/access-log")).status, 401, "anônimo não lê o log");
+  const m = client();
+  await m.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await m.get("/api/admin/access-log")).status, 403, "membro comum não lê o log");
+});
+
+test("acessos registram visita, ping de aba e contadores do dia", async () => {
+  // Página pública sem sessão entra no contador anônimo do dia.
+  await client().get("/");
+
+  const m = client();
+  await m.login(MEMBER_ORDER, MEMBER_PASS);
+  await m.get("/api/members");
+  eq((await m.post("/api/ping", { tab: "eventos" })).status, 200, "ping do membro");
+
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const r = await admin.get("/api/admin/access-log");
+  eq(r.status, 200, "superadmin lê o log");
+
+  const visit = r.data.visits.find((v) => v.order === MEMBER_ORDER && v.tabs.eventos);
+  assert(visit, "a visita do membro deveria estar no log com a aba do ping");
+  assert(visit.hits >= 2, "a visita deveria acumular as requisições");
+  assert(typeof visit.device === "string" && visit.device.length > 0, "dispositivo registrado");
+  assert(visit.start <= visit.last, "início e última atividade coerentes");
+
+  const summary = r.data.members.find((x) => x.order === MEMBER_ORDER);
+  assert(summary && summary.visits >= 1, "resumo por membro inclui o membro");
+  assert(summary.minutes >= 1, "tempo somado nunca é zero");
+
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const day = r.data.days[today];
+  assert(day && day.logins >= 2, "logins do dia contados (membro + superadmin)");
+  assert(day.public >= 1, "página pública anônima contada no dia");
+
+  // O superadmin aparece online — acabou de fazer requisições.
+  assert(r.data.online.some((v) => v.order === 1), "superadmin ativo deveria constar em online");
+});
+
+test("log de acessos sobrevive a restart (flush no volume)", async () => {
+  const m = client();
+  await m.login(MEMBER_ORDER, MEMBER_PASS);
+  await m.get("/api/members");
+  // Espera o flush periódico (5s) antes da queda seca.
+  await new Promise((r) => setTimeout(r, 5600));
+  server.kill("SIGKILL");
+  await new Promise((r) => setTimeout(r, 500));
+  await startServer();
+
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const r = await admin.get("/api/admin/access-log");
+  eq(r.status, 200, "log responde depois do restart");
+  assert(r.data.members.some((x) => x.order === MEMBER_ORDER), "as visitas persistidas voltaram do volume");
+});
+
 // ---- Gate da imersão ----
 
 test("acervo da imersão segue restrito a quem participou", async () => {
