@@ -692,6 +692,13 @@ test("CRUD completo: editar o evento, remover inscrição, presença, código e 
   eq((await admin.patch("/api/events/" + ev.id, { location: "  " })).status, 400, "local vazio recusado");
   eq((await admin.patch("/api/events/" + ev.id, { time: "19h" })).status, 400, "horário fora do formato recusado");
 
+  // Vagas fazem parte da edição do evento, sem passar pelo toggle de inscrições
+  const comVagas = await admin.patch("/api/events/" + ev.id, { capacity: 2 });
+  eq(comVagas.status, 200, "edição de vagas");
+  eq(comVagas.data.event.capacity, 2, "vagas atualizadas pela edição do evento");
+  eq((await admin.patch("/api/events/" + ev.id, { capacity: null })).data.event.capacity, null, "vagas voltam a ilimitado");
+  eq((await admin.patch("/api/events/" + ev.id, { capacity: 0 })).data.event.capacity, null, "zero vira ilimitado");
+
   const member = client();
   await member.login(MEMBER_ORDER, MEMBER_PASS);
   eq((await member.patch("/api/events/" + ev.id, { title: "Pirata" })).status, 403, "membro não edita evento");
@@ -710,6 +717,13 @@ test("CRUD completo: editar o evento, remover inscrição, presença, código e 
   const segundo = removida.data.event.signups.find((s) => s.name === "Segundo Espera");
   eq(segundo.status, "confirmed", "quem estava na fila assume a vaga liberada");
   eq((await member.del("/api/events/" + ev.id + "/signups/" + segundo.id)).status, 403, "membro não remove inscrição alheia");
+
+  // Aumentar as vagas pela edição promove quem estava na fila
+  await visitante.post("/api/event-signup/" + token, { name: "Terceiro Fila", email: "tres@x.com", phone: "21977778888", ...FORM_IME });
+  atual = (await admin.get("/api/events")).data.events.find((e) => e.id === ev.id);
+  eq(atual.signups.find((s) => s.name === "Terceiro Fila").status, "waitlist", "com 1 vaga ocupada, o terceiro espera");
+  const maisVagas = await admin.patch("/api/events/" + ev.id, { capacity: 3 });
+  eq(maisVagas.data.event.signups.find((s) => s.name === "Terceiro Fila").status, "confirmed", "aumentar vagas pela edição promove a fila");
 
   // Delete de código, com o último protegido
   eq((await admin.del("/api/events/" + ev.id + "/codes/" + atual.codes[0])).status, 400, "não dá para remover o único código");

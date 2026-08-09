@@ -1038,6 +1038,35 @@
   .code-chip .chip-x:hover { opacity: 1; }
   .visitor-row .del-btn { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 15px; padding: 0 0 0 8px; }
   .visitor-row .del-btn:hover { color: var(--red-2); }
+
+  /* Gestão de eventos: os selects seguem o mesmo desenho dos inputs (antes
+     ficavam com a cara padrão do navegador) e o × do cabeçalho vira alvo de
+     toque decente. */
+  .meeting-new select {
+    font: inherit; font-size: 14px; padding: 11px 13px; border-radius: var(--radius-sm);
+    background: var(--white); border: 1px solid var(--line); color: var(--graphite); min-width: 0;
+  }
+  .meeting-new select:focus { outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(23, 23, 27, 0.10); }
+  .event-head .del-btn { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 18px; padding: 4px 8px; }
+  .event-head .del-btn:hover { color: var(--red-2); }
+  .attendance-toggle-grid input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--navy); flex: none; }
+  .visitor-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .visitor-row > span:last-child { flex: none; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+
+  @media (max-width: 480px) {
+    /* No celular o painel vira coluna única; fonte de 16px evita o zoom
+       automático do iOS ao focar um campo. */
+    .checkin-row input, .meeting-new input, .meeting-new select,
+    .material-admin input[type="text"], .material-admin input[type="url"] { font-size: 16px; }
+    .meeting-new input, .meeting-new select,
+    .event-manage .cap-input, .event-manage .edit-title, .event-manage .edit-date,
+    .meeting-new .btn-primary, .meeting-new .btn-reject { flex: 1 1 100%; }
+    .meeting-actions .btn-primary, .meeting-actions .btn-reject { flex: 1 1 auto; text-align: center; }
+    .material-admin .row2 { flex-direction: column; }
+    .visitor-row { flex-wrap: wrap; }
+    .attendance-toggle-grid { grid-template-columns: 1fr; }
+    .attendance-toggle-grid label { padding: 8px 2px; }
+  }
   .mural-admin-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--graphite); }
 
   /* Modal de formulário (troca de senha) — reusa a moldura do pin-modal */

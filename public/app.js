@@ -1336,6 +1336,7 @@
       btn.disabled = true;
       btn.textContent = "Salvando...";
       function salvar(confirmTravel) {
+        var cap = box.querySelector(".cap-input").value;
         api("/api/events/" + id, {
           method: "PATCH",
           body: JSON.stringify({
@@ -1345,6 +1346,7 @@
             time: box.querySelector(".edit-time").value,
             location: box.querySelector(".edit-local").value,
             text: box.querySelector(".edit-text").value,
+            capacity: cap === "" ? null : parseInt(cap, 10),
             confirmTravel: confirmTravel === true,
           }),
         })
@@ -1406,6 +1408,16 @@
         api("/api/events/" + id + "/attendance-open", { method: "POST", body: JSON.stringify({ open: true }) }).then(loadEvents);
       });
     }
+
+    // Editar só o número de vagas não pode exigir mexer nas inscrições:
+    // ao sair do campo, o valor novo já vale.
+    box.querySelector(".cap-input").addEventListener("change", function (e) {
+      var cap = e.currentTarget.value;
+      api("/api/events/" + id, {
+        method: "PATCH",
+        body: JSON.stringify({ capacity: cap === "" ? null : parseInt(cap, 10) }),
+      }).then(loadEvents);
+    });
 
     box.querySelector("[data-signuptoggle]").addEventListener("click", function (e) {
       var abrindo = e.currentTarget.textContent.indexOf("Abrir") === 0;

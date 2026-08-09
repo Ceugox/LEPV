@@ -1947,6 +1947,13 @@ app.patch("/api/events/:id", requireDirectorApi, async (req, res) => {
   if (req.body.time !== undefined) ev.time = String(req.body.time);
   if (req.body.date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date))) ev.date = String(req.body.date);
   if (req.body.type !== undefined && EVENT_TYPES.indexOf(String(req.body.type)) !== -1) ev.type = String(req.body.type);
+  if (req.body.capacity !== undefined) {
+    // Mesma regra do toggle de inscrições: número positivo limita, o resto
+    // volta a ilimitado; aumentar o limite promove quem estava na fila.
+    const cap = parseInt(req.body.capacity, 10);
+    ev.signups.capacity = Number.isInteger(cap) && cap > 0 ? cap : null;
+    promoteFromWaitlist(ev);
+  }
   writeEvents(data);
   res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
 });
