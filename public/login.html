@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Entrar — LEPV</title>
+<meta name="robots" content="noindex">
 <link rel="icon" href="/logo-liga.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#17171B">
@@ -424,6 +425,13 @@
   });
   document.getElementById("register-back").addEventListener("click", backToIntro);
   document.getElementById("register-done-back").addEventListener("click", backToIntro);
+
+  // "Quero ser membro" na home cai direto no formulário de acesso,
+  // sem passar pela tela de login de quem já é da liga.
+  if (window.location.hash === "#solicitar") {
+    introStage.classList.add("hidden");
+    registerStage.classList.remove("hidden");
+  }
 
   registerForm.addEventListener("submit", function (e) {
     e.preventDefault();

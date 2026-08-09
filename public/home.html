@@ -5,6 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LEPV — Liga de Empreendedorismo da Praia Vermelha</title>
 <meta name="description" content="A LEPV aproxima estudantes de engenharia do mundo real dos negócios: reuniões, visitas e imersões dentro das empresas. Conheça a liga e as empresas que já nos receberam.">
+<link rel="canonical" href="https://lepv.org/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="LEPV">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="LEPV — Liga de Empreendedorismo da Praia Vermelha">
+<meta property="og:description" content="Reuniões práticas, visitas a empresas e imersões: engenharia que empreende, da Praia Vermelha para dentro das empresas.">
+<meta property="og:url" content="https://lepv.org/">
+<meta property="og:image" content="https://lepv.org/gallery/co-nomad.jpg">
+<meta property="og:image:alt" content="Membros da LEPV em visita a empresa">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Liga de Empreendedorismo da Praia Vermelha",
+  "alternateName": "LEPV",
+  "url": "https://lepv.org/",
+  "logo": "https://lepv.org/logo-liga.png",
+  "description": "Liga estudantil de empreendedorismo fundada por estudantes de engenharia do IME, na Praia Vermelha (Rio de Janeiro). Promove reuniões práticas, visitas a empresas e imersões — a primeira levou a liga a 12 empresas em São Paulo.",
+  "address": { "@type": "PostalAddress", "addressLocality": "Rio de Janeiro", "addressRegion": "RJ", "addressCountry": "BR" }
+}
+</script>
 <link rel="icon" href="/logo-liga.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#17171B">
@@ -164,7 +186,7 @@
       <img src="/logo-liga.png" alt="LEPV">
       <span class="b1">LE<span class="accent">P</span>V</span>
       <nav>
-        <a class="ghost" href="/login.html">Sou membro</a>
+        <a class="ghost" href="/login.html#solicitar">Quero ser membro</a>
         <a class="solid" href="/login.html">Entrar</a>
       </nav>
     </header>
@@ -180,7 +202,7 @@
       <p>A LEPV nasceu na Praia Vermelha para aproximar estudantes de engenharia do mundo real dos negócios. Reuniões práticas, visitas a empresas e imersões — a primeira levou a liga a São Paulo para viver 12 empresas por dentro, em 6 dias.</p>
       <div class="cta">
         <a class="btn-primary" href="/login.html">Entrar no portal</a>
-        <a class="alt" href="/login.html">Quero ser membro</a>
+        <a class="alt" href="/login.html#solicitar">Quero ser membro</a>
       </div>
     </section>
 
@@ -245,7 +267,7 @@
     <footer>
       <img src="/logo-liga.png" alt="LEPV">
       <span class="t">LEPV — Liga de Empreendedorismo da Praia Vermelha · Rio de Janeiro</span>
-      <a href="/login.html">Solicitar acesso →</a>
+      <a href="/login.html#solicitar">Solicitar acesso →</a>
     </footer>
   </div>
 
@@ -260,7 +282,9 @@
   var fotosHtml = FOTOS.map(function (f) {
     return '<img class="strip-photo" loading="lazy" src="/gallery/' + f + '.jpg" alt="Atividade da LEPV">';
   }).join("");
-  document.getElementById("fotos-track").innerHTML = fotosHtml + fotosHtml;
+  // A segunda cópia existe só para o loop visual — leitor de tela vê uma.
+  document.getElementById("fotos-track").innerHTML =
+    fotosHtml + fotosHtml.replace(/<img /g, '<img aria-hidden="true" ');
 
   // Marquee escuro de logos — sharpi/segura têm fundo opaco, viram wordmark
   var ROW1 = [
