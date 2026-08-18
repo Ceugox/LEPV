@@ -102,7 +102,8 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft);
 }
 .field input, .field select {
-  font: inherit; font-size: 14.5px; padding: 11px 13px; border-radius: var(--radius-sm);
+  /* 16px é o mínimo que evita o zoom automático do Safari iOS ao focar */
+  font: inherit; font-size: 16px; padding: 11px 13px; border-radius: var(--radius-sm);
   background: var(--white); border: 1px solid #CBD2DC; color: var(--graphite);
   transition: border-color 0.15s, box-shadow 0.15s;
 }

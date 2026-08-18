@@ -56,6 +56,11 @@
   .home-top a.ghost:hover { border-color: var(--navy); color: var(--navy); }
   .home-top a.solid { color: var(--white); background: var(--red); }
   .home-top a.solid:hover { background: var(--red-hover); }
+  /* Em telas estreitas o par de botões estourava a linha do header */
+  @media (max-width: 480px) {
+    .home-top { flex-wrap: wrap; }
+    .home-top a { padding: 8px 10px; font-size: 11px; }
+  }
 
   /* Destaque de abertura: a reunião mais próxima com inscrições abertas.
      Só aparece quando existe evento — sem evento, a home abre no hero. */
@@ -177,7 +182,8 @@
   }
   footer img { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--white); object-fit: cover; }
   footer .t { font-size: 12px; color: var(--graphite-soft); }
-  footer a { color: var(--red); font-weight: 700; text-decoration: none; font-size: 12px; margin-left: auto; }
+  footer .links { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; }
+  footer a { color: var(--red); font-weight: 700; text-decoration: none; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -186,8 +192,8 @@
       <img src="/logo-liga.png" alt="LEPV">
       <span class="b1">LE<span class="accent">P</span>V</span>
       <nav>
-        <a class="ghost" href="/login.html#solicitar">Quero ser membro</a>
-        <a class="solid" href="/login.html">Entrar</a>
+        <a class="solid" href="/login.html#solicitar">Quero ser membro</a>
+        <a class="ghost" href="/login.html">Entrar</a>
       </nav>
     </header>
 
@@ -201,8 +207,8 @@
       <h1>Engenharia que <span class="accent">empreende</span></h1>
       <p>A LEPV nasceu na Praia Vermelha para aproximar estudantes de engenharia do mundo real dos negócios. Reuniões práticas, visitas a empresas e imersões — a primeira levou a liga a São Paulo para viver 12 empresas por dentro, em 6 dias.</p>
       <div class="cta">
-        <a class="btn-primary" href="/login.html">Entrar no portal</a>
-        <a class="alt" href="/login.html#solicitar">Quero ser membro</a>
+        <a class="btn-primary" href="/login.html#solicitar">Quero ser membro</a>
+        <a class="alt" href="/login.html">Entrar no portal</a>
       </div>
     </section>
 
@@ -267,7 +273,10 @@
     <footer>
       <img src="/logo-liga.png" alt="LEPV">
       <span class="t">LEPV — Liga de Empreendedorismo da Praia Vermelha · Rio de Janeiro</span>
-      <a href="/login.html#solicitar">Solicitar acesso →</a>
+      <span class="links">
+        <a href="https://www.instagram.com/lepv.rj" target="_blank" rel="noopener">Instagram</a>
+        <a href="/login.html#solicitar">Solicitar acesso →</a>
+      </span>
     </footer>
   </div>
 
@@ -346,6 +355,10 @@
       ? '<span class="seats">' + ev.seatsLeft + " de " + ev.capacity + " vagas disponíveis</span>"
       : '<span class="seats">Vagas esgotadas — inscrição vai para a fila de espera</span>';
   }
+  // O rótulo do CTA acompanha o aviso de vagas — botão não pode contradizer o texto.
+  function ctaDe(ev) {
+    return ev.capacity && ev.seatsLeft <= 0 ? "Entrar na fila de espera" : "Inscrever-se";
+  }
   fetch("/api/public-events")
     .then(function (r) { return r.ok ? r.json() : { events: [] }; })
     .then(function (data) {
@@ -365,7 +378,7 @@
           (lugar ? '<div class="meta">' + escHtml(lugar) + "</div>" : "") +
           vagasDe(destaque) +
         "</div>" +
-        '<a class="btn-primary" href="' + escHtml(destaque.signupUrl) + '">Inscrever-se</a>';
+        '<a class="btn-primary" href="' + escHtml(destaque.signupUrl) + '">' + ctaDe(destaque) + "</a>";
       document.getElementById("next-event").classList.add("show");
       if (resto.length) {
         document.getElementById("agenda-grid").innerHTML = resto.map(function (ev) {
@@ -376,7 +389,7 @@
               (lugarDe(ev) ? '<span class="meta">' + escHtml(lugarDe(ev)) + "</span>" : "") +
               (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
               vagasDe(ev) +
-              '<a class="btn-primary" href="' + escHtml(ev.signupUrl) + '">Inscrever-se</a>' +
+              '<a class="btn-primary" href="' + escHtml(ev.signupUrl) + '">' + ctaDe(ev) + "</a>" +
             "</div>"
           );
         }).join("");

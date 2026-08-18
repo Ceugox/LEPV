@@ -553,23 +553,38 @@
   // ---- Membros ----
 
   // Fila de aprovação de novos membros — só o super admin vê e decide.
+  // A aprovação não notifica ninguém sozinha: o link de WhatsApp fecha o ciclo.
+  function waLink(phone, text) {
+    var digits = String(phone || "").replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.length <= 11 && digits.slice(0, 2) !== "55") digits = "55" + digits;
+    return "https://wa.me/" + digits + (text ? "?text=" + encodeURIComponent(text) : "");
+  }
   function renderSignupPanel(me) {
     var panel = document.getElementById("signup-panel");
     if (!panel) return;
     if (!me.superadmin) { panel.innerHTML = ""; return; }
     api("/api/signups").then(function (data) {
       if (!data.pending.length) { panel.innerHTML = ""; return; }
+      var pendingById = {};
+      data.pending.forEach(function (p) { pendingById[p.id] = p; });
       panel.innerHTML =
         '<div class="card signup-panel">' +
           '<p class="section-label">Solicitações de acesso (super admin) · ' + data.pending.length + "</p>" +
           data.pending.map(function (p) {
             var meta = [p.course, p.year].filter(Boolean).join(" · ");
             var when = p.requestedAt ? new Date(p.requestedAt).toLocaleDateString("pt-BR") : "";
+            var zap = waLink(p.phone);
             return (
               '<div class="signup-row" data-id="' + esc(p.id) + '">' +
                 '<div class="signup-info">' +
                   '<div class="name">' + esc(p.name) + "</div>" +
                   (meta ? '<div class="meta">' + esc(meta) + "</div>" : "") +
+                  (p.phone
+                    ? '<div class="meta">' + (zap
+                        ? '<a href="' + esc(zap) + '" target="_blank" rel="noopener">' + esc(p.phone) + " (WhatsApp)</a>"
+                        : esc(p.phone)) + "</div>"
+                    : "") +
                   ((p.interests && p.interests.length) ? '<div class="meta">' + esc(p.interests.join(", ")) + "</div>" : "") +
                   (when ? '<div class="meta">Pedido em ' + when + "</div>" : "") +
                 "</div>" +
@@ -586,8 +601,22 @@
           var row = btn.closest(".signup-row");
           if (btn.dataset.action === "reject" && !confirm("Recusar este pedido de acesso?")) return;
           row.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+          var p = pendingById[row.dataset.id];
           api("/api/signups/" + row.dataset.id + "/" + btn.dataset.action, { method: "POST" })
-            .then(function () { loadMembers(); })
+            .then(function () {
+              if (btn.dataset.action === "approve" && p && p.phone) {
+                var aviso = waLink(p.phone,
+                  "Oi, " + p.name.split(" ")[0] + "! Seu acesso ao portal da LEPV foi aprovado. " +
+                  "Entre em https://lepv.org com a senha que você criou no cadastro.");
+                row.innerHTML =
+                  '<div class="signup-info"><div class="name">' + esc(p.name) + " ✓ aprovado</div>" +
+                  '<div class="meta"><a href="' + esc(aviso) + '" target="_blank" rel="noopener">Avisar no WhatsApp →</a></div></div>' +
+                  '<div class="signup-actions"><button class="btn-reject" data-close="1">Fechar</button></div>';
+                row.querySelector("[data-close]").addEventListener("click", function () { loadMembers(); });
+              } else {
+                loadMembers();
+              }
+            })
             .catch(function () { loadMembers(); });
         });
       });
@@ -1110,7 +1139,7 @@
     return '<div class="event-manage">' + editar + codes + acoes + inscricoes + listaInscritos + grid + visitantes + anexos + "</div>";
   }
 
-  function eventCardHtml(ev, me) {
+  function eventCardHtml(ev, me, hoje) {
     var fotos = ev.photos.length
       ? '<div class="event-photos">' + ev.photos.map(function (p) {
           return '<img src="' + esc(p.url) + '" alt="Foto do evento" loading="lazy">';
@@ -1132,6 +1161,7 @@
       '<div class="card event-card" data-event="' + esc(ev.id) + '">' +
         '<div class="event-head">' +
           '<span class="event-date num">' + fmtDateBR(ev.date) + "</span>" +
+          (hoje && ev.date === hoje ? '<span class="event-today">Hoje</span>' : "") +
           '<span class="mural-tag">' + esc(TIPO_LABEL[ev.type] || "Evento") + "</span>" +
           '<span class="event-title">' + esc(ev.title) + "</span>" +
           gerir + apagar +
@@ -1203,8 +1233,19 @@
         "</div>"
       : "";
 
+    // Passado e futuro têm peso diferente: o que vem aí primeiro (mais próximo
+    // no topo), o que já foi depois, mutado — e "Hoje" ganha selo no card.
+    var hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    var proximos = eventos.filter(function (e) { return e.date >= hoje; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var anteriores = eventos.filter(function (e) { return e.date < hoje; })
+      .sort(function (a, b) { return a.date > b.date ? -1 : 1; });
+    var cardDe = function (ev) { return eventCardHtml(ev, me, hoje); };
     var lista = eventos.length
-      ? eventos.map(function (ev) { return eventCardHtml(ev, me); }).join("")
+      ? (proximos.length ? '<p class="events-group-head">Próximos</p>' + proximos.map(cardDe).join("") : "") +
+        (anteriores.length
+          ? '<div class="events-past"><p class="events-group-head">Anteriores</p>' + anteriores.map(cardDe).join("") + "</div>"
+          : "")
       : '<div class="card"><p class="empty-state">Nenhum evento' + (eventFilter ? " deste tipo" : "") + " ainda." + (me.director ? " Crie o primeiro acima." : "") + "</p></div>";
 
     content.innerHTML = filtros + checkin + novo + lista;

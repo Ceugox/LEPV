@@ -1016,6 +1016,19 @@
   .event-card { display: flex; flex-direction: column; gap: 10px; }
   .event-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .event-date { font-size: 12.5px; font-weight: 700; color: var(--red); white-space: nowrap; }
+  /* Agrupamento Próximos/Anteriores da aba Eventos (versão clara do .archive-head) */
+  .events-group-head {
+    font-family: var(--font-display); font-weight: 800; font-size: 15px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--graphite-soft); margin: 26px 0 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .events-group-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .events-past .event-card { opacity: 0.78; }
+  .events-past .event-date { color: var(--graphite-soft); }
+  .event-today {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 9px; border-radius: 2px; background: var(--red); color: #fff;
+  }
   .event-title {
     font-family: var(--font-display); font-size: 19px; font-weight: 800; text-transform: uppercase;
     color: var(--navy); flex: 1; min-width: 0; line-height: 1.15;
