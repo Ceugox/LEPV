@@ -1236,10 +1236,12 @@
     // Passado e futuro têm peso diferente: o que vem aí primeiro (mais próximo
     // no topo), o que já foi depois, mutado — e "Hoje" ganha selo no card.
     var hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-    var proximos = eventos.filter(function (e) { return e.date >= hoje; })
+    // Evento migrado do formato antigo pode não ter data — sem o fallback ele
+    // falharia nos DOIS filtros e sumiria da lista.
+    var proximos = eventos.filter(function (e) { return e.date && e.date >= hoje; })
       .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-    var anteriores = eventos.filter(function (e) { return e.date < hoje; })
-      .sort(function (a, b) { return a.date > b.date ? -1 : 1; });
+    var anteriores = eventos.filter(function (e) { return !e.date || e.date < hoje; })
+      .sort(function (a, b) { return (a.date || "") > (b.date || "") ? -1 : 1; });
     var cardDe = function (ev) { return eventCardHtml(ev, me, hoje); };
     var lista = eventos.length
       ? (proximos.length ? '<p class="events-group-head">Próximos</p>' + proximos.map(cardDe).join("") : "") +
