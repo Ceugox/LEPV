@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evento — LEPV</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/logo-liga.png">
+<meta name="theme-color" content="#17171B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  body { background-color: var(--navy); min-height: 100vh; }
+  .stage {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 32px 16px; position: relative;
+  }
+  .stage::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+                       linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 0%, transparent 75%);
+  }
+  .brandblock { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
+  .brandblock img {
+    width: 76px; height: 76px; margin-bottom: 16px; border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px var(--red-glow);
+    background: var(--white); object-fit: cover;
+  }
+  .brandblock .eyebrow { color: rgba(255,255,255,0.55); margin-bottom: 10px; }
+  .brandblock h1 {
+    color: #fff; font-size: 32px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.02em; line-height: 1; margin: 0;
+  }
+  .brandblock .sub { color: rgba(255,255,255,0.6); font-size: 13.5px; margin-top: 10px; }
+
+  .card {
+    position: relative; width: 100%; max-width: 480px; background: var(--white);
+    border-radius: var(--radius-lg); padding: 28px 22px;
+    box-shadow: var(--shadow-lift);
+  }
+  .card .eyebrow { margin-bottom: 6px; color: var(--graphite-soft); }
+  .card h2 { font-size: 21px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); margin: 0 0 4px; }
+  .ev-date { font-size: 13px; color: var(--graphite-soft); margin: 0 0 18px; }
+  .ev-description { font-size: 14px; color: var(--graphite); line-height: 1.65; margin: 0 0 20px; white-space: pre-line; }
+  .error {
+    display: none; font-size: 12.5px; color: #991B1B; background: #FEEBEB;
+    border: 1px solid #F5C6C6; border-radius: var(--radius-sm); padding: 9px 12px;
+  }
+  .error.show { display: block; }
+
+  .materials-box { display: flex; flex-direction: column; gap: 8px; margin: 0 0 22px; }
+  .material-btn {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-decoration: none;
+    background: var(--pending-soft); border: 1px solid #F5DFB8; border-radius: var(--radius-sm);
+    color: var(--navy); font-size: 13px; font-weight: 700;
+  }
+  .material-btn:hover { border-color: #E8C989; }
+  .material-btn .ico {
+    width: 34px; height: 34px; border-radius: 8px; background: var(--red); color: #fff; flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.02em;
+  }
+
+  .roadmap { display: none; flex-direction: column; margin: 4px 0 22px; }
+  .roadmap.show { display: flex; }
+  .roadmap-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft); margin: 0 0 12px; }
+  .roadmap-step { display: flex; gap: 12px; position: relative; padding-bottom: 20px; }
+  .roadmap-step:last-child { padding-bottom: 0; }
+  .roadmap-step::before {
+    content: ""; position: absolute; left: 13px; top: 28px; bottom: -4px; width: 2px; background: var(--line);
+  }
+  .roadmap-step:last-child::before { display: none; }
+  .roadmap-step.done::before { background: var(--good); }
+  .roadmap-dot {
+    width: 28px; height: 28px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; background: var(--offwhite); border: 2px solid var(--line); color: var(--graphite-soft);
+  }
+  .roadmap-step.done .roadmap-dot { background: var(--good); border-color: var(--good); color: #fff; }
+  .roadmap-step.active .roadmap-dot { background: var(--red); border-color: var(--red); color: #fff; }
+  .roadmap-label { font-size: 13.5px; font-weight: 700; color: var(--graphite-soft); padding-top: 4px; }
+  .roadmap-step.done .roadmap-label { color: var(--navy); }
+  .roadmap-step.active .roadmap-label { color: var(--red); }
+
+  .cta-status {
+    font-size: 13px; color: var(--navy); background: var(--internal-soft); border: 1px solid var(--line);
+    border-radius: var(--radius-sm); padding: 12px 14px; margin: 0;
+  }
+  .date-pending {
+    display: none; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--pending);
+    background: var(--pending-soft); border: 1px solid #F5DFB8; border-radius: var(--radius-sm);
+    padding: 8px 12px; margin: -8px 0 18px;
+  }
+  .date-pending.show { display: flex; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="brandblock">
+      <img src="/logo-liga.png" alt="LEPV">
+      <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
+      <h1>LEPV</h1>
+      <p class="sub">Sobre o evento</p>
+    </div>
+
+    <div class="card">
+      <div id="ev-info">
+        <p class="eyebrow" id="event-kind">Evento</p>
+        <h2 id="ev-title">Carregando...</h2>
+        <p class="ev-date" id="ev-date"></p>
+        <p class="date-pending" id="date-pending">Datas e horários ainda serão confirmados!</p>
+        <p class="ev-description" id="ev-description"></p>
+        <p class="error" id="ev-notice"></p>
+      </div>
+
+      <div class="materials-box" id="materials-box"></div>
+
+      <div class="roadmap" id="roadmap">
+        <p class="roadmap-title">Próximos passos</p>
+        <div id="roadmap-steps"></div>
+      </div>
+
+      <div id="cta-area"></div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  var token = new URLSearchParams(window.location.search).get("t") || "";
+
+  var PHASES = [
+    { key: "pre-inscricao", label: "Pré-inscrição" },
+    { key: "inscricao-oficial", label: "Inscrição oficial" },
+    { key: "confirmacao", label: "Confirmação enviada" },
+    { key: "presencial", label: "Hackathon presencial" },
+  ];
+  var CTA_LABEL = { "pre-inscricao": "Fazer pré-inscrição", "inscricao-oficial": "Fazer inscrição oficial" };
+  var STATUS_LABEL = {
+    confirmacao: "Inscrições encerradas — aguarde a confirmação por e-mail/WhatsApp.",
+    presencial: "O Hackathon está em andamento (ou já aconteceu). Até a próxima!",
+  };
+
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function fail(msg) {
+    document.getElementById("ev-title").textContent = "Link inválido";
+    document.getElementById("ev-date").textContent = "";
+    var aviso = document.getElementById("ev-notice");
+    aviso.textContent = msg;
+    aviso.classList.add("show");
+  }
+
+  if (!token) {
+    fail("Peça o link atualizado a alguém da diretoria.");
+  } else {
+    fetch("/api/event-signup/" + encodeURIComponent(token))
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (ev) {
+        document.getElementById("event-kind").textContent = ev.kind || "Evento";
+        document.getElementById("ev-title").textContent = ev.title;
+
+        var p = String(ev.date || "").split("-");
+        // Trajeto do IME não faz sentido pro Hackathon (é na FGV, não numa
+        // reunião comum da liga) — só aparece nos outros tipos de evento.
+        var trajeto = ev.travelMinutes > 0 && ev.type !== "hackathon" ? " (~" + ev.travelMinutes + " min do IME)" : "";
+        var quando = [p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : ""];
+        if (ev.time) quando.push(ev.time);
+        if (ev.location) quando.push(ev.location + trajeto);
+        document.getElementById("ev-date").textContent = quando.filter(Boolean).join(" · ");
+        if (ev.type === "hackathon") document.getElementById("date-pending").classList.add("show");
+
+        // Descrição completa é o texto principal desta página; sem ela, cai
+        // para o mesmo aviso curto usado no mural/formulário.
+        document.getElementById("ev-description").textContent = ev.description || ev.text || "";
+
+        if (ev.materials && ev.materials.length) {
+          document.getElementById("materials-box").innerHTML = ev.materials.map(function (m) {
+            var isPdf = m.type === "pdf";
+            return (
+              '<a class="material-btn" target="_blank" rel="noopener" href="' + escHtml(m.url + (isPdf ? "?dl=1" : "")) + '">' +
+                '<span class="ico">' + (isPdf ? "PDF" : "LINK") + "</span>" +
+                "<span>" + (isPdf ? "Baixar " : "Abrir ") + escHtml(m.title) + "</span>" +
+              "</a>"
+            );
+          }).join("");
+        }
+
+        if (ev.type === "hackathon") {
+          var atualIdx = PHASES.map(function (ph) { return ph.key; }).indexOf(ev.phase);
+          document.getElementById("roadmap-steps").innerHTML = PHASES.map(function (ph, i) {
+            var cls = i < atualIdx ? "done" : i === atualIdx ? "active" : "";
+            return (
+              '<div class="roadmap-step ' + cls + '">' +
+                '<span class="roadmap-dot">' + (i < atualIdx ? "✓" : i + 1) + "</span>" +
+                '<span class="roadmap-label">' + escHtml(ph.label) + "</span>" +
+              "</div>"
+            );
+          }).join("");
+          document.getElementById("roadmap").classList.add("show");
+        }
+
+        var ctaArea = document.getElementById("cta-area");
+        // CTA_LABEL/STATUS_LABEL descrevem a trilha do Hackathon — todo
+        // evento nasce com phase "pre-inscricao" por padrão, então sem essa
+        // trava um evento comum encerrado mostraria "aguarde a confirmação
+        // por e-mail/WhatsApp" em vez do aviso genérico de baixo.
+        if (ev.open) {
+          var label = ev.type === "hackathon" ? (CTA_LABEL[ev.phase] || "Inscreva-se") : "Inscreva-se";
+          ctaArea.innerHTML = '<a class="btn-primary" style="display:block; text-align:center; text-decoration:none;" href="/inscricao.html?t=' +
+            encodeURIComponent(token) + '">' + escHtml(label) + "</a>";
+        } else {
+          var status = ev.type === "hackathon" ? (STATUS_LABEL[ev.phase] || "Inscrições encerradas.") : "Inscrições encerradas.";
+          ctaArea.innerHTML = '<p class="cta-status">' + escHtml(status) + "</p>";
+        }
+      })
+      .catch(function () { fail("Este link não corresponde a nenhum evento."); });
+  }
+})();
+</script>
+</body>
+</html>

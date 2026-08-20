@@ -175,6 +175,25 @@
   .ev-card .seats { font-size: 12.5px; font-weight: 700; color: var(--red); }
   .ev-card .btn-primary { align-self: flex-start; margin-top: 8px; }
 
+  /* Banner de destaque (ex.: Hackathon) — maior e mais chamativo que os
+     .ev-card da grade, com imagem de divulgação já pronta. */
+  .hk-banner {
+    display: grid; grid-template-columns: 1fr; margin-bottom: 18px;
+    background: var(--white); border: 1px solid var(--line); border-radius: 20px;
+    overflow: hidden; box-shadow: var(--shadow-lift);
+  }
+  @media (min-width: 780px) { .hk-banner { grid-template-columns: minmax(280px, 420px) 1fr; } }
+  .hk-banner img { display: block; width: 100%; height: 100%; max-height: 420px; object-fit: cover; }
+  @media (min-width: 780px) { .hk-banner img { max-height: none; } }
+  .hk-banner-body { padding: 24px 26px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .hk-banner-body p { font-size: 14.5px; line-height: 1.6; color: var(--graphite); margin: 0; max-width: 46ch; }
+  .hk-banner-body .btn-primary { align-self: flex-start; }
+  .hk-banner-pending {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--pending);
+    background: var(--pending-soft); border: 1px solid #F5DFB8; border-radius: var(--radius-sm);
+    padding: 6px 12px; align-self: flex-start;
+  }
+
   /* Rodapé */
   footer {
     margin-top: 56px; padding: 26px 0 40px; border-top: 1px solid var(--line);
@@ -222,6 +241,7 @@
     <section class="block" id="agenda">
       <div class="block-head"><span class="n">/00</span><h2>Próximos eventos</h2><span class="rule"></span></div>
       <p class="lead">Inscrições abertas — visitantes são bem-vindos.</p>
+      <div id="hk-banner"></div>
       <div class="ev-grid" id="agenda-grid"></div>
     </section>
 
@@ -359,6 +379,24 @@
   function ctaDe(ev) {
     return ev.capacity && ev.seatsLeft <= 0 ? "Entrar na fila de espera" : "Inscrever-se";
   }
+  // O Hackathon (e qualquer outro evento type "hackathon" no futuro) tem
+  // peça de divulgação própria — não disputa o card genérico de destaque
+  // nem a grade, ganha seu próprio banner acima da grade. O link do botão
+  // vem sempre do signupUrl devolvido agora pela API: se amanhã a
+  // pré-inscrição virar inscrição oficial (outro token/evento), o banner
+  // segue automaticamente sem precisar mexer neste HTML.
+  function hackathonBannerHtml(ev) {
+    return (
+      '<div class="hk-banner">' +
+        '<img src="/img/hackathon-banner-1200.jpg" alt="' + escHtml(ev.title) + '" loading="lazy">' +
+        '<div class="hk-banner-body">' +
+          '<span class="hk-banner-pending">Datas e horários ainda serão confirmados!</span>' +
+          "<p>Dois dias para identificar um problema real e construir a melhor solução para ele. Prêmio de R$ 1.100 por integrante do grupo vencedor.</p>" +
+          '<a class="btn-primary" href="' + escHtml(ev.detailsUrl) + '">Confira todos os detalhes</a>' +
+        "</div>" +
+      "</div>"
+    );
+  }
   fetch("/api/public-events")
     .then(function (r) { return r.ok ? r.json() : { events: [] }; })
     .then(function (data) {
@@ -366,20 +404,32 @@
       var events = data.events.slice().sort(function (a, b) {
         return (a.date + " " + (a.time || "")) < (b.date + " " + (b.time || "")) ? -1 : 1;
       });
-      // O mais próximo abre o site em destaque; os demais ficam na grade.
-      var destaque = events[0];
-      var resto = events.slice(1);
-      var lugar = lugarDe(destaque);
-      document.getElementById("next-card").innerHTML =
-        '<div class="next-info">' +
-          '<span class="tag">' + escHtml("Próxima " + (destaque.kind === "Reunião" ? "reunião" : destaque.kind.toLowerCase())) + "</span>" +
-          "<h2>" + escHtml(destaque.title) + "</h2>" +
-          '<div class="when">' + escHtml(quandoDe(destaque)) + "</div>" +
-          (lugar ? '<div class="meta">' + escHtml(lugar) + "</div>" : "") +
-          vagasDe(destaque) +
-        "</div>" +
-        '<a class="btn-primary" href="' + escHtml(destaque.signupUrl) + '">' + ctaDe(destaque) + "</a>";
-      document.getElementById("next-event").classList.add("show");
+      var hackathons = events.filter(function (ev) { return ev.type === "hackathon"; });
+      var regulares = events.filter(function (ev) { return ev.type !== "hackathon"; });
+      // Só o hackathon mais próximo ganha banner (não dá pra mostrar dois
+      // banners grandes); um segundo hackathon com inscrições abertas ao
+      // mesmo tempo não pode simplesmente sumir da home — cai na grade comum,
+      // igual aos outros tipos de evento.
+      var extraHackathons = hackathons.slice(1);
+      // O destaque no topo (#next-event) é só para os tipos "normais": o
+      // Hackathon já ganha protagonismo no banner próprio, não precisa
+      // duplicar lá em cima com o card genérico (sem imagem).
+      var destaque = regulares[0];
+      var resto = regulares.slice(1).concat(extraHackathons);
+
+      if (destaque) {
+        var lugar = lugarDe(destaque);
+        document.getElementById("next-card").innerHTML =
+          '<div class="next-info">' +
+            '<span class="tag">' + escHtml("Próxima " + (destaque.kind === "Reunião" ? "reunião" : destaque.kind.toLowerCase())) + "</span>" +
+            "<h2>" + escHtml(destaque.title) + "</h2>" +
+            '<div class="when">' + escHtml(quandoDe(destaque)) + "</div>" +
+            (lugar ? '<div class="meta">' + escHtml(lugar) + "</div>" : "") +
+            vagasDe(destaque) +
+          "</div>" +
+          '<a class="btn-primary" href="' + escHtml(destaque.signupUrl) + '">' + ctaDe(destaque) + "</a>";
+        document.getElementById("next-event").classList.add("show");
+      }
       if (resto.length) {
         document.getElementById("agenda-grid").innerHTML = resto.map(function (ev) {
           return (
@@ -393,6 +443,12 @@
             "</div>"
           );
         }).join("");
+      }
+
+      if (hackathons.length) {
+        document.getElementById("hk-banner").innerHTML = hackathonBannerHtml(hackathons[0]);
+      }
+      if (resto.length || hackathons.length) {
         document.getElementById("agenda").classList.add("show");
       }
     })
