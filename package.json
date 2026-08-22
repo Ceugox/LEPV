@@ -6,12 +6,16 @@
   "scripts": {
     "start": "node server.js",
     "seed": "node scripts/seed-credentials.js",
-    "test": "node tests/e2e.js"
+    "test": "node tests/e2e.js",
+    "verify:ui": "node scripts/verify-ui.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
   }
 }
