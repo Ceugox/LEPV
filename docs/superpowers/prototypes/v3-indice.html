@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEPV · 3 Índice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ============ hero curto e denso: o índice do semestre entra
+   imediatamente abaixo do título. Resolve "muito simples" por
+   densidade de informação, não por decoração. ============ */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero-ph{position:absolute;inset:0;z-index:0}
+.hero-ph img{width:100%;height:100%;object-fit:cover;object-position:50% 34%;
+  filter:grayscale(1) brightness(1.66) contrast(.7);opacity:.36}
+.hero-ph::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(180deg,rgba(250,248,245,.86) 0%,rgba(250,248,245,.62) 40%,rgba(250,248,245,.99) 100%)}
+.contour{position:absolute;left:0;right:0;bottom:0;z-index:1;width:100%;height:78%;pointer-events:none}
+.hero-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:48px var(--pad) 40px}
+@media(min-width:720px){ .hero-in{padding:76px var(--pad) 56px} }
+.hero-top{display:grid;grid-template-columns:1fr;gap:22px;align-items:end}
+@media(min-width:900px){ .hero-top{grid-template-columns:1.25fr .75fr;gap:48px} }
+.kicker{font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--wine);margin:0 0 16px}
+h1{font-family:var(--fd);font-weight:400;color:var(--ink);font-size:clamp(38px,7.6vw,82px);
+  line-height:1.0;letter-spacing:-.018em;margin:0;max-width:17ch;text-wrap:balance}
+h1 i{font-style:italic;color:var(--wine)}
+.hero-side{border-left:0;padding:0}
+@media(min-width:900px){ .hero-side{border-left:1px solid var(--line-2);padding-left:32px} }
+.hero-side p{font-size:15px;line-height:1.66;margin:0 0 18px;color:var(--ink-2)}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+
+/* linha de contexto: dados densos em uma tira só */
+.ticker{border-bottom:1px solid var(--line);background:var(--card);overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.ticker::-webkit-scrollbar{display:none}
+.ticker-in{max-width:var(--max);margin:0 auto;padding:0 var(--pad);display:flex;
+  align-items:stretch;min-width:max-content}
+.tk{display:flex;align-items:baseline;gap:9px;padding:16px 26px 16px 0;margin-right:26px;
+  border-right:1px solid var(--line);white-space:nowrap}
+.tk:last-child{border-right:0;margin-right:0}
+.tk b{font-family:var(--fd);font-weight:400;font-size:30px;line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.tk span{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+section.blk{padding:54px 0}
+@media(min-width:720px){ section.blk{padding:80px 0} }
+.blk+.blk{border-top:1px solid var(--line)}
+.blk-head{display:flex;align-items:baseline;gap:14px;margin:0 0 8px}
+.blk-head h2{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(26px,4vw,40px);line-height:1.04;margin:0}
+.blk-head h2 i{font-style:italic;color:var(--wine)}
+.blk-head .r{flex:1;height:1px;background:var(--line)}
+.blk-head .n{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.blk-sub{font-size:13.5px;color:var(--ink-3);margin:0 0 26px}
+
+/* ---- índice: cada evento é uma linha; a thumb aparece no hover ---- */
+.idx{border-top:1px solid var(--ink);position:relative}
+.irow{display:grid;grid-template-columns:auto 1fr;gap:12px 14px;align-items:center;
+  padding:16px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;
+  transition:background .16s}
+@media(min-width:820px){
+  .irow{grid-template-columns:74px 1fr 168px 118px 26px;gap:18px;padding:15px 0}
+}
+.irow:hover{background:var(--card)}
+.irow .k{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--wine);white-space:nowrap}
+.irow .ti{grid-column:1/-1}
+@media(min-width:820px){ .irow .ti{grid-column:auto} }
+.irow h4{font-family:var(--fd);font-weight:400;font-size:clamp(19px,2.4vw,25px);line-height:1.14;
+  margin:0;color:var(--ink)}
+.irow h4 em{font-style:italic;color:var(--ink-3);font-size:.78em}
+.irow .wh,.irow .st{font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.irow .st b{color:var(--ink);font-weight:600}
+.irow .go{display:none;font-size:17px;color:var(--line-2);transition:color .16s,transform .16s}
+@media(min-width:820px){ .irow .go{display:block;text-align:right} }
+.irow:hover .go{color:var(--wine);transform:translateX(3px)}
+/* thumb que segue o hover — só no desktop com ponteiro fino */
+.peek{position:fixed;pointer-events:none;width:212px;aspect-ratio:4/3;border-radius:var(--r);
+  overflow:hidden;border:1px solid var(--line-2);box-shadow:0 18px 40px -18px rgba(20,20,22,.4);
+  opacity:0;transform:scale(.94);transition:opacity .18s,transform .18s;z-index:50;background:var(--card)}
+.peek.on{opacity:1;transform:none}
+.peek img{width:100%;height:100%;object-fit:cover}
+@media(hover:none),(max-width:819px){ .peek{display:none} }
+
+/* destaque compacto ao lado do índice */
+.hl{display:grid;grid-template-columns:1fr;gap:20px;margin-top:34px}
+@media(min-width:900px){ .hl{grid-template-columns:1fr 1fr;gap:28px} }
+.hl-card{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden;
+  display:grid;grid-template-columns:1fr}
+@media(min-width:560px){ .hl-card{grid-template-columns:126px 1fr} }
+.hl-card img{width:100%;height:100%;min-height:118px;object-fit:cover}
+.hl-b{padding:18px 20px}
+.hl-b .k{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--wine);margin:0 0 8px}
+.hl-b h4{font-family:var(--fd);font-weight:400;font-size:22px;line-height:1.1;margin:0 0 6px;color:var(--ink)}
+.hl-b p{font-size:13px;color:var(--ink-3);margin:0;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <a class="brand" href="#"><img src="assets/logo.png" alt=""><b>LEPV</b></a>
+  <div class="nav-links"><a href="#">Início</a><a href="#">Eventos</a><a href="#">Membros</a></div>
+  <a href="#" class="nav-cta">Entrar</a>
+  <button class="burger" aria-label="Menu"><i></i><i></i><i></i></button>
+</div></nav>
+
+<header class="hero" id="hero">
+  <div class="hero-ph"><img src="assets/photos/liga-04.jpg" alt=""></div>
+  <svg class="contour" viewBox="0 0 1000 380" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+  <div class="hero-in"><div class="hero-top">
+    <div>
+      <p class="kicker rv">Liga de Empreendedorismo da Praia Vermelha · IME</p>
+      <h1 class="rv" style="--i:1">Engenharia que <i>empreende</i></h1>
+    </div>
+    <div class="hero-side rv" style="--i:2">
+      <p>Levamos alunos do IME para dentro das empresas que estão construindo o mercado
+        brasileiro. Doze visitas, uma missão a São Paulo, dezoito membros.</p>
+      <div class="acts">
+        <a class="btn btn-p btn-sq" href="#"><span class="ar">→</span>Próximo evento</a>
+        <a class="btn btn-g btn-sq" href="#">Seja parceiro</a>
+      </div>
+    </div>
+  </div></div>
+</header>
+
+<div class="ticker"><div class="ticker-in">
+  <div class="tk"><b>18</b><span>membros ativos</span></div>
+  <div class="tk"><b>12</b><span>empresas visitadas</span></div>
+  <div class="tk"><b>4</b><span>turmas do IME</span></div>
+  <div class="tk"><b>9</b><span>especialidades</span></div>
+  <div class="tk"><b>2026</b><span>1ª missão · São Paulo</span></div>
+</div></div>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><h2>O semestre <i>inteiro</i></h2><span class="r"></span><span class="n">/00</span></div>
+  <p class="blk-sub rv">Reuniões, aulas, visitas e social — tudo o que está aberto agora.</p>
+
+  <div class="idx">
+    <a class="irow rv" href="#" data-ph="assets/photos/co-mottu.jpg">
+      <span class="k">Visita</span>
+      <span class="ti"><h4>Mottu <em>— dentro da operação</em></h4></span>
+      <span class="wh">04 set · 14h00</span>
+      <span class="st"><b>13</b>/30 vagas</span>
+      <span class="go">→</span>
+    </a>
+    <a class="irow rv" style="--i:1" href="#" data-ph="assets/photos/liga-01.jpg">
+      <span class="k">Aula</span>
+      <span class="ti"><h4>Valuation para engenheiros</h4></span>
+      <span class="wh">11 set · 19h00</span>
+      <span class="st"><b>22</b>/40 vagas</span>
+      <span class="go">→</span>
+    </a>
+    <a class="irow rv" style="--i:2" href="#" data-ph="assets/photos/liga-06.jpg">
+      <span class="k">Reunião</span>
+      <span class="ti"><h4>Assembleia do 2º semestre</h4></span>
+      <span class="wh">18 set · 19h00</span>
+      <span class="st">só membros</span>
+      <span class="go">→</span>
+    </a>
+    <a class="irow rv" style="--i:3" href="#" data-ph="assets/photos/co-revolut.jpg">
+      <span class="k">Visita</span>
+      <span class="ti"><h4>Revolut <em>— produto e regulação</em></h4></span>
+      <span class="wh">23 set · 15h00</span>
+      <span class="st"><b>8</b>/25 vagas</span>
+      <span class="go">→</span>
+    </a>
+    <a class="irow rv" style="--i:4" href="#" data-ph="assets/photos/liga-08.jpg">
+      <span class="k">Social</span>
+      <span class="ti"><h4>Happy hour com alumni</h4></span>
+      <span class="wh">26 set · 20h00</span>
+      <span class="st">aberto</span>
+      <span class="go">→</span>
+    </a>
+    <a class="irow rv" style="--i:5" href="#" data-ph="assets/photos/day-ter21.jpg">
+      <span class="k">Aula</span>
+      <span class="ti"><h4>Como ler um term sheet</h4></span>
+      <span class="wh">02 out · 19h00</span>
+      <span class="st"><b>31</b>/40 vagas</span>
+      <span class="go">→</span>
+    </a>
+  </div>
+
+  <div class="hl">
+    <div class="hl-card rv"><img src="assets/photos/co-mottu.jpg" alt="">
+      <div class="hl-b"><p class="k">Inscrições abertas</p><h4>Visita à Mottu</h4>
+        <p>04 set · Botafogo · 8 min do IME</p></div></div>
+    <div class="hl-card rv" style="--i:1"><img src="assets/photos/liga-09.jpg" alt="">
+      <div class="hl-b"><p class="k">Acervo restrito</p><h4>1ª Missão · São Paulo</h4>
+        <p>11 empresas · julho de 2026</p></div></div>
+  </div>
+</div></section>
+
+<section class="blk">
+  <div class="wrap"><div class="blk-head rv"><h2>A liga por <i>dentro</i></h2><span class="r"></span><span class="n">/01</span></div>
+  <p class="blk-sub rv">Nove meses de reuniões, visitas e uma missão fora do Rio.</p></div>
+  <div class="strip rv"><div class="strip-tr">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/co-revolut.jpg" alt="">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/co-revolut.jpg" alt="">
+  </div></div>
+</section>
+
+<div class="mq-band"><div class="wrap">
+  <p class="mq-lab rv"><span>Empresas que abriram as portas</span><span class="r"></span></p>
+  <div class="mq rv" style="--i:1"><div class="mq-row">
+    <div class="mq-tr">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+    <div class="mq-tr" aria-hidden="true">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+  </div></div>
+</div></div>
+
+<div class="peek" id="peek"><img alt=""></div>
+<footer><div class="wrap">LEPV · Liga de Empreendedorismo da Praia Vermelha · lepv.org</div></footer>
+
+<script src="art.js"></script>
+<script>
+  LEPVArt.contour(document.querySelector('.contour'),
+    {W:1000, base:366, peakH:268, levels:20, ribStep:15, stagger:22,
+     fadeLow:.08, fadeMid:.34, fadeHigh:.66});
+  LEPVArt.drawOnEnter(document.getElementById('hero'));
+  LEPVArt.reveal();
+
+  /* thumb que segue o cursor sobre o índice — só onde há ponteiro fino */
+  (function(){
+    if (!matchMedia('(hover:hover) and (min-width:820px)').matches) return;
+    const peek = document.getElementById('peek'), img = peek.querySelector('img');
+    document.querySelectorAll('.irow[data-ph]').forEach(row => {
+      row.addEventListener('mouseenter', () => {
+        img.src = row.dataset.ph; peek.classList.add('on');
+      });
+      row.addEventListener('mouseleave', () => peek.classList.remove('on'));
+      row.addEventListener('mousemove', e => {
+        peek.style.left = Math.min(e.clientX + 22, innerWidth - 232) + 'px';
+        peek.style.top  = Math.min(e.clientY - 80, innerHeight - 180) + 'px';
+      });
+    });
+  })();
+</script>
+</body>
+</html>

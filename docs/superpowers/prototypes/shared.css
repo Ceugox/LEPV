@@ -1,0 +1,132 @@
+/* ============================================================
+   LEPV · base compartilhada pelas 5 variações
+   Papel claro + serif editorial + vinho da liga. Mobile-first:
+   toda media query é min-width, nunca max-width.
+   ============================================================ */
+:root{
+  /* Cores amostradas da logo real (marketing/logo.jpeg):
+     engrenagem #090909, vinho da seta e das ondas #7F0A1A. */
+  --paper:#FAF8F5; --paper-2:#F3EFE9; --card:#FFFFFF;
+  /* --ink-3 é #736D77 e não #7C7580 porque o tom anterior dava 4.20 de
+     contraste sobre papel — falha AA para texto normal, e ele carrega data
+     e vagas no índice em 13px. Agora 4.74 no papel e 5.02 no card. */
+  --ink:#121214; --ink-2:#3D3940; --ink-3:#736D77;
+  --band:#0A0A0B;
+  --line:#E2DCD4; --line-2:#CDC4B9;
+  --wine:#7F0A1A; --wine-2:#9E1F30;
+  --fd:"Instrument Serif",Georgia,serif;
+  --f:"Archivo",system-ui,-apple-system,sans-serif;
+  --pad:20px; --r:6px; --max:1220px;
+  /* progresso de scroll: mora na raiz para que o valor inline que o JS
+     escreve em cada elemento (ou no contêiner da figura) sempre vença,
+     em vez de ser sombreado por uma regra intermediária. */
+  --p:0;
+}
+@media(min-width:720px){ :root{ --pad:32px } }
+@media(min-width:1100px){ :root{ --pad:40px } }
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink-2);font-family:var(--f);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img,svg{display:block;max-width:100%}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 var(--pad)}
+
+/* ---------- revelação ligada ao progresso do scroll ----------
+   O JS publica --p (0→1) em cada .rv conforme o elemento sobe pela tela.
+   Nada aqui é uma animação com duração própria: o estado é função direta
+   de onde a página está. Rolar devagar revela devagar.
+   --i escalona irmãos: cada um exige um pouco mais de progresso. */
+.rv{
+  --pi:clamp(0, (var(--p) - var(--i,0) * 0.09) / 0.72, 1);
+  opacity:var(--pi);
+  transform:translate3d(0, calc((1 - var(--pi)) * 26px), 0);
+  will-change:opacity, transform;
+}
+.rv.in{will-change:auto}
+.rv-l{transform:translate3d(calc((1 - var(--pi)) * -28px), 0, 0)}
+.rv-r{transform:translate3d(calc((1 - var(--pi)) * 28px), 0, 0)}
+.rv-s{transform:scale(calc(0.96 + var(--pi) * 0.04))}
+
+/* Sem JS a página fica legível: --p só é sobrescrito pelo script. */
+.no-js .rv{opacity:1;transform:none}
+
+@media(prefers-reduced-motion:reduce){
+  .rv{opacity:1!important;transform:none!important;will-change:auto}
+  .contour path{stroke-dashoffset:0!important}
+  .strip-tr,.mq-tr{animation:none!important}
+}
+
+/* ---------- contorno: cada traço se desenha na sua fatia do scroll ----------
+   --s = onde o traço começa no curso; --w = quanto do curso ele consome.
+   Uma escrita de --p no contêiner move as 75 linhas. */
+.contour path{
+  stroke-dasharray:var(--len,1200);
+  stroke-dashoffset:calc(var(--len,1200) *
+    (1 - clamp(0, (var(--p) - var(--s,0)) / var(--w,.42), 1)));
+}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:40;background:rgba(250,248,245,.86);
+  backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;gap:26px;height:64px;max-width:var(--max);
+  margin:0 auto;padding:0 var(--pad)}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto;text-decoration:none;color:inherit}
+/* 40px é o piso: abaixo disso os dentes da engrenagem viram serrilha */
+.brand img{height:40px;width:auto}
+.brand b{font-family:var(--fd);font-size:22px;font-weight:400;color:var(--ink);letter-spacing:.01em}
+.nav-links{display:none;gap:26px}
+@media(min-width:760px){ .nav-links{display:flex} }
+.nav-links a{color:var(--ink-2);text-decoration:none;font-size:14.5px;transition:color .15s}
+.nav-links a:hover{color:var(--wine)}
+.nav-cta{background:var(--ink);color:var(--paper);text-decoration:none;font-size:13.5px;
+  font-weight:600;padding:9px 17px;border-radius:100px;transition:background .16s;white-space:nowrap;
+  /* alvo de toque: 44px é o mínimo confortável no celular */
+  display:inline-flex;align-items:center;min-height:44px}
+.nav-cta:hover{background:var(--wine)}
+/* 44×44 é o alvo de toque; as barras ficam centradas dentro dele */
+.burger{display:grid;align-content:center;justify-items:center;gap:4px;
+  background:none;border:0;padding:0;cursor:pointer;min-width:44px;min-height:44px}
+.burger i{display:block;width:19px;height:1.5px;background:var(--ink)}
+@media(min-width:760px){ .burger{display:none} }
+
+/* ---------- botões (alvo de toque ≥46px) ---------- */
+.btn{font-size:14.5px;font-weight:600;padding:13px 22px;text-decoration:none;
+  border:1px solid transparent;transition:.18s;display:inline-flex;align-items:center;
+  gap:9px;min-height:46px;border-radius:100px;cursor:pointer}
+.btn .ar{opacity:.65;font-weight:400}
+.btn-p{background:var(--wine);color:#fff}
+.btn-p:hover{background:var(--wine-2)}
+.btn-g{border-color:var(--line-2);color:var(--ink);background:rgba(255,255,255,.6)}
+.btn-g:hover{border-color:var(--ink);background:var(--card)}
+.btn-sq{border-radius:4px}
+
+/* ---------- faixa de fotos ---------- */
+.strip{overflow:hidden;position:relative;
+  mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.strip-tr{display:flex;gap:12px;width:max-content;animation:sc 54s linear infinite}
+@keyframes sc{to{transform:translateX(-50%)}}
+.strip:hover .strip-tr{animation-play-state:paused}
+.strip img{width:190px;height:130px;flex:none;object-fit:cover;border-radius:var(--r);
+  border:1px solid var(--line)}
+@media(min-width:720px){ .strip img{width:230px;height:156px} }
+
+/* ---------- band preto + marquee ---------- */
+.mq-band{padding:50px 0 56px;background:var(--band)}
+@media(min-width:720px){ .mq-band{padding:64px 0 70px} }
+/* 55% e não 44%: a 44% o rótulo dava 4.36 sobre o band, abaixo de AA */
+.mq-lab{display:flex;align-items:center;gap:14px;font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(255,255,255,.55);margin:0 0 30px}
+.mq-lab .r{flex:1;height:1px;background:rgba(255,255,255,.14)}
+.mq{--gap:3.4rem;overflow:hidden;
+  mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+@media(min-width:720px){ .mq{--gap:5rem} }
+.mq-row{display:flex;gap:var(--gap);overflow:hidden}
+.mq-tr{display:flex;flex:none;align-items:center;gap:var(--gap);animation:mq 40s linear infinite}
+@keyframes mq{to{transform:translateX(calc(-100% - var(--gap)))}}
+.mq:hover .mq-tr{animation-play-state:paused}
+.mq-tr img{height:22px;width:auto;flex:none;filter:brightness(0) invert(1);opacity:.78}
+@media(min-width:720px){ .mq-tr img{height:26px} }
+
+footer{padding:42px 0;color:var(--ink-3);font-size:13px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEPV · 1 Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ---- hero: foto lavada full-bleed, contorno na base, texto em coluna ---- */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);isolation:isolate}
+.hero-ph{position:absolute;inset:0;z-index:0}
+.hero-ph img{width:100%;height:100%;object-fit:cover;object-position:50% 40%;
+  filter:grayscale(1) brightness(1.6) contrast(.72);opacity:.42}
+.hero-ph::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(180deg,rgba(250,248,245,.9) 0%,rgba(250,248,245,.5) 42%,rgba(250,248,245,.97) 100%),
+  linear-gradient(90deg,rgba(250,248,245,.96) 0%,rgba(250,248,245,.4) 60%,rgba(250,248,245,.7) 100%)}
+.contour{position:absolute;left:0;right:0;bottom:0;z-index:1;width:100%;height:60%;pointer-events:none}
+.hero-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:60px var(--pad) 84px}
+@media(min-width:720px){ .hero-in{padding:104px var(--pad) 132px} }
+.kicker{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);margin:0 0 20px}
+h1{font-family:var(--fd);font-weight:400;color:var(--ink);font-size:clamp(40px,8.6vw,94px);
+  line-height:1.02;letter-spacing:-.015em;margin:0 0 18px;max-width:16ch;text-wrap:balance}
+h1 i{font-style:italic;color:var(--wine)}
+.lede{font-family:var(--fd);font-size:clamp(19px,2.4vw,26px);line-height:1.42;
+  color:var(--ink-2);max-width:34ch;margin:0 0 30px}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;background:var(--card);border-bottom:1px solid var(--line)}
+@media(min-width:860px){ .stats{grid-template-columns:repeat(4,1fr)} }
+.stat{padding:22px var(--pad);border-top:1px solid var(--line)}
+.stat:nth-child(even){border-left:1px solid var(--line)}
+@media(min-width:860px){ .stat{padding:30px var(--pad);border-top:none;border-left:1px solid var(--line)}
+  .stat:first-child{border-left:none} }
+.stat b{display:block;font-family:var(--fd);font-weight:400;font-size:clamp(34px,5vw,50px);
+  line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.stat span{display:block;margin-top:5px;font-size:12.5px;color:var(--ink-3)}
+
+section.blk{padding:60px 0;border-bottom:1px solid var(--line)}
+@media(min-width:720px){ section.blk{padding:92px 0} }
+.blk-head{display:flex;align-items:baseline;gap:16px;margin:0 0 30px}
+@media(min-width:720px){ .blk-head{margin-bottom:42px} }
+.blk-head h2{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(28px,4.4vw,44px);line-height:1.04;margin:0}
+.blk-head h2 i{font-style:italic;color:var(--wine)}
+.blk-head .r{flex:1;height:1px;background:var(--line)}
+.blk-head .n{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+
+.feat{display:grid;grid-template-columns:1fr;border:1px solid var(--line);border-radius:var(--r);
+  overflow:hidden;background:var(--card)}
+@media(min-width:880px){ .feat{grid-template-columns:1.06fr .94fr} }
+.feat-body{padding:26px}
+@media(min-width:720px){ .feat-body{padding:40px} }
+.feat-tag{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--wine);margin:0 0 15px}
+.feat-tag i{width:6px;height:6px;background:var(--wine);border-radius:50%;font-style:normal;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;transform:scale(.82)}}
+.feat h3{font-family:var(--fd);font-weight:400;color:var(--ink);font-size:clamp(27px,4vw,38px);
+  line-height:1.06;margin:0 0 13px}
+.feat p{font-size:15.5px;line-height:1.66;margin:0 0 22px;max-width:44ch}
+.meta{margin:0 0 24px;border-top:1px solid var(--line)}
+.meta div{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding:11px 0;border-bottom:1px solid var(--line)}
+.meta dt{font-size:12.5px;color:var(--ink-3);flex:none}
+.meta dd{margin:0;font-size:14.5px;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums}
+.feat-ph{order:-1;min-height:210px}
+@media(min-width:880px){ .feat-ph{order:0;border-left:1px solid var(--line)} }
+.feat-ph img{width:100%;height:100%;object-fit:cover;min-height:210px}
+
+.grid3{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:620px){ .grid3{grid-template-columns:1fr 1fr} }
+@media(min-width:940px){ .grid3{grid-template-columns:repeat(3,1fr)} }
+.ev{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:22px;
+  transition:transform .2s,border-color .2s;text-decoration:none;color:inherit;display:block}
+.ev:hover{border-color:var(--line-2);transform:translateY(-3px)}
+.ev .t{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--wine);margin:0 0 13px}
+.ev h4{font-family:var(--fd);font-weight:400;font-size:23px;line-height:1.1;margin:0 0 9px;color:var(--ink)}
+.ev .d{font-size:13.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin:0}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <a class="brand" href="#"><img src="assets/logo.png" alt=""><b>LEPV</b></a>
+  <div class="nav-links"><a href="#">Início</a><a href="#">Eventos</a><a href="#">Membros</a></div>
+  <a href="#" class="nav-cta">Entrar</a>
+  <button class="burger" aria-label="Menu"><i></i><i></i><i></i></button>
+</div></nav>
+
+<header class="hero" id="hero">
+  <div class="hero-ph"><img src="assets/photos/liga-03.jpg" alt=""></div>
+  <svg class="contour" viewBox="0 0 1000 460" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+  <div class="hero-in">
+    <p class="kicker rv">IME · Praia Vermelha · Rio de Janeiro</p>
+    <h1 class="rv" style="--i:1">Engenharia que <i>empreende</i></h1>
+    <p class="lede rv" style="--i:2">Da Praia Vermelha para dentro das empresas que estão construindo o mercado.</p>
+    <div class="acts rv" style="--i:3">
+      <a class="btn btn-p" href="#"><span class="ar">→</span>Próximo evento</a>
+      <a class="btn btn-g" href="#"><span class="ar">→</span>Seja parceiro</a>
+    </div>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat rv"><b>18</b><span>membros ativos</span></div>
+  <div class="stat rv" style="--i:1"><b>12</b><span>empresas visitadas</span></div>
+  <div class="stat rv" style="--i:2"><b>4</b><span>turmas do IME</span></div>
+  <div class="stat rv" style="--i:3"><b>2026</b><span>1ª missão · São Paulo</span></div>
+</div>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><h2>O próximo <i>encontro</i></h2><span class="r"></span><span class="n">/00</span></div>
+  <div class="feat rv" style="--i:1">
+    <div class="feat-body">
+      <p class="feat-tag"><i></i>Inscrições abertas</p>
+      <h3>Visita à Mottu</h3>
+      <p>Uma tarde dentro da operação: como a Mottu escalou uma frota de motos para
+        dezenas de milhares de entregadores — e o que isso exige de engenharia.</p>
+      <dl class="meta">
+        <div><dt>Data</dt><dd>04 set 2026 · 14h00</dd></div>
+        <div><dt>Local</dt><dd>Botafogo, Rio de Janeiro</dd></div>
+        <div><dt>Trajeto do IME</dt><dd>8 min</dd></div>
+        <div><dt>Vagas</dt><dd>17 inscritos · 13 de 30</dd></div>
+      </dl>
+      <a class="btn btn-p" href="#"><span class="ar">→</span>Garantir vaga</a>
+    </div>
+    <div class="feat-ph"><img src="assets/photos/co-mottu.jpg" alt=""></div>
+  </div>
+</div></section>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><h2>Na <i>agenda</i></h2><span class="r"></span><span class="n">/01</span></div>
+  <div class="grid3">
+    <a class="ev rv" href="#"><p class="t">Aula</p><h4>Valuation para engenheiros</h4><p class="d">11 set · 19h00 · IME</p></a>
+    <a class="ev rv" style="--i:1" href="#"><p class="t">Reunião</p><h4>Assembleia do 2º semestre</h4><p class="d">18 set · 19h00 · IME</p></a>
+    <a class="ev rv" style="--i:2" href="#"><p class="t">Social</p><h4>Happy hour com alumni</h4><p class="d">26 set · 20h00 · Urca</p></a>
+  </div>
+</div></section>
+
+<section class="blk">
+  <div class="wrap"><div class="blk-head rv"><h2>A liga por <i>dentro</i></h2><span class="r"></span><span class="n">/02</span></div></div>
+  <div class="strip rv"><div class="strip-tr">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/co-revolut.jpg" alt="">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/co-revolut.jpg" alt="">
+  </div></div>
+</section>
+
+<div class="mq-band"><div class="wrap">
+  <p class="mq-lab rv"><span>Empresas que abriram as portas</span><span class="r"></span></p>
+  <div class="mq rv" style="--i:1"><div class="mq-row">
+    <div class="mq-tr">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+    <div class="mq-tr" aria-hidden="true">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+  </div></div>
+</div></div>
+
+<footer><div class="wrap">LEPV · Liga de Empreendedorismo da Praia Vermelha · lepv.org</div></footer>
+
+<script src="art.js"></script>
+<script>
+  var hero = document.getElementById('hero');
+  LEPVArt.contour(document.querySelector('.contour'), {W:1000, base:442, peakH:340, levels:22});
+  LEPVArt.drawOnEnter(hero);
+  LEPVArt.reveal();
+</script>
+</body>
+</html>

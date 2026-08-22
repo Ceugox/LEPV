@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEPV · 2 Capa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ============ hero de capa: texto à esquerda, foto emoldurada à
+   direita com o contorno DESENHADO POR CIMA da foto. O título
+   invade a moldura no desktop. ============ */
+.hero{position:relative;padding:44px 0 56px;overflow:hidden}
+@media(min-width:960px){ .hero{padding:76px 0 92px} }
+.hero-grid{max-width:var(--max);margin:0 auto;padding:0 var(--pad);
+  display:grid;grid-template-columns:1fr;gap:30px;align-items:center}
+@media(min-width:960px){ .hero-grid{grid-template-columns:1.02fr .98fr;gap:0} }
+
+.hero-txt{position:relative;z-index:3}
+.rule-top{display:flex;align-items:center;gap:14px;margin:0 0 26px}
+.rule-top span{font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--wine)}
+.rule-top .r{flex:1;height:1px;background:var(--line-2)}
+h1{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(46px,12vw,116px);line-height:.94;letter-spacing:-.022em;margin:0 0 22px}
+h1 span{display:block}
+h1 i{font-style:italic;color:var(--wine)}
+.lede{font-size:16.5px;line-height:1.66;color:var(--ink-2);max-width:38ch;margin:0 0 28px}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+
+/* moldura da foto + contorno por cima */
+.frame{position:relative;z-index:2}
+@media(min-width:960px){ .frame{margin-left:-8%} }
+.frame-in{position:relative;border:1px solid var(--line-2);border-radius:var(--r);
+  overflow:hidden;background:var(--paper-2);aspect-ratio:4/5}
+@media(min-width:620px){ .frame-in{aspect-ratio:5/4} }
+@media(min-width:960px){ .frame-in{aspect-ratio:4/5} }
+.frame-in img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  filter:grayscale(1) brightness(1.18) contrast(.86);opacity:.86}
+.frame-in::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(250,248,245,.28) 0%,transparent 34%,rgba(138,30,45,.16) 100%)}
+.contour{position:absolute;left:0;right:0;bottom:0;z-index:3;width:100%;height:66%;pointer-events:none;
+  mix-blend-mode:multiply}
+.cap{margin:12px 0 0;font-family:var(--fd);font-style:italic;font-size:14.5px;color:var(--ink-3)}
+.cap b{font-style:normal;font-family:var(--f);font-size:10.5px;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--wine);margin-right:8px}
+
+/* números como coluna editorial, não faixa */
+.nums{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--card)}
+.nums-in{max-width:var(--max);margin:0 auto;padding:0 var(--pad);
+  display:grid;grid-template-columns:1fr 1fr}
+@media(min-width:860px){ .nums-in{grid-template-columns:repeat(4,1fr)} }
+.num{padding:22px 0;display:flex;align-items:baseline;gap:11px}
+@media(min-width:860px){ .num{padding:28px 0} }
+.num b{font-family:var(--fd);font-weight:400;font-size:clamp(32px,4.6vw,46px);line-height:1;
+  color:var(--ink);font-variant-numeric:tabular-nums}
+.num span{font-size:12.5px;line-height:1.3;color:var(--ink-3);max-width:11ch}
+
+section.blk{padding:56px 0}
+@media(min-width:720px){ section.blk{padding:86px 0} }
+.blk+.blk{border-top:1px solid var(--line)}
+.blk-head{display:flex;align-items:baseline;gap:16px;margin:0 0 30px}
+@media(min-width:720px){ .blk-head{margin-bottom:40px} }
+.blk-head h2{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(30px,5vw,52px);line-height:1;margin:0;letter-spacing:-.015em}
+.blk-head h2 i{font-style:italic;color:var(--wine)}
+.blk-head .r{flex:1;height:1px;background:var(--line)}
+.blk-head .n{font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+
+/* destaque em duas colunas assimétricas, sem card */
+.feat{display:grid;grid-template-columns:1fr;gap:24px}
+@media(min-width:900px){ .feat{grid-template-columns:.92fr 1.08fr;gap:44px;align-items:start} }
+.feat-ph{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.feat-ph img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.feat-tag{position:absolute;left:14px;top:14px;display:inline-flex;align-items:center;gap:7px;
+  background:var(--wine);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;padding:7px 12px;border-radius:100px}
+.feat-tag i{width:5px;height:5px;background:#fff;border-radius:50%;font-style:normal;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+.feat h3{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(30px,4.6vw,46px);line-height:1.02;margin:0 0 14px;letter-spacing:-.012em}
+.feat p{font-size:16px;line-height:1.68;margin:0 0 24px;max-width:46ch}
+.meta{margin:0 0 26px;border-top:1px solid var(--line)}
+.meta div{display:flex;justify-content:space-between;gap:16px;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid var(--line)}
+.meta dt{font-size:12.5px;color:var(--ink-3)}
+.meta dd{margin:0;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+
+/* agenda como lista de capa, com número grande de data */
+.list{border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;
+  padding:20px 0;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;
+  transition:background .18s,padding-left .18s}
+.row:hover{background:var(--card);padding-left:10px}
+.row .dt{font-family:var(--fd);font-size:clamp(26px,4vw,38px);line-height:.94;color:var(--wine);
+  font-variant-numeric:tabular-nums;text-align:center;min-width:2.6em}
+.row .dt small{display:block;font-family:var(--f);font-size:10.5px;font-weight:700;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.row h4{font-family:var(--fd);font-weight:400;font-size:clamp(19px,2.6vw,27px);line-height:1.14;
+  margin:0 0 4px;color:var(--ink)}
+.row .sub{font-size:13px;color:var(--ink-3);margin:0}
+.row .go{font-size:19px;color:var(--line-2);transition:color .18s,transform .18s}
+.row:hover .go{color:var(--wine);transform:translateX(4px)}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <a class="brand" href="#"><img src="assets/logo.png" alt=""><b>LEPV</b></a>
+  <div class="nav-links"><a href="#">Início</a><a href="#">Eventos</a><a href="#">Membros</a></div>
+  <a href="#" class="nav-cta">Entrar</a>
+  <button class="burger" aria-label="Menu"><i></i><i></i><i></i></button>
+</div></nav>
+
+<header class="hero" id="hero">
+  <div class="hero-grid">
+    <div class="hero-txt">
+      <p class="rule-top rv"><span>Liga · IME · Rio de Janeiro</span><span class="r"></span></p>
+      <h1 class="rv" style="--i:1"><span>Engenharia</span><span>que <i>empreende</i></span></h1>
+      <p class="lede rv" style="--i:2">A Liga de Empreendedorismo da Praia Vermelha leva alunos do IME
+        para dentro das empresas que estão construindo o mercado brasileiro — com acesso real,
+        não palestra.</p>
+      <div class="acts rv" style="--i:3">
+        <a class="btn btn-p" href="#"><span class="ar">→</span>Próximo evento</a>
+        <a class="btn btn-g" href="#"><span class="ar">→</span>Seja parceiro</a>
+      </div>
+    </div>
+    <figure class="frame rv rv-r" style="--i:2">
+      <div class="frame-in">
+        <img src="assets/photos/liga-06.jpg" alt="">
+        <svg class="contour" viewBox="0 0 700 460" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg>
+      </div>
+      <figcaption class="cap"><b>Urca</b>onde a liga se reúne, ao pé do Pão de Açúcar</figcaption>
+    </figure>
+  </div>
+</header>
+
+<div class="nums"><div class="nums-in">
+  <div class="num rv"><b>18</b><span>membros ativos</span></div>
+  <div class="num rv" style="--i:1"><b>12</b><span>empresas visitadas</span></div>
+  <div class="num rv" style="--i:2"><b>4</b><span>turmas do IME</span></div>
+  <div class="num rv" style="--i:3"><b>2026</b><span>1ª missão SP</span></div>
+</div></div>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><h2>O próximo <i>encontro</i></h2><span class="r"></span><span class="n">/00</span></div>
+  <div class="feat">
+    <figure class="feat-ph rv rv-l" style="margin:0">
+      <img src="assets/photos/co-mottu.jpg" alt="">
+      <span class="feat-tag"><i></i>Inscrições abertas</span>
+    </figure>
+    <div class="rv" style="--i:1">
+      <h3>Visita à Mottu</h3>
+      <p>Uma tarde dentro da operação: como a Mottu escalou uma frota de motos para dezenas
+        de milhares de entregadores — e o que isso exige de engenharia, de crédito e de gente.</p>
+      <dl class="meta">
+        <div><dt>Data</dt><dd>04 set 2026 · 14h00</dd></div>
+        <div><dt>Local</dt><dd>Botafogo, Rio de Janeiro</dd></div>
+        <div><dt>Trajeto do IME</dt><dd>8 min</dd></div>
+        <div><dt>Vagas</dt><dd>17 inscritos · 13 de 30</dd></div>
+      </dl>
+      <a class="btn btn-p" href="#"><span class="ar">→</span>Garantir vaga</a>
+    </div>
+  </div>
+</div></section>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><h2>Na <i>agenda</i></h2><span class="r"></span><span class="n">/01</span></div>
+  <div class="list">
+    <a class="row rv" href="#">
+      <span class="dt">11<small>set</small></span>
+      <span><h4>Valuation para engenheiros</h4><p class="sub">Aula · 19h00 · IME, Praia Vermelha</p></span>
+      <span class="go">→</span>
+    </a>
+    <a class="row rv" style="--i:1" href="#">
+      <span class="dt">18<small>set</small></span>
+      <span><h4>Assembleia do 2º semestre</h4><p class="sub">Reunião · 19h00 · IME, Praia Vermelha</p></span>
+      <span class="go">→</span>
+    </a>
+    <a class="row rv" style="--i:2" href="#">
+      <span class="dt">26<small>set</small></span>
+      <span><h4>Happy hour com alumni</h4><p class="sub">Social · 20h00 · Urca</p></span>
+      <span class="go">→</span>
+    </a>
+  </div>
+</div></section>
+
+<section class="blk">
+  <div class="wrap"><div class="blk-head rv"><h2>A liga por <i>dentro</i></h2><span class="r"></span><span class="n">/02</span></div></div>
+  <div class="strip rv"><div class="strip-tr">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/co-revolut.jpg" alt=""><img src="assets/photos/liga-09.jpg" alt="">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/co-revolut.jpg" alt=""><img src="assets/photos/liga-09.jpg" alt="">
+  </div></div>
+</section>
+
+<div class="mq-band"><div class="wrap">
+  <p class="mq-lab rv"><span>Empresas que abriram as portas</span><span class="r"></span></p>
+  <div class="mq rv" style="--i:1"><div class="mq-row">
+    <div class="mq-tr">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+    <div class="mq-tr" aria-hidden="true">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+  </div></div>
+</div></div>
+
+<footer><div class="wrap">LEPV · Liga de Empreendedorismo da Praia Vermelha · lepv.org</div></footer>
+
+<script src="art.js"></script>
+<script>
+  LEPVArt.contour(document.querySelector('.contour'),
+    {W:700, base:446, peakH:300, levels:18, ribStep:13, stagger:20,
+     from:'#8A1E2D', to:'#8A1E2D', fadeLow:.14, fadeMid:.46, fadeHigh:.76});
+  LEPVArt.drawOnEnter(document.getElementById('hero'));
+  LEPVArt.reveal();
+</script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEPV · 4 Relevo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ============ hero: a foto é RECORTADA pela silhueta do Morro da
+   Urca + Pão de Açúcar, e o contorno se desenha por cima. A foto
+   deixa de ser fundo e passa a ser o relevo. ============ */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--paper) 0%,var(--paper-2) 100%)}
+.relief{position:absolute;left:0;right:0;bottom:-1px;z-index:0;width:100%;height:auto;pointer-events:none}
+.hero-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;
+  padding:56px var(--pad) 200px;text-align:left}
+@media(min-width:720px){ .hero-in{padding:92px var(--pad) 300px} }
+@media(min-width:1100px){ .hero-in{padding:112px var(--pad) 360px;text-align:center} }
+.kicker{font-size:10.5px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--wine);margin:0 0 20px}
+h1{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(44px,10.4vw,116px);line-height:.96;letter-spacing:-.022em;margin:0 0 20px;
+  text-wrap:balance}
+@media(min-width:1100px){ h1{max-width:20ch;margin-left:auto;margin-right:auto} }
+h1 i{font-style:italic;color:var(--wine)}
+.lede{font-family:var(--fd);font-size:clamp(19px,2.6vw,28px);line-height:1.4;color:var(--ink-2);
+  max-width:36ch;margin:0 0 30px}
+@media(min-width:1100px){ .lede{margin-left:auto;margin-right:auto;text-align:center} }
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+@media(min-width:1100px){ .acts{justify-content:center} }
+
+/* números flutuando sobre o relevo, no rodapé do hero */
+.hero-nums{position:absolute;left:0;right:0;bottom:0;z-index:3;
+  max-width:var(--max);margin:0 auto;padding:0 var(--pad) 22px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(min-width:720px){ .hero-nums{grid-template-columns:repeat(4,1fr);padding-bottom:30px} }
+.hn{backdrop-filter:blur(6px);background:rgba(250,248,245,.72);
+  border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.hn b{display:block;font-family:var(--fd);font-weight:400;font-size:clamp(26px,3.6vw,38px);
+  line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.hn span{display:block;margin-top:3px;font-size:11.5px;color:var(--ink-3)}
+
+section.blk{padding:60px 0}
+@media(min-width:720px){ section.blk{padding:96px 0} }
+.blk+.blk{border-top:1px solid var(--line)}
+.blk-head{text-align:left;margin:0 0 34px}
+@media(min-width:900px){ .blk-head{text-align:center;margin-bottom:48px} }
+.blk-head .n{display:block;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--wine);margin:0 0 12px}
+.blk-head h2{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(30px,5.4vw,58px);line-height:1;margin:0;letter-spacing:-.018em}
+.blk-head h2 i{font-style:italic;color:var(--wine)}
+
+/* destaque de tela cheia, generoso */
+.feat{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);
+  display:grid;grid-template-columns:1fr}
+@media(min-width:900px){ .feat{grid-template-columns:1fr 1fr} }
+.feat-ph{position:relative;min-height:250px;order:-1}
+@media(min-width:900px){ .feat-ph{order:0;min-height:420px} }
+.feat-ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.feat-tag{position:absolute;left:16px;top:16px;display:inline-flex;align-items:center;gap:7px;
+  background:rgba(250,248,245,.94);color:var(--wine);font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;padding:8px 13px;border-radius:100px}
+.feat-tag i{width:5px;height:5px;background:var(--wine);border-radius:50%;font-style:normal;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.3}}
+.feat-b{padding:28px;display:flex;flex-direction:column;justify-content:center}
+@media(min-width:720px){ .feat-b{padding:48px} }
+.feat-b h3{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(30px,4.4vw,46px);line-height:1.02;margin:0 0 16px;letter-spacing:-.014em}
+.feat-b p{font-size:16px;line-height:1.68;margin:0 0 26px;max-width:42ch}
+.meta{margin:0 0 28px;border-top:1px solid var(--line)}
+.meta div{display:flex;justify-content:space-between;gap:14px;align-items:baseline;
+  padding:12px 0;border-bottom:1px solid var(--line)}
+.meta dt{font-size:12.5px;color:var(--ink-3)}
+.meta dd{margin:0;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+
+.grid3{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:620px){ .grid3{grid-template-columns:1fr 1fr} }
+@media(min-width:940px){ .grid3{grid-template-columns:repeat(3,1fr)} }
+.ev{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:26px;
+  transition:transform .22s,border-color .22s,box-shadow .22s;text-decoration:none;color:inherit;display:block}
+.ev:hover{border-color:var(--line-2);transform:translateY(-4px);
+  box-shadow:0 20px 40px -24px rgba(20,20,22,.28)}
+.ev .t{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--wine);margin:0 0 16px}
+.ev h4{font-family:var(--fd);font-weight:400;font-size:25px;line-height:1.08;margin:0 0 10px;color:var(--ink)}
+.ev .d{font-size:13.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin:0}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <a class="brand" href="#"><img src="assets/logo.png" alt=""><b>LEPV</b></a>
+  <div class="nav-links"><a href="#">Início</a><a href="#">Eventos</a><a href="#">Membros</a></div>
+  <a href="#" class="nav-cta">Entrar</a>
+  <button class="burger" aria-label="Menu"><i></i><i></i><i></i></button>
+</div></nav>
+
+<header class="hero" id="hero">
+  <svg class="relief" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMax meet" aria-hidden="true"></svg>
+  <div class="hero-in">
+    <p class="kicker rv">IME · Praia Vermelha · Rio de Janeiro</p>
+    <h1 class="rv" style="--i:1">Engenharia que <i>empreende</i></h1>
+    <p class="lede rv" style="--i:2">Da Praia Vermelha para dentro das empresas que estão construindo o mercado.</p>
+    <div class="acts rv" style="--i:3">
+      <a class="btn btn-p" href="#"><span class="ar">→</span>Próximo evento</a>
+      <a class="btn btn-g" href="#"><span class="ar">→</span>Seja parceiro</a>
+    </div>
+  </div>
+  <div class="hero-nums">
+    <div class="hn rv"><b>18</b><span>membros</span></div>
+    <div class="hn rv" style="--i:1"><b>12</b><span>empresas</span></div>
+    <div class="hn rv" style="--i:2"><b>4</b><span>turmas</span></div>
+    <div class="hn rv" style="--i:3"><b>2026</b><span>1ª missão</span></div>
+  </div>
+</header>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><span class="n">/00</span><h2>O próximo <i>encontro</i></h2></div>
+  <div class="feat rv" style="--i:1">
+    <div class="feat-ph">
+      <img src="assets/photos/co-mottu.jpg" alt="">
+      <span class="feat-tag"><i></i>Inscrições abertas</span>
+    </div>
+    <div class="feat-b">
+      <h3>Visita à Mottu</h3>
+      <p>Uma tarde dentro da operação: como a Mottu escalou uma frota de motos para dezenas
+        de milhares de entregadores — e o que isso exige de engenharia.</p>
+      <dl class="meta">
+        <div><dt>Data</dt><dd>04 set 2026 · 14h00</dd></div>
+        <div><dt>Local</dt><dd>Botafogo, Rio de Janeiro</dd></div>
+        <div><dt>Trajeto do IME</dt><dd>8 min</dd></div>
+        <div><dt>Vagas</dt><dd>17 inscritos · 13 de 30</dd></div>
+      </dl>
+      <a class="btn btn-p" style="align-self:flex-start" href="#"><span class="ar">→</span>Garantir vaga</a>
+    </div>
+  </div>
+</div></section>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><span class="n">/01</span><h2>Na <i>agenda</i></h2></div>
+  <div class="grid3">
+    <a class="ev rv" href="#"><p class="t">Aula</p><h4>Valuation para engenheiros</h4><p class="d">11 set · 19h00 · IME</p></a>
+    <a class="ev rv" style="--i:1" href="#"><p class="t">Reunião</p><h4>Assembleia do 2º semestre</h4><p class="d">18 set · 19h00 · IME</p></a>
+    <a class="ev rv" style="--i:2" href="#"><p class="t">Social</p><h4>Happy hour com alumni</h4><p class="d">26 set · 20h00 · Urca</p></a>
+  </div>
+</div></section>
+
+<section class="blk">
+  <div class="wrap"><div class="blk-head rv"><span class="n">/02</span><h2>A liga por <i>dentro</i></h2></div></div>
+  <div class="strip rv"><div class="strip-tr">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/co-revolut.jpg" alt="">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/co-revolut.jpg" alt="">
+  </div></div>
+</section>
+
+<div class="mq-band"><div class="wrap">
+  <p class="mq-lab rv"><span>Empresas que abriram as portas</span><span class="r"></span></p>
+  <div class="mq rv" style="--i:1"><div class="mq-row">
+    <div class="mq-tr">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+    <div class="mq-tr" aria-hidden="true">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+  </div></div>
+</div></div>
+
+<footer><div class="wrap">LEPV · Liga de Empreendedorismo da Praia Vermelha · lepv.org</div></footer>
+
+<script src="art.js"></script>
+<script>
+  LEPVArt.maskedPhoto(document.querySelector('.relief'),
+    'assets/photos/liga-06.jpg',
+    {W:1000, H:520, base:510, peakH:430, levels:16, ribStep:22, opacity:.66});
+  LEPVArt.drawOnEnter(document.getElementById('hero'));
+  LEPVArt.reveal();
+</script>
+</body>
+</html>

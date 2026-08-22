@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEPV · 5 Arquivo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ============ estética de documento institucional: filete duplo,
+   seções em algarismo romano, legenda em itálico, figura técnica
+   com eixo e cota. Lê como instituição com arquivo. ============ */
+body{background:var(--paper)}
+.rule2{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);height:4px;
+  box-sizing:content-box;background:transparent}
+
+/* cabeçalho de documento */
+.doc-head{max-width:var(--max);margin:0 auto;padding:34px var(--pad) 22px}
+@media(min-width:720px){ .doc-head{padding:52px var(--pad) 28px} }
+.doc-meta{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:10.5px;font-weight:700;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin:0 0 26px}
+.doc-meta b{color:var(--wine);font-weight:700}
+h1{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(40px,8.8vw,92px);line-height:1.0;letter-spacing:-.018em;margin:0 0 18px;max-width:18ch}
+h1 i{font-style:italic;color:var(--wine)}
+.abstract{display:grid;grid-template-columns:1fr;gap:18px;margin:0 0 30px}
+@media(min-width:820px){ .abstract{grid-template-columns:1.4fr 1fr;gap:44px} }
+.abstract p{margin:0;font-size:16px;line-height:1.7;color:var(--ink-2)}
+.abstract p:first-child::first-letter{font-family:var(--fd);font-size:3.1em;line-height:.84;
+  float:left;margin:.04em .09em 0 0;color:var(--wine)}
+.abstract aside{border-left:1px solid var(--line-2);padding-left:20px}
+.abstract aside dl{margin:0;display:grid;gap:9px}
+.abstract aside div{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.abstract aside dt{color:var(--ink-3)}
+.abstract aside dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+
+/* figura técnica: foto recortada pelo relevo + eixo e cota */
+figure.fig{margin:0;border-top:1px solid var(--line);background:var(--paper-2)}
+.fig-in{max-width:var(--max);margin:0 auto;padding:24px var(--pad) 0;position:relative}
+.relief{width:100%;height:auto;display:block}
+.fig-cap{max-width:var(--max);margin:0 auto;padding:12px var(--pad) 26px;
+  display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;
+  border-bottom:1px solid var(--line)}
+.fig-cap b{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--wine)}
+.fig-cap span{font-family:var(--fd);font-style:italic;font-size:15px;color:var(--ink-3)}
+
+/* seções numeradas em romano */
+section.blk{padding:52px 0}
+@media(min-width:720px){ section.blk{padding:76px 0} }
+.blk+.blk{border-top:1px solid var(--line)}
+.blk-head{display:flex;align-items:baseline;gap:14px;margin:0 0 10px}
+.blk-head .n{font-family:var(--fd);font-size:clamp(19px,2.4vw,26px);color:var(--wine);
+  min-width:2.1em;letter-spacing:.02em}
+.blk-head h2{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(26px,4.2vw,42px);line-height:1.04;margin:0}
+.blk-head h2 i{font-style:italic;color:var(--wine)}
+.blk-head .r{flex:1;height:1px;background:var(--line)}
+.blk-note{font-family:var(--fd);font-style:italic;font-size:15px;color:var(--ink-3);
+  margin:0 0 28px;padding-left:calc(2.1em + 14px)}
+
+/* verbete: cada evento é uma entrada de catálogo */
+.entry{display:grid;grid-template-columns:1fr;gap:14px;padding:22px 0;
+  border-bottom:1px solid var(--line);text-decoration:none;color:inherit;transition:background .16s}
+@media(min-width:880px){ .entry{grid-template-columns:132px 1fr 200px;gap:28px;align-items:start} }
+.entry:hover{background:var(--card)}
+.entry .ph{border:1px solid var(--line);border-radius:3px;overflow:hidden;background:var(--card)}
+.entry .ph img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.entry .k{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--wine);margin:0 0 8px}
+.entry h4{font-family:var(--fd);font-weight:400;font-size:clamp(21px,2.8vw,28px);line-height:1.1;
+  margin:0 0 8px;color:var(--ink)}
+.entry p{font-size:14.5px;line-height:1.62;margin:0;color:var(--ink-2);max-width:52ch}
+.entry .side{font-size:13px;color:var(--ink-3)}
+.entry .side div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;
+  border-bottom:1px dotted var(--line-2);font-variant-numeric:tabular-nums}
+.entry .side div:last-child{border-bottom:0}
+.entry .side b{color:var(--ink);font-weight:600}
+
+/* nota de rodapé */
+.foot-note{max-width:var(--max);margin:0 auto;padding:0 var(--pad);
+  font-size:12.5px;color:var(--ink-3);line-height:1.7;
+  border-top:1px solid var(--line);padding-top:20px;margin-top:34px}
+.foot-note sup{color:var(--wine);font-weight:700}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <a class="brand" href="#"><img src="assets/logo.png" alt=""><b>LEPV</b></a>
+  <div class="nav-links"><a href="#">Início</a><a href="#">Eventos</a><a href="#">Membros</a></div>
+  <a href="#" class="nav-cta">Entrar</a>
+  <button class="burger" aria-label="Menu"><i></i><i></i><i></i></button>
+</div></nav>
+
+<div class="doc-head" id="hero">
+  <p class="doc-meta rv">
+    <span><b>LEPV</b> · Liga de Empreendedorismo da Praia Vermelha</span>
+    <span>Instituto Militar de Engenharia</span>
+    <span>Fundada em 2026</span>
+  </p>
+  <h1 class="rv" style="--i:1">Engenharia que <i>empreende</i></h1>
+  <div class="abstract">
+    <p class="rv" style="--i:2">A liga leva alunos do IME para dentro das empresas que estão
+      construindo o mercado brasileiro. Não é palestra em auditório: é a operação por dentro,
+      com quem toma a decisão. Doze empresas abriram as portas no primeiro ano, e uma missão
+      de uma semana levou onze membros a São Paulo.</p>
+    <aside class="rv" style="--i:3">
+      <dl>
+        <div><dt>Membros ativos</dt><dd>18</dd></div>
+        <div><dt>Empresas visitadas</dt><dd>12</dd></div>
+        <div><dt>Turmas representadas</dt><dd>4</dd></div>
+        <div><dt>Especialidades do IME</dt><dd>9</dd></div>
+        <div><dt>Primeira missão</dt><dd>São Paulo, 2026</dd></div>
+      </dl>
+    </aside>
+  </div>
+  <div class="acts rv" style="--i:4">
+    <a class="btn btn-p btn-sq" href="#"><span class="ar">→</span>Próximo evento</a>
+    <a class="btn btn-g btn-sq" href="#">Seja parceiro</a>
+  </div>
+</div>
+
+<div class="rule2"></div>
+
+<figure class="fig">
+  <div class="fig-in"><svg class="relief" viewBox="0 0 1000 360" preserveAspectRatio="xMidYMax meet" aria-hidden="true"></svg></div>
+  <figcaption class="fig-cap">
+    <b>Fig. 1</b>
+    <span>Morro da Urca e Pão de Açúcar vistos da Praia Vermelha, onde fica o IME.</span>
+  </figcaption>
+</figure>
+
+<section class="blk"><div class="wrap">
+  <div class="blk-head rv"><span class="n">I.</span><h2>O semestre <i>corrente</i></h2><span class="r"></span></div>
+  <p class="blk-note rv">Entradas abertas a inscrição, em ordem de data.</p>
+
+  <a class="entry rv" href="#">
+    <div class="ph"><img src="assets/photos/co-mottu.jpg" alt=""></div>
+    <div>
+      <p class="k">Visita · 04 set 2026</p>
+      <h4>Mottu</h4>
+      <p>Como a Mottu escalou uma frota de motos para dezenas de milhares de entregadores —
+        e o que isso exige de engenharia, de crédito e de gente.</p>
+    </div>
+    <div class="side">
+      <div><span>Horário</span><b>14h00</b></div>
+      <div><span>Local</span><b>Botafogo</b></div>
+      <div><span>Trajeto do IME</span><b>8 min</b></div>
+      <div><span>Vagas</span><b>13 de 30</b></div>
+    </div>
+  </a>
+
+  <a class="entry rv" style="--i:1" href="#">
+    <div class="ph"><img src="assets/photos/liga-01.jpg" alt=""></div>
+    <div>
+      <p class="k">Aula · 11 set 2026</p>
+      <h4>Valuation para engenheiros</h4>
+      <p>Fluxo de caixa descontado, múltiplos e o que sobra quando a planilha encontra
+        a realidade de uma empresa em crescimento.</p>
+    </div>
+    <div class="side">
+      <div><span>Horário</span><b>19h00</b></div>
+      <div><span>Local</span><b>IME</b></div>
+      <div><span>Vagas</span><b>22 de 40</b></div>
+    </div>
+  </a>
+
+  <a class="entry rv" style="--i:2" href="#">
+    <div class="ph"><img src="assets/photos/co-revolut.jpg" alt=""></div>
+    <div>
+      <p class="k">Visita · 23 set 2026</p>
+      <h4>Revolut</h4>
+      <p>Produto financeiro sob regulação de dois continentes, e como um time de engenharia
+        entrega sob essa restrição.</p>
+    </div>
+    <div class="side">
+      <div><span>Horário</span><b>15h00</b></div>
+      <div><span>Local</span><b>Centro</b></div>
+      <div><span>Vagas</span><b>8 de 25</b></div>
+    </div>
+  </a>
+
+  <p class="foot-note"><sup>1</sup> Presença abre automaticamente na data do evento, pelo
+    horário de Brasília. Membros confirmam por código; visitantes, por QR.</p>
+</div></section>
+
+<section class="blk">
+  <div class="wrap">
+    <div class="blk-head rv"><span class="n">II.</span><h2>A liga por <i>dentro</i></h2><span class="r"></span></div>
+    <p class="blk-note rv">Registro fotográfico de reuniões, visitas e da missão a São Paulo.</p>
+  </div>
+  <div class="strip rv"><div class="strip-tr">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/liga-09.jpg" alt="">
+    <img src="assets/photos/liga-01.jpg" alt=""><img src="assets/photos/liga-04.jpg" alt="">
+    <img src="assets/photos/liga-06.jpg" alt=""><img src="assets/photos/day-ter21.jpg" alt="">
+    <img src="assets/photos/liga-08.jpg" alt=""><img src="assets/photos/liga-09.jpg" alt="">
+  </div></div>
+</section>
+
+<div class="mq-band"><div class="wrap">
+  <p class="mq-lab rv"><span>III · Empresas que abriram as portas</span><span class="r"></span></p>
+  <div class="mq rv" style="--i:1"><div class="mq-row">
+    <div class="mq-tr">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+    <div class="mq-tr" aria-hidden="true">
+      <img src="assets/logos/bain.svg" alt=""><img src="assets/logos/mottu.svg" alt="">
+      <img src="assets/logos/revolut.svg" alt=""><img src="assets/logos/nomad.svg" alt="">
+      <img src="assets/logos/pax.svg" alt=""><img src="assets/logos/tivita.svg" alt="">
+      <img src="assets/logos/mirow.svg" alt=""><img src="assets/logos/enter.svg" alt="">
+    </div>
+  </div></div>
+</div></div>
+
+<footer><div class="wrap">LEPV · Liga de Empreendedorismo da Praia Vermelha · lepv.org</div></footer>
+
+<script src="art.js"></script>
+<script>
+  LEPVArt.maskedPhoto(document.querySelector('.relief'),
+    'assets/photos/liga-06.jpg',
+    {W:1000, H:360, base:352, peakH:300, levels:14, ribStep:24, opacity:.5});
+  LEPVArt.drawOnEnter(document.querySelector('.fig'));
+  LEPVArt.reveal();
+</script>
+</body>
+</html>
