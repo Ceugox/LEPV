@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inscrição — LEPV</title>
 <meta name="robots" content="noindex">
-<link rel="icon" href="/logo-liga.png">
-<meta name="theme-color" content="#17171B">
+<link rel="icon" href="/assets/logo-mark.png">
+<meta name="theme-color" content="#0A0A0B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <style>
-  body { background-color: var(--navy); min-height: 100vh; }
+  body { background-color: var(--band); min-height: 100vh; }
   .stage {
     min-height: 100vh; display: flex; flex-direction: column; align-items: center;
     justify-content: center; padding: 32px 16px; position: relative;
@@ -25,14 +25,12 @@
     mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 0%, transparent 75%);
   }
   .brandblock { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 26px; }
-  .brandblock img {
-    width: 76px; height: 76px; margin-bottom: 16px; border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.18), 0 0 24px var(--red-glow);
-  }
+  /* A marca ja e circular: sem disco nem sombra. */
+  .brandblock img { width: 84px; height: auto; margin-bottom: 16px; }
   .brandblock .eyebrow { color: rgba(255,255,255,0.55); margin-bottom: 10px; }
   .brandblock h1 {
-    color: #fff; font-size: 32px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.02em; line-height: 1; margin: 0;
+    font-family: var(--fd); color: #fff; font-size: 40px; font-weight: 400;
+    letter-spacing: 0.01em; line-height: 1; margin: 0;
   }
   .brandblock .sub { color: rgba(255,255,255,0.6); font-size: 13.5px; margin-top: 10px; }
 
@@ -47,8 +45,8 @@
   .lesson-desc { font-size: 13px; color: var(--graphite); line-height: 1.55; margin: 0 0 16px; }
   form { display: flex; flex-direction: column; gap: 16px; }
   .error {
-    display: none; font-size: 12.5px; color: #991B1B; background: #FEEBEB;
-    border: 1px solid #F5C6C6; border-radius: var(--radius-sm); padding: 9px 12px;
+    display: none; font-size: 12.5px; color: var(--danger); background: var(--danger-soft);
+    border: 1px solid var(--danger-line); border-radius: var(--radius-sm); padding: 9px 12px;
   }
   .error.show { display: block; }
   .btn-primary { width: 100%; margin-top: 4px; }
@@ -63,7 +61,7 @@
   .done p { font-size: 13px; color: var(--graphite-soft); line-height: 1.55; margin: 0; }
   .done .invite {
     margin-top: 14px; font-size: 13px; color: var(--navy); background: var(--pending-soft);
-    border: 1px solid #F5DFB8; border-radius: var(--radius-sm); padding: 10px 12px; line-height: 1.5;
+    border: 1px solid var(--pending-line); border-radius: var(--radius-sm); padding: 10px 12px; line-height: 1.5;
   }
   .done .invite a { color: var(--red-2); font-weight: 700; }
   .hint { font-size: 11.5px; color: var(--graphite-soft); margin-top: -6px; }
@@ -81,14 +79,14 @@
 </head>
 <body>
   <div class="stage">
-    <div class="brandblock">
-      <img src="/logo-liga.png" alt="LEPV" style="background:var(--white); object-fit:cover;">
+    <div class="brandblock rv">
+      <img src="/assets/logo-mark-white.png" alt="LEPV">
       <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
       <h1>LEPV</h1>
       <p class="sub">Inscrição em atividade da liga</p>
     </div>
 
-    <div class="card">
+    <div class="card rv" style="--i:1">
       <div id="lesson-info">
         <p class="eyebrow" id="event-kind">Evento</p>
         <h2 id="lesson-title">Carregando...</h2>
@@ -139,7 +137,7 @@
         <button type="submit" class="btn-primary" id="s-submit">Confirmar inscrição</button>
       </form>
 
-      <div class="done" id="done">
+      <div class="done rv" style="--i:2" id="done">
         <div class="check">✓</div>
         <h3>Inscrição confirmada</h3>
         <p id="done-msg"></p>
@@ -264,5 +262,7 @@
   });
 })();
 </script>
+<script src="/art.js"></script>
+<script>LEPVArt.reveal();</script>
 </body>
 </html>

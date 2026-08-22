@@ -20,6 +20,7 @@
   --danger: #991B1B;
   --danger-soft: #FEEBEB;
   --danger-line: #F5C6C6;
+  --pending-line: #F5DFB8;
 
   /* aliases históricos — o resto do CSS e o app referenciam estes nomes */
   --navy: var(--ink);

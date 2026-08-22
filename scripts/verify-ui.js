@@ -51,8 +51,11 @@ function check(ok, label, detail) {
           .filter(el => visible(el) && !el.matches(CONTROL))
           .map(el => ({ h: Math.round(el.getBoundingClientRect().height),
                         id: (el.textContent || '').trim().slice(0, 20) }));
+        /* font-size não depende de visibilidade, e formulário que só abre por
+           interação nasce colapsado — medir só o visível deixaria passar um
+           campo em 14px que causa zoom no Safari iOS assim que aparecesse. */
         const inputs = [...document.querySelectorAll('input,select,textarea')]
-          .filter(el => el.type !== 'hidden' && visible(el))
+          .filter(el => el.type !== 'hidden')
           .map(el => parseFloat(getComputedStyle(el).fontSize));
         // marca escondida (a do nav antes de rolar) não conta
         const marks = [...document.querySelectorAll('img[src*="logo-mark"]')]
