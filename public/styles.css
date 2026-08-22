@@ -90,6 +90,37 @@ body.imersao {
   --shadow-lift: 0 16px 36px -10px rgba(8,27,51,0.22);
 }
 
+/* ---------- revelação ligada ao progresso do scroll ----------
+   O JS (LEPVArt.reveal) publica --p (0→1) em cada .rv conforme o elemento
+   sobe pela tela. Nada aqui tem duração própria: o estado é função direta
+   de onde a página está. Rolar devagar revela devagar; parar no meio deixa
+   o elemento no meio. --i escalona irmãos. */
+.rv {
+  --pi: clamp(0, (var(--p) - var(--i,0) * 0.09) / 0.72, 1);
+  opacity: var(--pi);
+  transform: translate3d(0, calc((1 - var(--pi)) * 26px), 0);
+  will-change: opacity, transform;
+}
+.rv.in { will-change: auto; }
+.rv-l { transform: translate3d(calc((1 - var(--pi)) * -28px), 0, 0); }
+.rv-r { transform: translate3d(calc((1 - var(--pi)) * 28px), 0, 0); }
+.rv-s { transform: scale(calc(0.96 + var(--pi) * 0.04)); }
+
+/* ---------- contorno: cada traço se desenha na sua fatia do scroll ----------
+   --s = onde o traço começa no curso; --w = quanto do curso ele consome.
+   Uma escrita de --p no contêiner move todas as linhas de uma vez. */
+.contour path {
+  stroke-dasharray: var(--len, 1200);
+  stroke-dashoffset: calc(var(--len, 1200) *
+    (1 - clamp(0, (var(--p) - var(--s,0)) / var(--w,.42), 1)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1 !important; transform: none !important; will-change: auto; }
+  .contour path { stroke-dashoffset: 0 !important; }
+  .strip-track, .m-track { animation: none !important; }
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 body {
@@ -119,6 +150,8 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
   padding: 12px 22px; border-radius: var(--radius-sm); border: none; color: #fff; cursor: pointer;
   background: var(--red);
   transition: background 0.15s ease, transform 0.1s ease;
+  /* 44px é o alvo de toque mínimo; 46 dá folga sem mudar o desenho */
+  display: inline-flex; align-items: center; justify-content: center; min-height: 46px;
 }
 .btn-primary:hover { background: var(--red-hover); }
 .btn-primary:active { transform: translateY(1px); }
@@ -128,6 +161,7 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
   font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
   padding: 9px 16px; border-radius: var(--radius-md); border: 1px solid var(--navy-line);
   background: transparent; color: #fff; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  display: inline-flex; align-items: center; justify-content: center; min-height: 46px;
 }
 .btn-ghost:hover { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.08); }
 
