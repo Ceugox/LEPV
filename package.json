@@ -12,9 +12,10 @@
     "verify:ui": "node scripts/verify-ui.js",
     "verify:app": "node scripts/verify-app.js",
     "verify:tabs": "node scripts/verify-tabs.js",
-    "verify": "npm test && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:hero && npm run verify:consistency && npm run verify:app && npm run verify:tabs",
+    "verify": "npm test && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:hero && npm run verify:reveal && npm run verify:consistency && npm run verify:app && npm run verify:tabs",
     "verify:hero": "node scripts/verify-hero-text.js",
-    "verify:consistency": "node scripts/verify-consistency.js"
+    "verify:consistency": "node scripts/verify-consistency.js",
+    "verify:reveal": "node scripts/verify-reveal.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

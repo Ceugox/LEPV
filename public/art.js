@@ -302,17 +302,37 @@
   function revFrame() {
     revQueued = false;
     const sy = scrollY;
+    /* Quanto de rolagem a página ainda oferece. Sem isso, elemento no fim da
+       página nunca alcança o fim do próprio curso e fica translúcido para
+       sempre — foi o caso do marquee, travado em 0.71. */
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - revVh);
+
     for (const it of revItems) {
-      // começa quando o topo entra pela base da tela; completa depois de
-      // subir ~38% da altura da viewport
+      // começa quando o topo entra pela base da tela
       const start = it.top - revVh;
-      const span = revVh * 0.38 + Math.min(it.h, revVh * 0.30);
+      /* Curso longo de propósito: com um curso curto o elemento terminava de
+         aparecer na BORDA INFERIOR da tela, fora do campo de atenção — a
+         página parecia "já carregada". Assim ele completa por volta da metade
+         da tela, onde o olho está. */
+      let span = revVh * 0.52 + Math.min(it.h, revVh * 0.22);
+      // não pedir mais rolagem do que existe
+      if (start + span > maxScroll) span = Math.max(80, maxScroll - start);
+
       let p = (sy - start) / span;
       p = p < 0 ? 0 : p > 1 ? 1 : p;
-      if (p > it.p) {
-        it.p = p;
-        it.el.style.setProperty('--p', p.toFixed(4));
-        if (p >= 1) it.el.classList.add('in');
+
+      /* Escalonamento de irmãos no JS, não no CSS: a fórmula anterior
+         `(p - i*0.09)/0.72` tinha TETO ABAIXO DE 1 para i >= 4, e as últimas
+         linhas do índice ficavam translúcidas para sempre (i=5 travava em
+         76%). Dividir pelo que resta garante que todo irmão chegue a 1. */
+      const atraso = Math.min(0.6, it.i * 0.055);
+      let pi = (p - atraso) / (1 - atraso);
+      pi = pi < 0 ? 0 : pi > 1 ? 1 : pi;
+
+      if (pi > it.p) {
+        it.p = pi;
+        it.el.style.setProperty('--p', pi.toFixed(4));
+        if (pi >= 1) it.el.classList.add('in');
       }
     }
   }
@@ -333,7 +353,11 @@
 
     const first = revItems === null;
     if (first) revItems = [];
-    for (const el of found) revItems.push({ el: el, top: 0, h: 0, p: 0 });
+    for (const el of found) {
+      // --i vem do style inline; lido uma vez, no registro
+      const i = parseFloat(el.style.getPropertyValue('--i')) || 0;
+      revItems.push({ el: el, top: 0, h: 0, p: 0, i: i });
+    }
 
     revMeasure();
     revFrame();

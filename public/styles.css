@@ -96,16 +96,19 @@ body.imersao {
    sobe pela tela. Nada aqui tem duração própria: o estado é função direta
    de onde a página está. Rolar devagar revela devagar; parar no meio deixa
    o elemento no meio. --i escalona irmãos. */
+/* O JS entrega --p JÁ escalonado por --i. A versão anterior fazia a conta
+   aqui — `clamp(0, (var(--p) - var(--i,0)*0.09) / 0.72, 1)` — e o teto ficava
+   abaixo de 1 para --i >= 4: as últimas linhas do índice paravam em 76% de
+   opacidade para sempre. Aritmética de escalonamento fica no JS. */
 .rv {
-  --pi: clamp(0, (var(--p) - var(--i,0) * 0.09) / 0.72, 1);
-  opacity: var(--pi);
-  transform: translate3d(0, calc((1 - var(--pi)) * 26px), 0);
+  opacity: var(--p);
+  transform: translate3d(0, calc((1 - var(--p)) * 26px), 0);
   will-change: opacity, transform;
 }
 .rv.in { will-change: auto; }
-.rv-l { transform: translate3d(calc((1 - var(--pi)) * -28px), 0, 0); }
-.rv-r { transform: translate3d(calc((1 - var(--pi)) * 28px), 0, 0); }
-.rv-s { transform: scale(calc(0.96 + var(--pi) * 0.04)); }
+.rv-l { transform: translate3d(calc((1 - var(--p)) * -28px), 0, 0); }
+.rv-r { transform: translate3d(calc((1 - var(--p)) * 28px), 0, 0); }
+.rv-s { transform: scale(calc(0.96 + var(--p) * 0.04)); }
 
 /* ---------- contorno: cada traço se desenha na sua fatia do scroll ----------
    --s = onde o traço começa no curso; --w = quanto do curso ele consome.
