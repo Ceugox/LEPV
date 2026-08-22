@@ -32,45 +32,69 @@ function check(ok, label, detail) {
 
       const m = await page.evaluate(() => {
         const de = document.documentElement;
-        const heights = [...document.querySelectorAll('a[href],button,input,select,[role=tab]')]
-          .map(el => el.getBoundingClientRect())
-          .filter(r => r.height > 0 && r.width > 0)
-          .map(r => Math.round(r.height));
+        const visible = el => {
+          const r = el.getBoundingClientRect();
+          const cs = getComputedStyle(el);
+          return r.height > 0 && r.width > 0 && parseFloat(cs.opacity) > 0.05 &&
+                 cs.visibility !== 'hidden' && cs.display !== 'none';
+        };
+        /* Dois critérios, porque WCAG trata os casos de forma diferente:
+           - CONTROLES (botão, aba, campo, CTA) → 44px, o alvo confortável
+           - LINK de navegação ou de texto → 24px, o mínimo do 2.5.8 AA */
+        const CONTROL = 'button,[role=tab],input,select,textarea,.btn,.btn-p,.btn-g,' +
+                        '.btn-primary,.btn-ghost,.nav-cta,.burger';
+        const controls = [...document.querySelectorAll(CONTROL)]
+          .filter(el => el.type !== 'hidden' && visible(el))
+          .map(el => ({ h: Math.round(el.getBoundingClientRect().height),
+                        id: el.tagName + '.' + (el.className || '').toString().slice(0, 20) }));
+        const links = [...document.querySelectorAll('a[href]')]
+          .filter(el => visible(el) && !el.matches(CONTROL))
+          .map(el => ({ h: Math.round(el.getBoundingClientRect().height),
+                        id: (el.textContent || '').trim().slice(0, 20) }));
         const inputs = [...document.querySelectorAll('input,select,textarea')]
-          .filter(el => el.type !== 'hidden' && el.getBoundingClientRect().height > 0)
+          .filter(el => el.type !== 'hidden' && visible(el))
           .map(el => parseFloat(getComputedStyle(el).fontSize));
+        // marca escondida (a do nav antes de rolar) não conta
         const marks = [...document.querySelectorAll('img[src*="logo-mark"]')]
-          .map(el => Math.round(el.getBoundingClientRect().height))
-          .filter(h => h > 0);
+          .filter(visible)
+          .map(el => Math.round(parseFloat(getComputedStyle(el).height)));
         return {
           overflowX: de.scrollWidth - de.clientWidth,
-          minTap: heights.length ? Math.min(...heights) : null,
+          worstControl: controls.sort((a, b) => a.h - b.h)[0] || null,
+          worstLink: links.sort((a, b) => a.h - b.h)[0] || null,
           minInputFont: inputs.length ? Math.min(...inputs) : null,
           markHeights: marks,
-          rvCount: document.querySelectorAll('.rv').length,
-          hasArt: typeof window.LEPVArt !== 'undefined'
+          rvCount: document.querySelectorAll('.rv').length
         };
       });
 
       check(m.overflowX === 0, 'sem overflow horizontal', `overflowX=${m.overflowX}`);
-      if (m.minTap !== null) check(m.minTap >= 44, 'alvo de toque >= 44px', `menor=${m.minTap}`);
+      if (m.worstControl)
+        check(m.worstControl.h >= 44, 'controle >= 44px', `menor=${m.worstControl.h} (${m.worstControl.id})`);
+      if (m.worstLink)
+        check(m.worstLink.h >= 24, 'link >= 24px', `menor=${m.worstLink.h} ("${m.worstLink.id}")`);
       if (m.minInputFont !== null) check(m.minInputFont >= 16, 'input >= 16px', `menor=${m.minInputFont}`);
-      for (const h of m.markHeights) check(h >= 40, 'marca >= 40px', `altura=${h}`);
+      for (const h of m.markHeights) check(h >= 40, 'marca visível >= 40px', `altura=${h}`);
 
-      // a revelação tem de ser progressiva: --p precisa assumir valor intermediário
+      /* A revelação tem de ser progressiva. Precisa olhar TODOS os .rv: o
+         primeiro costuma estar acima da dobra e nasce completo, então medir
+         só ele daria falso negativo. */
       if (m.rvCount > 0) {
-        const progressive = await page.evaluate(async () => {
-          const el = document.querySelector('.rv');
-          const seen = new Set();
-          for (const y of [0, 120, 260, 480, 900, 1600]) {
+        const prog = await page.evaluate(async () => {
+          const els = [...document.querySelectorAll('.rv')];
+          const mid = new Set();
+          for (const y of [0, 100, 250, 450, 700, 1100, 1600, 2200]) {
             window.scrollTo(0, y);
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-            seen.add(el.style.getPropertyValue('--p') || '0');
+            els.forEach((el, i) => {
+              const v = parseFloat(el.style.getPropertyValue('--p') || '0');
+              if (v > 0.01 && v < 0.99) mid.add(i);
+            });
           }
-          const vals = [...seen].map(Number).filter(v => v > 0 && v < 1);
-          return vals.length > 0 ? 'progressivo' : 'binario';
+          return { total: els.length, partial: mid.size };
         });
-        check(progressive === 'progressivo', 'revelação ligada ao scroll', progressive);
+        check(prog.partial > 0, 'revelação ligada ao scroll',
+              `${prog.partial}/${prog.total} passaram por estado parcial`);
       }
 
       // o contorno tem de preencher exatamente o contêiner
