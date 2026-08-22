@@ -34,8 +34,8 @@ descreva a liga como intermediária de visitas está errado, em qualquer tela. O
 anterior ("a liga leva alunos do IME para dentro das empresas") tratava o meio como se
 fosse o fim e foi reescrito.
 
-Consequência ainda aberta: os indicadores atuais contam a história antiga — o segundo
-número em destaque é "empresas visitadas". Ver §9.1.
+Consequência já resolvida: os indicadores em destaque foram reordenados para medir
+ambiente antes de rede. Ver §9.1.
 
 ## 2. Direção aprovada
 
@@ -321,30 +321,30 @@ Nada é considerado pronto por inspeção visual. Os sinais executáveis:
 - As pendências abertas do projeto que não são de UI, em especial o reset de senha dos
   fundadores.
 
-### 9.1 Aberto: os indicadores contam a história antiga
+### 9.1 Resolvido: a ordem dos indicadores
 
-Com o posicionamento corrigido em §1.1, a lista de números do cabeçalho ficou
-incoerente com o próprio texto ao lado dela. Hoje ela é:
+Com o posicionamento corrigido em §1.1, a lista de números ficou incoerente com o
+texto ao lado dela — o segundo item em destaque media visita a empresa, que passou a
+ser meio e não fim.
 
-> membros ativos · **empresas visitadas** · turmas representadas · especialidades do
-> IME · primeira missão
+**Decisão do Marcell: manter o indicador, só despriorizar.** Nenhum dado novo entra,
+então nada muda na API. A ordem passa a ser, no cabeçalho e na tira:
 
-O segundo item em destaque mede visita a empresa, que passou a ser meio e não fim. Um
-executivo que lê o parágrafo e depois a coluna vê duas mensagens diferentes.
+> membros ativos · turmas representadas · especialidades do IME · **empresas na
+> rede** · primeira missão
 
-Indicadores que mediriam ambiente de fomento — a definir com o Marcell, porque
-dependem de dado que talvez ainda não exista no `events.json`:
+Os três primeiros descrevem o ambiente — gente diversa se encontrando, que é a
+proposta. A rede vem depois, como prova.
 
-- encontros realizados no semestre / no ano
-- horas de formação (aulas + reuniões de conteúdo)
-- membros ativos e turmas representadas (já existem, e continuam válidos)
-- projetos ou empresas fundadas por membros
-- alumni e parceiros na rede
+O rótulo foi de "empresas visitadas" para **"empresas na rede"**: mede a mesma coisa
+com o enquadramento de §1.1, já que rede é resultado permanente e visita é o evento.
+Reverter é trocar uma string em dois lugares.
 
-"Empresas visitadas" segue sendo prova legítima de rede — só não deveria ser o segundo
-número da página. **Esta decisão precisa ser tomada antes do plano de implementação**,
-porque muda a API que alimenta o cabeçalho (`/api/public-events` hoje não expõe
-contagem de encontros).
+Indicadores de fomento que exigiriam dado novo ficaram **fora de escopo** por ora:
+encontros realizados e horas de formação (o `events.json` não guarda duração), e
+projetos ou empresas fundadas por membros (não há campo, teria de ser mantido à mão).
+Se um dia entrarem, "projetos fundados" é o mais forte para o público executivo,
+porque é o único que mede o fim e não o meio.
 
 ## 10. Riscos
 
