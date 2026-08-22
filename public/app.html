@@ -6,7 +6,7 @@
 <title>LEPV SP — Acervo da 1ª Imersão</title>
 <link rel="icon" href="/logo-liga.png">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#17171B">
+<meta name="theme-color" content="#121214">
 <link rel="apple-touch-icon" href="/icons/maskable-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
   /* A LIGA usa o papel claro + cards brancos de styles.css. Aqui só entra o
      hairline forte, que não existe nos tokens globais. */
   :root {
-    --line-strong: #D8D3CE;
+    --line-strong: var(--line-2);
   }
 
   /* Tema escuro do acervo da imersão — mesma linguagem da página inicial:
@@ -80,6 +80,7 @@
   }
   nav.tabs::-webkit-scrollbar { display: none; }
   nav.tabs button {
+    min-height: 44px;   /* alvo de toque */
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent;
     color: rgba(255,255,255,0.6); font-family: var(--font-display); font-weight: 400;
     font-size: 14.5px; text-transform: uppercase; letter-spacing: 0.04em;
@@ -296,7 +297,7 @@
     outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(23, 23, 27, 0.10);
   }
   .checkin-ok {
-    font-size: 12.5px; color: var(--good, #1B7A3D); background: var(--good-soft, #E8F5EC);
+    font-size: 12.5px; color: var(--good); background: var(--good-soft);
     border-radius: var(--radius-sm); padding: 9px 12px; margin-top: 10px;
   }
   .meeting-row { padding: 13px 0; border-top: 1px solid var(--line); }
@@ -320,7 +321,7 @@
   .visitor-row:first-of-type { border-top: none; }
   .invite-flag {
     font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-    padding: 3px 8px; border-radius: 2px; background: var(--pending-soft, #FEF4E5); color: var(--pending, #B7791F);
+    padding: 3px 8px; border-radius: 2px; background: var(--pending-soft); color: var(--pending);
   }
   .qr-box { margin-top: 10px; text-align: center; }
   .qr-box img { width: 220px; max-width: 100%; background: #fff; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--line); }
@@ -468,6 +469,7 @@
   .daypicker { display: flex; gap: 4px; overflow-x: auto; margin-bottom: 18px; scrollbar-width: none; border-bottom: 1px solid var(--line); }
   .daypicker::-webkit-scrollbar { display: none; }
   .daypicker button {
+    min-height: 44px;   /* alvo de toque */
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--graphite-soft);
     font-family: var(--font-display); font-weight: 400; font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em;
     min-height: 44px; display: inline-flex; align-items: center;
@@ -500,7 +502,7 @@
     display: flex; align-items: center; gap: 16px; padding: 20px; border-radius: var(--radius-md); margin-bottom: 18px;
     min-height: 76px;
   }
-  .company-hero.logoBg-light { background: #F5F7FA; }
+  .company-hero.logoBg-light { background: var(--paper-2); }
   .company-hero.logoBg-dark { background: var(--navy); border: 1px solid var(--line); }
   .company-hero img.company-logo { max-width: 130px; max-height: 46px; object-fit: contain; }
   .company-hero .company-fallback-name {
@@ -713,6 +715,7 @@
   /* Filtros do acervo */
   .legacy-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
   .lfilter {
+    min-height: 44px;   /* alvo de toque */
     border: 1px solid var(--line); background: transparent; color: var(--graphite-soft);
     border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600;
     font-family: var(--font-body); cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
@@ -857,7 +860,7 @@
   .lb-media img.rotated { transform: rotate(180deg); }
   .lb-media iframe {
     width: min(100%, 900px); aspect-ratio: 9 / 16; max-height: calc(100vh - 150px);
-    border: 0; border-radius: var(--radius-sm); background: #000;
+    border: 0; border-radius: var(--radius-sm); background: var(--band);
   }
   @media (min-width: 700px) { .lb-media iframe { aspect-ratio: 16 / 9; } }
   .lb-cap {
@@ -1005,6 +1008,7 @@
   /* Eventos: filtros por tipo e cartão do evento */
   .type-filters { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
   .type-chip {
+    min-height: 44px;   /* alvo de toque */
     border: 1px solid var(--line); background: var(--white); color: var(--graphite-soft);
     border-radius: 999px; padding: 7px 15px; cursor: pointer; font-family: var(--font-body);
     font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
@@ -1087,8 +1091,8 @@
   .form-modal h3 { text-align: center; }
   .form-modal form { display: flex; flex-direction: column; gap: 13px; margin-top: 6px; }
   .form-modal .form-error {
-    display: none; font-size: 12.5px; color: #991B1B; background: #FEEBEB;
-    border: 1px solid #F5C6C6; border-radius: var(--radius-sm); padding: 9px 12px;
+    display: none; font-size: 12.5px; color: var(--danger); background: var(--danger-soft);
+    border: 1px solid var(--danger-line); border-radius: var(--radius-sm); padding: 9px 12px;
   }
   .form-modal .form-error.show { display: block; }
   .form-modal .pin-actions { margin-top: 4px; }
@@ -1315,5 +1319,7 @@
 </div>
 
 <script src="/app.js"></script>
+<script src="/art.js"></script>
+<script>LEPVArt.reveal();</script>
 </body>
 </html>
