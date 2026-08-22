@@ -1,21 +1,41 @@
-/* Identidade da LIGA (padrão): preto de engrenagem + vinho da seta da logo,
-   sobre papel claro. Os nomes das variáveis são históricos (--navy/--red) —
-   o que muda entre liga e imersão são os VALORES. */
+/* Identidade da LIGA (padrão). As cores foram AMOSTRADAS de
+   marketing/logo.jpeg: engrenagem #090909, vinho da seta e das ondas
+   #7F0A1A. Os nomes --navy/--red são históricos e continuam apontando para
+   os valores da liga por alias, porque body.imersao os sobrescreve. */
 :root {
-  --navy: #17171B;
+  --paper:   #FAF8F5;
+  --paper-2: #F3EFE9;
+  --card:    #FFFFFF;
+  --band:    #0A0A0B;
+  --ink:     #121214;
+  --ink-2:   #3D3940;
+  /* #736D77 e não #7C7580: o tom anterior dava 4.20 sobre papel, abaixo de
+     AA, e ele carrega data e vagas do índice em 13px. Agora 4.74/5.02.
+     Conferir com scripts/check-contrast.py a cada mudança de paleta. */
+  --ink-3:   #736D77;
+  --line:    #E2DCD4;
+  --line-2:  #CDC4B9;
+  --wine:    #7F0A1A;
+  --wine-2:  #9E1F30;
+  --danger: #991B1B;
+  --danger-soft: #FEEBEB;
+  --danger-line: #F5C6C6;
+
+  /* aliases históricos — o resto do CSS e o app referenciam estes nomes */
+  --navy: var(--ink);
   --navy-2: #2A2A31;
   --navy-soft: #202025;
   --navy-line: rgba(255,255,255,0.14);
-  --white: #FFFFFF;
-  --offwhite: #F7F5F2;
-  --graphite: #37343A;
-  --graphite-soft: #6B6570;
-  --line: #E6E2DE;
-  --red: #8A1E2D;
-  --red-2: #A93245;
-  --red-hover: #6D1523;
-  --red-glow: rgba(138,30,45,0.30);
-  --navy-glow: rgba(23,23,27,0.28);
+  --white: var(--card);
+  --offwhite: var(--paper);
+  --graphite: var(--ink-2);
+  --graphite-soft: var(--ink-3);
+  --red: var(--wine);
+  --red-2: var(--wine-2);
+  --red-hover: #6A0715;
+  --red-glow: rgba(127,10,26,0.28);
+  --navy-glow: rgba(18,18,20,0.26);
+
   --good: #15803D;
   --good-soft: #EAF6EE;
   --pending: #B45309;
@@ -25,17 +45,31 @@
   --lunch: #B8752E;
   --lunch-soft: #FBF1E4;
   --lunch-dark: #8A5A21;
-  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --font-body: "Archivo", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --fd: "Instrument Serif", Georgia, serif;
+  --f:  "Archivo", system-ui, -apple-system, sans-serif;
+  /* aliases históricos de fonte */
+  --font-display: var(--fd);
+  --font-body: var(--f);
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 18px;
-  --gradient-primary: linear-gradient(135deg, var(--navy) 0%, var(--red) 100%);
-  --gradient-primary-15: linear-gradient(135deg, rgba(23,23,27,0.10) 0%, rgba(138,30,45,0.08) 100%);
-  --shadow-soft: 0 1px 2px rgba(23,23,27,0.05), 0 10px 28px -10px rgba(23,23,27,0.14);
-  --shadow-lift: 0 16px 36px -10px rgba(23,23,27,0.22);
+  --r: 6px;
+  --pad: 20px;
+  --max: 1220px;
+  /* Progresso de scroll. Mora na raiz para que o valor inline escrito pelo
+     JS sempre vença — declarar em .rv ou .contour sombreia o inline. */
+  --p: 0;
+
+  --gradient-primary: linear-gradient(135deg, var(--ink) 0%, var(--wine) 100%);
+  --gradient-primary-15: linear-gradient(135deg, rgba(18,18,20,0.10) 0%, rgba(127,10,26,0.08) 100%);
+  --shadow-soft: 0 1px 2px rgba(18,18,20,0.05), 0 10px 28px -10px rgba(18,18,20,0.14);
+  --shadow-lift: 0 16px 36px -10px rgba(18,18,20,0.22);
   color-scheme: light;
 }
+@media (min-width: 720px)  { :root { --pad: 32px } }
+@media (min-width: 1100px) { :root { --pad: 40px } }
 
 /* Dentro do acervo da imersão, o visual original SP (navy + vermelho) volta. */
 body.imersao {
@@ -190,7 +224,7 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
 }
 .m-logo:hover { opacity: 1; }
 .m-word {
-  flex: none; font-family: var(--font-display); font-weight: 600; font-size: 25px;
+  flex: none; font-family: var(--font-display); font-weight: 400; font-size: 25px;
   text-transform: uppercase; letter-spacing: 0.04em; color: rgba(255,255,255,0.85); line-height: 1;
 }
 @media (prefers-reduced-motion: reduce) {
