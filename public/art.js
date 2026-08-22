@@ -218,54 +218,88 @@
 
      Um listener de scroll, tudo dentro de um rAF, retângulos medidos fora
      do loop (só em resize/load) para não forçar layout a cada quadro. */
+  /* Estado de módulo, e não por chamada: o app monta listas em dezenas de
+     pontos e chama reveal a cada render. Uma implementação por chamada
+     registraria um listener de scroll por chamada — vazamento garantido.
+     Aqui há UM listener, UMA lista, e elemento já registrado é ignorado. */
+  const revealed = new WeakSet();
+  let revItems = null;      // null enquanto não inicializado
+  let revVh = 0, revQueued = false;
+
+  function revMeasure() {
+    revVh = innerHeight;
+    const sy = scrollY;
+    for (const it of revItems) {
+      const r = it.el.getBoundingClientRect();
+      it.top = r.top + sy;
+      it.h = r.height;
+    }
+  }
+
+  function revFrame() {
+    revQueued = false;
+    const sy = scrollY;
+    for (const it of revItems) {
+      // começa quando o topo entra pela base da tela; completa depois de
+      // subir ~38% da altura da viewport
+      const start = it.top - revVh;
+      const span = revVh * 0.38 + Math.min(it.h, revVh * 0.30);
+      let p = (sy - start) / span;
+      p = p < 0 ? 0 : p > 1 ? 1 : p;
+      if (p > it.p) {
+        it.p = p;
+        it.el.style.setProperty('--p', p.toFixed(4));
+        if (p >= 1) it.el.classList.add('in');
+      }
+    }
+  }
+
+  function revSchedule() {
+    if (!revQueued) { revQueued = true; requestAnimationFrame(revFrame); }
+  }
+
   function reveal(sel) {
-    const els = [...document.querySelectorAll(sel || '.rv')];
-    if (!els.length) return;
+    const found = [...document.querySelectorAll(sel || '.rv')].filter(el => !revealed.has(el));
+    if (!found.length) return;
+    found.forEach(el => revealed.add(el));
 
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      els.forEach(el => { el.style.setProperty('--p', 1); el.classList.add('in'); });
+      found.forEach(el => { el.style.setProperty('--p', 1); el.classList.add('in'); });
       return;
     }
 
-    const items = els.map(el => ({el: el, top: 0, h: 0, p: 0}));
-    let vh = innerHeight, queued = false;
+    const first = revItems === null;
+    if (first) revItems = [];
+    for (const el of found) revItems.push({ el: el, top: 0, h: 0, p: 0 });
 
-    function measure() {
-      vh = innerHeight;
-      const sy = scrollY;
-      for (const it of items) {
-        const r = it.el.getBoundingClientRect();
-        it.top = r.top + sy;
-        it.h = r.height;
-      }
+    revMeasure();
+    revFrame();
+
+    if (first) {
+      addEventListener('scroll', revSchedule, { passive: true });
+      addEventListener('resize', function () {
+        revMeasure();
+        revItems.forEach(function (i) { i.p = 0; });
+        revFrame();
+      });
+      // fontes e imagens mudam a altura: remede quando assentarem
+      if (document.fonts && document.fonts.ready)
+        document.fonts.ready.then(function () { revMeasure(); revFrame(); });
+      addEventListener('load', function () { revMeasure(); revFrame(); });
     }
+  }
 
-    function frame() {
-      queued = false;
-      const sy = scrollY;
-      for (const it of items) {
-        // começa quando o topo entra pela base da tela; completa depois de
-        // subir ~38% da altura da viewport
-        const start = it.top - vh;
-        const span = vh * 0.38 + Math.min(it.h, vh * 0.30);
-        let p = (sy - start) / span;
-        p = p < 0 ? 0 : p > 1 ? 1 : p;
-        if (p > it.p) {
-          it.p = p;
-          it.el.style.setProperty('--p', p.toFixed(4));
-          if (p >= 1) it.el.classList.add('in');
-        }
-      }
-    }
-
-    function onScroll() { if (!queued) { queued = true; requestAnimationFrame(frame); } }
-
-    measure(); frame();
-    addEventListener('scroll', onScroll, {passive: true});
-    addEventListener('resize', function () { measure(); items.forEach(function (i) { i.p = 0; }); frame(); });
-    // fontes e imagens mudam a altura: remede quando assentarem
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { measure(); frame(); });
-    addEventListener('load', function () { measure(); frame(); });
+  /* Liga a revelação a conteúdo que nasce depois do boot, sem precisar
+     chamar reveal em cada um dos pontos de render. Um observer, coalescido
+     num rAF para não rodar a cada nó inserido. */
+  function autoReveal(root) {
+    if (!('MutationObserver' in window)) return;
+    let pending = false;
+    new MutationObserver(function () {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(function () { pending = false; reveal('.rv'); });
+    }).observe(root || document.body, { childList: true, subtree: true });
   }
 
   /* ---------- desenho do contorno ligado ao scroll ----------
@@ -342,5 +376,5 @@
   }
 
   global.LEPVArt = {contour, fitContour, maskedPhoto, silhouettePath, makeTerrain,
-                    drawOnEnter, drawOnScroll, reveal, countUp, parallax};
+                    drawOnEnter, drawOnScroll, reveal, autoReveal, countUp, parallax};
 })(window);

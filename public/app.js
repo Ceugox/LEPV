@@ -159,7 +159,7 @@
     });
     var imersao = group === "imersao";
     document.body.classList.toggle("imersao", imersao);
-    document.getElementById("brand-logo").src = imersao ? "/logo.png" : "/logo-liga.png";
+    document.getElementById("brand-logo").src = imersao ? "/logo.png" : "/assets/logo-mark.png";
     document.getElementById("brand-b1").innerHTML = imersao ? 'LEPV <span class="accent">SP</span>' : "LEPV";
     document.getElementById("brand-b2").textContent = imersao
       ? "Acervo da 1ª Imersão"
@@ -485,7 +485,7 @@
       var chipsHtml = m.companies.map(function (c) { return '<span class="chip">' + c + "</span>"; }).join("");
 
       var heroHtml =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<h2 class="mission-title">' + m.title + "</h2>" +
           '<p class="mission-summary">' + m.summary + "</p>" +
           '<ul class="objectives">' + objectivesHtml + "</ul>" +
@@ -493,7 +493,7 @@
         "</div>";
 
       var guideHtml =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<p class="section-label">Guia da imersão (registro)</p>' +
           '<ul class="materials-list"><li>' +
             '<span class="material-icon">PDF</span>' +
@@ -506,7 +506,7 @@
         "</div>";
 
       var pioneerHtml = m.pioneering.length
-        ? '<div class="card">' +
+        ? '<div class="card rv">' +
             '<p class="section-label">O que torna essa jornada pioneira</p>' +
             '<div class="pioneer-list">' +
               m.pioneering.map(function (p) {
@@ -517,7 +517,7 @@
         : "";
 
       var prepareHtml = m.prepare.length
-        ? '<div class="card">' +
+        ? '<div class="card rv">' +
             '<p class="section-label">Contexto de cada empresa que visitamos</p>' +
             '<div class="prepare-grid">' +
               m.prepare.map(function (p, i) {
@@ -536,7 +536,7 @@
         : "";
 
       var expectHtml = m.expectations.length
-        ? '<div class="card">' +
+        ? '<div class="card rv">' +
             '<p class="section-label">O que buscávamos em cada visita</p>' +
             '<ul class="objectives">' + m.expectations.map(function (e) { return "<li>" + e + "</li>"; }).join("") + "</ul>" +
           "</div>"
@@ -656,7 +656,7 @@
         );
       }).join("");
       panel.innerHTML =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<p class="section-label">Visitantes · formulários e presenças (diretoria) · ' + data.people.length + "</p>" +
           '<p class="questions-hint">Quem se inscreveu em eventos pelo formulário público ou registrou presença pelo QR sem ser membro. Com ' + data.inviteThreshold + '+ presenças, vale o convite para entrar na liga.</p>' +
           '<div class="table-scroll"><table class="access-table"><thead><tr>' +
@@ -1197,7 +1197,7 @@
       "</div>";
 
     var checkin =
-      '<div class="card">' +
+      '<div class="card rv">' +
         '<p class="section-label">Registrar presença</p>' +
         '<div class="checkin-row">' +
           '<input type="text" id="checkin-code" placeholder="Código do evento" maxlength="12" autocapitalize="characters">' +
@@ -1211,7 +1211,7 @@
       "</div>";
 
     var novo = me.director
-      ? '<div class="card">' +
+      ? '<div class="card rv">' +
           '<p class="section-label">Novo evento (diretoria)</p>' +
           '<div class="meeting-new">' +
             '<select id="new-event-type" aria-label="Tipo de evento">' +
@@ -1248,7 +1248,7 @@
         (anteriores.length
           ? '<div class="events-past"><p class="events-group-head">Anteriores</p>' + anteriores.map(cardDe).join("") + "</div>"
           : "")
-      : '<div class="card"><p class="empty-state">Nenhum evento' + (eventFilter ? " deste tipo" : "") + " ainda." + (me.director ? " Crie o primeiro acima." : "") + "</p></div>";
+      : '<div class="card rv"><p class="empty-state">Nenhum evento' + (eventFilter ? " deste tipo" : "") + " ainda." + (me.director ? " Crie o primeiro acima." : "") + "</p></div>";
 
     content.innerHTML = filtros + checkin + novo + lista;
 
@@ -1579,7 +1579,7 @@
       })
       .catch(function () {
         var content = document.getElementById("events-content");
-        if (content) content.innerHTML = '<div class="card"><p class="empty-state">Não deu para carregar os eventos. Verifique a conexão e recarregue.</p></div>';
+        if (content) content.innerHTML = '<div class="card rv"><p class="empty-state">Não deu para carregar os eventos. Verifique a conexão e recarregue.</p></div>';
       });
   }
 
@@ -1635,7 +1635,7 @@
     }
 
     container.innerHTML =
-      '<div class="card">' +
+      '<div class="card rv">' +
         '<div class="day-head"><span class="weekday">' + day.weekday + '</span><span class="date num">' + day.date + '/2026</span></div>' +
         (day.note ? '<p class="day-note">' + day.note + "</p>" : "") +
         '<div class="timeline">' + stopsHtml + "</div>" +
@@ -1660,7 +1660,7 @@
       var el = document.getElementById("day-gallery");
       if (!items.length || !el) return;
       el.innerHTML =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<p class="section-label">O que registramos neste dia</p>' +
           '<p class="questions-hint">' + items.length + (items.length === 1 ? " mídia" : " mídias") + ". Toque para ampliar.</p>" +
           thumbStripHtml(items) +
@@ -1891,7 +1891,7 @@
         : "";
 
       panel.innerHTML =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<p class="section-label">Materiais de preparação</p>' +
           '<div class="materials-box">' + materialsListHtml(list, me) + "</div>" +
           adminHtml +
@@ -2023,13 +2023,13 @@
 
       if (!canPost && !list.length) {
         panel.innerHTML = opts.lockedHint
-          ? '<div class="card"><p class="section-label">' + opts.label + '</p><p class="empty-state">' + opts.lockedHint + "</p></div>"
+          ? '<div class="card rv"><p class="section-label">' + opts.label + '</p><p class="empty-state">' + opts.lockedHint + "</p></div>"
           : "";
         return;
       }
 
       panel.innerHTML =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<p class="section-label">' + opts.label + "</p>" +
           '<p class="questions-hint">' + opts.hint + "</p>" +
           '<div class="collab-list-box">' + collabListHtml(list, me, opts) + "</div>" +
@@ -2465,7 +2465,7 @@
       var groupPct = Math.round((badges.group.confirmed / badges.group.possible) * 100);
 
       var headerHtml =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<div class="badges-header">' +
             '<div class="edition-badge">' + editionBadgeSVG(me.order) + "</div>" +
             '<div class="badges-summary">' +
@@ -2527,7 +2527,7 @@
             .join("");
           var wants = members.filter(function (m) { return (poll[String(m.order)] || {}).want; }).length;
           container.innerHTML +=
-            '<div class="card">' +
+            '<div class="card rv">' +
               '<p class="section-label" style="color:var(--red);">Enquete do bóton (admin) — ' + wants + "/11 confirmados</p>" +
               '<div class="pin-list">' + rows + "</div>" +
             "</div>";
@@ -2668,7 +2668,7 @@
       if (!c || !c.items.length) { panel.innerHTML = ""; return; }
       var count = c.items.length;
       panel.innerHTML =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<p class="section-label">Registro da visita</p>' +
           '<p class="questions-hint">' +
             (c.note ? esc(c.note) + " " : "") +
@@ -2773,7 +2773,7 @@
     }, 0) + gallery.days.reduce(function (n, d) { return n + (d.extras || []).length; }, 0);
 
     var albumHtml =
-      '<div class="card">' +
+      '<div class="card rv">' +
         '<p class="section-label">O álbum da viagem</p>' +
         '<p class="questions-hint">' + totalMedia + " fotos e vídeos, dia a dia. Toque em um dia para percorrer.</p>" +
         '<div class="album-grid">' +
@@ -2799,7 +2799,7 @@
       .join("");
 
     var formHtml =
-      '<div class="card" id="contrib-card">' +
+      '<div class="card rv" id="contrib-card">' +
         '<p class="section-label">Adicione seu ponto ao acervo</p>' +
         '<div class="contrib-form">' +
           '<select id="contrib-company" aria-label="Empresa"><option value="">Escolha a empresa...</option>' + optionsHtml + "</select>" +
@@ -2848,7 +2848,7 @@
 
     if (!groups) {
       groups =
-        '<div class="card"><div class="legacy-empty">' +
+        '<div class="card rv"><div class="legacy-empty">' +
           '<div class="le-mark">“</div>' +
           '<div class="le-title">' + (legacyState.filter === "mine" ? "Você ainda não registrou nada" : "O acervo começa com o primeiro ponto") + "</div>" +
           '<p class="le-text">' +
@@ -2860,7 +2860,7 @@
     }
 
     var contribHtml = legacy.contributors.length
-      ? '<div class="card">' +
+      ? '<div class="card rv">' +
           '<p class="section-label">Quem construiu o acervo</p>' +
           '<div class="contrib-list">' +
             legacy.contributors
@@ -3158,7 +3158,7 @@
         : '<p class="empty-state">Sem tráfego registrado ainda.</p>';
 
       el.innerHTML =
-        '<div class="card">' +
+        '<div class="card rv">' +
           '<div class="access-refresh">' +
             '<p class="section-label">Monitoramento de acessos (super admin)</p>' +
             '<button type="button" class="avatar-edit" id="access-refresh-btn">Atualizar</button>' +
@@ -3171,16 +3171,16 @@
             '<div class="stat-cell"><div class="sv">' + activeWeek + '</div><div class="sk">Membros ativos · 7 dias</div></div>' +
           "</div>" +
         "</div>" +
-        '<div class="card"><p class="section-label">No site agora</p>' + onlineHtml + "</div>" +
-        '<div class="card"><p class="section-label">Resumo por membro</p>' + membersHtml + "</div>" +
-        '<div class="card"><p class="section-label">Últimas visitas</p>' + visitsHtml + "</div>" +
-        '<div class="card"><p class="section-label">Tráfego por dia</p>' + daysHtml + "</div>";
+        '<div class="card rv"><p class="section-label">No site agora</p>' + onlineHtml + "</div>" +
+        '<div class="card rv"><p class="section-label">Resumo por membro</p>' + membersHtml + "</div>" +
+        '<div class="card rv"><p class="section-label">Últimas visitas</p>' + visitsHtml + "</div>" +
+        '<div class="card rv"><p class="section-label">Tráfego por dia</p>' + daysHtml + "</div>";
 
       var refreshBtn = document.getElementById("access-refresh-btn");
       if (refreshBtn) refreshBtn.addEventListener("click", loadAccess);
     }).catch(function () {
       var el = document.getElementById("access-content");
-      if (el) el.innerHTML = '<div class="card"><p class="empty-state">Não foi possível carregar os acessos.</p></div>';
+      if (el) el.innerHTML = '<div class="card rv"><p class="empty-state">Não foi possível carregar os acessos.</p></div>';
     });
   }
 

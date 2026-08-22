@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LEPV SP — Acervo da 1ª Imersão</title>
-<link rel="icon" href="/logo-liga.png">
+<link rel="icon" href="/assets/logo-mark.png">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#121214">
 <link rel="apple-touch-icon" href="/icons/maskable-192.png">
@@ -1144,7 +1144,7 @@
 <body>
 
 <header class="topbar">
-  <img class="logo" id="brand-logo" src="/logo-liga.png" alt="LEPV">
+  <img class="logo" id="brand-logo" src="/assets/logo-mark.png" alt="LEPV">
   <div class="brandtext">
     <span class="b1" id="brand-b1">LEPV</span>
     <span class="b2" id="brand-b2">Liga de Empreendedorismo da Praia Vermelha</span>
@@ -1174,9 +1174,9 @@
   <main>
 
     <section class="panel active" id="panel-inicio" role="tabpanel" aria-labelledby="tab-inicio" tabindex="0">
-      <div class="card hero-liga">
+      <div class="card rv hero-liga">
         <span class="hero-gear" aria-hidden="true"></span>
-        <img class="hero-logo" src="/logo-liga.png" alt="Logo da LEPV">
+        <img class="hero-logo" src="/assets/logo-mark.png" alt="Logo da LEPV">
         <div class="hero-text">
           <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha</p>
           <h2>Quem <span class="accent">somos</span></h2>
@@ -1184,7 +1184,7 @@
         </div>
       </div>
 
-      <div class="card stats-liga">
+      <div class="card rv stats-liga">
         <div class="stat-cell"><div class="sv" id="stat-membros">—</div><div class="sk">Membros ativos</div></div>
         <div class="stat-cell"><div class="sv">XVII–XXX</div><div class="sk">Turmas na liga</div></div>
         <div class="stat-cell"><div class="sv">12</div><div class="sk">Empresas visitadas</div></div>
@@ -1193,7 +1193,7 @@
 
       <!-- Mural da liga: avisos da diretoria + próximas atividades, em carrossel.
            Só aparece quando há algo a mostrar; a diretoria gerencia logo abaixo. -->
-      <div class="card mural-card" id="mural-card" style="display:none;">
+      <div class="card rv mural-card" id="mural-card" style="display:none;">
         <div class="mural-head">
           <p class="section-label">Mural da liga</p>
           <div class="mural-nav">
@@ -1206,7 +1206,7 @@
       </div>
       <div id="mural-admin"></div>
 
-      <div class="card strip-card">
+      <div class="card rv strip-card">
         <p class="section-label">Nossas atividades</p>
         <div class="strip" id="strip-atividades" style="--strip-speed: 60s;"><div class="strip-track"></div></div>
       </div>
@@ -1222,7 +1222,7 @@
 
     <section class="panel" id="panel-legado" role="tabpanel" aria-labelledby="tab-legado" tabindex="0">
       <div id="legacy-content">
-        <div class="card"><p class="empty-state">Carregando...</p></div>
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
@@ -1230,20 +1230,20 @@
          nasce como aviso, pode abrir inscrição e tem presença que abre no dia. -->
     <section class="panel" id="panel-eventos" role="tabpanel" aria-labelledby="tab-eventos" tabindex="0">
       <div id="events-content">
-        <div class="card"><p class="empty-state">Carregando...</p></div>
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
     <section class="panel" id="panel-resumo" role="tabpanel" aria-labelledby="tab-resumo" tabindex="0">
       <div id="mission-content">
-        <div class="card"><p class="empty-state">Carregando...</p></div>
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
     <section class="panel" id="panel-membros" role="tabpanel" aria-labelledby="tab-membros" tabindex="0">
       <div id="signup-panel"></div>
       <div id="immersion-entry"></div>
-      <div class="card">
+      <div class="card rv">
         <p class="section-label">Membros da liga</p>
         <div class="member-grid" id="member-grid">
           <p class="empty-state">Carregando...</p>
@@ -1257,19 +1257,19 @@
          para o super admin; o conteúdo vem de uma rota que também exige. -->
     <section class="panel" id="panel-acessos" role="tabpanel" aria-labelledby="tab-acessos" tabindex="0">
       <div id="access-content">
-        <div class="card"><p class="empty-state">Carregando...</p></div>
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
     <section class="panel" id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" tabindex="0">
-      <div class="card hotel-card" id="hotel-card"></div>
+      <div class="card rv hotel-card" id="hotel-card"></div>
       <div class="daypicker" id="daypicker" role="tablist" aria-label="Dias da agenda"></div>
       <div id="agenda-days" role="region" aria-live="polite" aria-label="Roteiro do dia"></div>
     </section>
 
     <section class="panel" id="panel-empresas" role="tabpanel" aria-labelledby="tab-empresas" tabindex="0">
       <div class="company-picker" id="company-picker" role="tablist" aria-label="Empresas"></div>
-      <div class="card company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
+      <div class="card rv company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
       </div>
       <div id="gallery-panel"></div>
@@ -1281,14 +1281,14 @@
 
     <section class="panel" id="panel-selos" role="tabpanel" aria-labelledby="tab-selos" tabindex="0">
       <div id="badges-content">
-        <div class="card"><p class="empty-state">Carregando...</p></div>
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
     <!-- Arquivo: o que era operação da viagem (trajetos, pendências) vira
          registro consultável do que foi montado. Nada some, só muda de lugar. -->
     <section class="panel" id="panel-arquivo" role="tabpanel" aria-labelledby="tab-arquivo" tabindex="0">
-      <div class="card archive-note">
+      <div class="card rv archive-note">
         <p class="section-label">Arquivo da operação</p>
         <p class="questions-hint">Os bastidores da imersão de 19 a 24 de julho de 2026: os trajetos que percorremos entre as visitas e os combinados que sustentaram a semana. Fica aqui como registro — e como manual para quem organizar a próxima.</p>
       </div>
@@ -1298,14 +1298,14 @@
       <div id="route-legs" role="region" aria-live="polite" aria-label="Trajetos do dia"></div>
 
       <p class="archive-head">Onde ficamos</p>
-      <div class="card">
+      <div class="card rv">
         <p class="section-label">Iguatemi Stay BT — alocação de quartos</p>
         <div id="room-list"><p class="empty-state">Carregando...</p></div>
       </div>
 
       <p class="archive-head">Combinados da viagem</p>
       <div class="checklist">
-        <div class="card">
+        <div class="card rv">
           <ul id="checklist-items"></ul>
           <div class="addbar">
             <input type="text" id="new-item" placeholder="Adicionar item ao registro..." aria-label="Novo item">
@@ -1320,6 +1320,13 @@
 
 <script src="/app.js"></script>
 <script src="/art.js"></script>
-<script>LEPVArt.reveal();</script>
+<script>
+  LEPVArt.reveal();
+  /* app.js monta listas em dezenas de pontos; o observer liga a revelacao
+     ao conteudo que nasce depois do boot sem precisar chamar reveal em
+     cada render. reveal ignora elemento ja registrado, entao nao acumula
+     listener nem reprocessa. */
+  LEPVArt.autoReveal(document.body);
+</script>
 </body>
 </html>
