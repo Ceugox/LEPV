@@ -282,6 +282,78 @@ section.blk, .blk { padding: 48px 0; }
 .btn-g:hover { border-color: var(--ink); background: var(--card); }
 .btn-block { width: 100%; justify-content: center; }
 
+/* ---------- faixa de cabeçalho das páginas internas ----------
+   Uma tira da mesma fotografia da Praia Vermelha, com o selo por cima. É o
+   que liga login, inscrição e presença à landing: quem clica em "Garantir
+   vaga" continua no mesmo lugar em vez de cair numa tela preta.
+
+   A tira é baixa de propósito — a página é formulário, não vitrine. */
+.page-top { position: relative; overflow: hidden; background: var(--paper-2); }
+.page-top-ph { position: absolute; inset: 0; z-index: 0; }
+.page-top-ph img {
+  width: 100%; height: 100%; object-fit: cover; object-position: 50% 72%;
+  filter: contrast(1.06);
+}
+/* véu forte: aqui o texto é a função, a foto é contexto */
+.page-top-ph::after {
+  content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(250,248,245,.30) 0%, rgba(250,248,245,.58) 46%,
+                    rgba(250,248,245,.94) 84%, var(--paper) 100%);
+}
+.page-top-in {
+  position: relative; z-index: 2; max-width: var(--max); margin: 0 auto;
+  padding: 26px var(--pad) 22px;
+}
+@media (min-width: 720px) { .page-top-in { padding: 40px var(--pad) 30px } }
+.page-top .stamp { margin-bottom: 0; }
+.page-top .cap { margin-top: 14px; }
+
+/* corpo de página interna: coluna de leitura, sem card flutuante */
+.sheet { max-width: 720px; margin: 0 auto; padding: 0 var(--pad); }
+.sheet-wide { max-width: var(--max); }
+.sheet section { padding: 30px 0; }
+.sheet section + section { border-top: 1px solid var(--line); }
+
+/* campo de formulário na gramática do documento: rótulo em versalete
+   pequeno, campo em papel, filete simples. Nunca abaixo de 16px — é o
+   mínimo que evita o zoom automático do Safari iOS. */
+.fields { display: grid; gap: 16px; }
+.fields.two { grid-template-columns: 1fr; }
+@media (min-width: 560px) { .fields.two { grid-template-columns: 1fr 1fr } }
+.fld { display: flex; flex-direction: column; gap: 6px; }
+.fld label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.fld input, .fld select, .fld textarea {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--card);
+  border: 1px solid var(--line-2); border-radius: 3px; padding: 12px 13px;
+  min-height: 48px; transition: border-color .15s, box-shadow .15s;
+}
+.fld input:focus, .fld select:focus, .fld textarea:focus {
+  outline: none; border-color: var(--wine);
+  box-shadow: 0 0 0 3px rgba(127,10,26,0.12);
+}
+.fld input::placeholder { color: var(--ink-3); }
+.fld .hint { font-size: 12px; color: var(--ink-3); }
+.check {
+  display: flex; align-items: flex-start; gap: 10px; font-size: 14px;
+  line-height: 1.5; color: var(--ink-2); cursor: pointer; padding: 4px 0;
+  min-height: 44px;
+}
+.check input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--wine); }
+
+/* aviso e erro, na mesma linguagem */
+.notice {
+  font-size: 13.5px; line-height: 1.6; padding: 12px 14px; border-radius: 3px;
+  border: 1px solid var(--pending-line); background: var(--pending-soft); color: var(--ink);
+}
+.alert {
+  font-size: 13px; line-height: 1.55; padding: 11px 13px; border-radius: 3px;
+  border: 1px solid var(--danger-line); background: var(--danger-soft); color: var(--danger);
+}
+
 /* capitular: só no primeiro parágrafo de um bloco de abertura */
 .dropcap::first-letter {
   font-family: var(--fd); font-size: 3.2em; line-height: 0.82; float: left;

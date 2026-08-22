@@ -61,8 +61,13 @@ function check(ok, label, detail) {
         /* font-size não depende de visibilidade, e formulário que só abre por
            interação nasce colapsado — medir só o visível deixaria passar um
            campo em 14px que causa zoom no Safari iOS assim que aparecesse. */
+        /* Só campos de TEXTO: o zoom automático do Safari iOS dispara ao focar
+           entrada editável, nao em checkbox/radio/botao — cobrar 16px deles
+           reprovaria markup correto. */
+        const NO_ZOOM = ['checkbox', 'radio', 'submit', 'button', 'reset',
+                         'file', 'color', 'range', 'image', 'hidden'];
         const inputs = [...document.querySelectorAll('input,select,textarea')]
-          .filter(el => el.type !== 'hidden')
+          .filter(el => NO_ZOOM.indexOf(el.type) === -1)
           .map(el => parseFloat(getComputedStyle(el).fontSize));
         // marca escondida (a do nav antes de rolar) não conta
         const marks = [...document.querySelectorAll('img[src*="logo-mark"]')]
@@ -101,10 +106,25 @@ function check(ok, label, detail) {
               if (v > 0.01 && v < 0.99) mid.add(i);
             });
           }
-          return { total: els.length, partial: mid.size };
+          const hidden = els.filter(el =>
+            parseFloat(getComputedStyle(el).opacity) < 0.99).length;
+          return {
+            total: els.length, partial: mid.size, hidden,
+            // rola de verdade? sem folga, nada atravessa a viewport
+            rolla: document.documentElement.scrollHeight > innerHeight * 1.4
+          };
         });
-        check(prog.partial > 0, 'revelação ligada ao scroll',
-              `${prog.partial}/${prog.total} passaram por estado parcial`);
+        if (prog.rolla) {
+          check(prog.partial > 0, 'revelação ligada ao scroll',
+                `${prog.partial}/${prog.total} passaram por estado parcial`);
+        } else {
+          /* Página que cabe numa tela não tem curso para o elemento
+             atravessar: o correto ali é nascer revelado, e cobrar estado
+             parcial reprovaria markup certo. O que importa é não sobrar
+             nada invisível. */
+          check(prog.hidden === 0, 'página curta: nada fica invisível',
+                `${prog.hidden}/${prog.total} com opacity<1`);
+        }
       }
 
       // o contorno tem de preencher exatamente o contêiner
