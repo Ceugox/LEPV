@@ -23,6 +23,20 @@ O público prioritário é **empresa / executivo** — quem abre a porta para vi
 ou missão. Isso empurra o resultado para peso institucional e credibilidade, não para
 energia de recrutamento.
 
+### 1.1 Posicionamento — restrição de texto para todas as superfícies
+
+A proposta da liga **não** é levar alunos para conhecer empresas. É **gerar um ambiente
+de fomento ao empreendedorismo dentro do IME**. Reuniões, aulas, visitas e missões são
+os *meios*; o fim é um lugar onde fundar algo deixe de ser exceção na engenharia.
+
+Isso é uma restrição de redação, não um detalhe de copy da home: qualquer texto que
+descreva a liga como intermediária de visitas está errado, em qualquer tela. O texto
+anterior ("a liga leva alunos do IME para dentro das empresas") tratava o meio como se
+fosse o fim e foi reescrito.
+
+Consequência ainda aberta: os indicadores atuais contam a história antiga — o segundo
+número em destaque é "empresas visitadas". Ver §9.1.
+
 ## 2. Direção aprovada
 
 Combinação escolhida entre as cinco variações exploradas:
@@ -197,7 +211,7 @@ só em `resize`, `load` e `document.fonts.ready` — para não forçar layout po
 | Componente | Regra |
 |---|---|
 | Nav | 64px, sticky, `backdrop-filter`, wordmark serif + marca condicional, hambúrguer <760px |
-| Cabeçalho de documento | selo da marca + nome completo + linha do IME; `h1`; capitular no primeiro parágrafo; lista de dados em `aside` com filete pontilhado |
+| Cabeçalho de documento | selo da marca + nome completo da liga; `h1`; capitular no primeiro parágrafo; lista de dados em `aside` com filete pontilhado. **Sem** a linha "Instituto Militar de Engenharia · Fundada em 2026" — removida por decisão do Marcell |
 | Figura | palco próprio abaixo do filete duplo, com legenda `Fig. N` em itálico. **Nunca atrás de texto corrido** |
 | Tira de dados | rolável horizontalmente no mobile, sem barra visível |
 | Verbete de evento | 3 colunas (foto / texto / dados). A foto é `position: absolute` dentro do contêiner, para **não** entrar no cálculo de altura da linha |
@@ -306,6 +320,31 @@ Nada é considerado pronto por inspeção visual. Os sinais executáveis:
   pequeno a marca completa não lê, então exige um monograma simplificado.
 - As pendências abertas do projeto que não são de UI, em especial o reset de senha dos
   fundadores.
+
+### 9.1 Aberto: os indicadores contam a história antiga
+
+Com o posicionamento corrigido em §1.1, a lista de números do cabeçalho ficou
+incoerente com o próprio texto ao lado dela. Hoje ela é:
+
+> membros ativos · **empresas visitadas** · turmas representadas · especialidades do
+> IME · primeira missão
+
+O segundo item em destaque mede visita a empresa, que passou a ser meio e não fim. Um
+executivo que lê o parágrafo e depois a coluna vê duas mensagens diferentes.
+
+Indicadores que mediriam ambiente de fomento — a definir com o Marcell, porque
+dependem de dado que talvez ainda não exista no `events.json`:
+
+- encontros realizados no semestre / no ano
+- horas de formação (aulas + reuniões de conteúdo)
+- membros ativos e turmas representadas (já existem, e continuam válidos)
+- projetos ou empresas fundadas por membros
+- alumni e parceiros na rede
+
+"Empresas visitadas" segue sendo prova legítima de rede — só não deveria ser o segundo
+número da página. **Esta decisão precisa ser tomada antes do plano de implementação**,
+porque muda a API que alimenta o cabeçalho (`/api/public-events` hoje não expõe
+contagem de encontros).
 
 ## 10. Riscos
 
