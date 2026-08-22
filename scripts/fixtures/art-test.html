@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>art.js — fixture</title>
+<style>
+  :root{ --p:0 }
+  body{ margin:0 }
+  #box{ display:block; width:900px; height:260px }
+  /* mesma regra de public/styles.css: o dashoffset deriva de --p */
+  .contour path{
+    stroke-dasharray: var(--len,1200);
+    stroke-dashoffset: calc(var(--len,1200) *
+      (1 - clamp(0, (var(--p) - var(--s,0)) / var(--w,.42), 1)));
+  }
+</style>
+</head>
+<body>
+<!-- art.js NÃO é carregado aqui: o verificador o injeta com addScriptTag,
+     porque a página abre por file:// e um src="/art.js" daria 404. -->
+<svg id="box" class="contour"></svg>
+</body>
+</html>
