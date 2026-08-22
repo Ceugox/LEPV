@@ -53,18 +53,51 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 .burger i{display:block;width:19px;height:1.5px;background:var(--ink)}
 @media(min-width:760px){ .burger{display:none} }
 
-/* ---------- cabeçalho de documento ---------- */
-/* O hero fica em papel limpo e recebe o relevo em linhas ao fundo — ele se
-   desenha conforme o scroll. Foto atrás de texto viraria textura invisível:
-   com o texto ocupando as duas colunas, o véu teria de apagar a imagem
-   justamente onde ela tem informação. A fotografia ganhou palco próprio
-   como Fig. 1, logo abaixo. */
-.doc{position:relative;overflow:hidden;
-  background:linear-gradient(180deg,var(--paper) 0%,var(--paper-2) 100%)}
-.hero-art{position:absolute;left:0;right:0;bottom:0;z-index:0;
-  width:100%;height:66%;pointer-events:none}
+/* ---------- topo: a fotografia ocupa a tela e o quadro DESCE no scroll ----
+   A foto foi tomada do Morro da Urca, então descer o enquadramento é descer
+   o olhar de lá: começa no céu e nos morros distantes e termina na encosta
+   em primeiro plano e na enseada. O texto tem véu próprio na base, senão a
+   imagem teria de ser apagada inteira para o texto caber. */
+.hero{position:relative;min-height:600px;height:88vh;max-height:860px;
+  display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;
+  background:var(--paper-2)}
+@media(max-width:719px){ .hero{height:auto;min-height:0;max-height:none} }
+.hero-ph{position:absolute;inset:0;z-index:0}
+.hero-ph img{width:100%;height:100%;object-fit:cover;object-position:54% 10%;
+  filter:contrast(1.1) brightness(1.02)}
+/* Véu só na base e à esquerda, onde o texto vive. O topo fica limpo para a
+   fotografia respirar. */
+.hero-ph::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(180deg,transparent 0%,transparent 34%,
+                  rgba(250,248,245,.30) 54%,rgba(250,248,245,.88) 78%,var(--paper) 97%),
+  linear-gradient(90deg,rgba(250,248,245,.42) 0%,rgba(250,248,245,.06) 40%,transparent 62%)}
+.hero-art{position:absolute;left:0;right:0;bottom:0;z-index:1;
+  width:100%;height:52%;pointer-events:none}
+.hero-in{position:relative;z-index:2;width:100%;max-width:var(--max);
+  margin:0 auto;padding:26px var(--pad) 30px}
+@media(min-width:720px){ .hero-in{padding:0 var(--pad) 44px} }
+
+/* No mobile a foto vira uma faixa própria acima do texto: empilhada, ela
+   aparece inteira em vez de virar fundo apertado atrás de tudo. */
+@media(max-width:719px){
+  .hero-ph{position:relative;height:56vw;min-height:200px}
+  .hero-ph::after{background:
+    linear-gradient(180deg,transparent 0%,transparent 62%,rgba(250,248,245,.85) 92%,var(--paper) 100%)}
+  .hero-art{height:36%}
+  .hero-in{padding-top:22px}
+}
+
+/* ---------- bloco de documento, depois do topo ---------- */
+.doc{position:relative;background:var(--paper)}
 .doc-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:30px var(--pad) 34px}
-@media(min-width:720px){ .doc-in{padding:48px var(--pad) 44px} }
+@media(min-width:720px){ .doc-in{padding:44px var(--pad) 40px} }
+
+/* A frase de impacto: afirma o começo sem grandiloquência, e usa a própria
+   fotografia de arquivo como argumento. */
+.impact{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(23px,3.4vw,40px);line-height:1.16;letter-spacing:-.01em;
+  margin:0 0 26px;max-width:26ch;text-wrap:balance}
+.impact i{font-style:italic;color:var(--wine)}
 
 .stamp{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin:0 0 26px}
 .stamp img{height:58px;width:auto;flex:none}
@@ -102,22 +135,6 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 /* ---------- filete duplo + figura ---------- */
 .rule2{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);height:3px;
   box-sizing:content-box}
-figure.fig{margin:0;background:var(--paper-2);border-bottom:1px solid var(--line)}
-.fig-in{max-width:var(--max);margin:0 auto;padding:28px var(--pad) 4px}
-@media(min-width:720px){ .fig-in{padding:40px var(--pad) 8px} }
-/* Prancha, não banner: a fotografia aparece INTEIRA. Cortar reprodução de
-   acervo descarta justamente a composição de quem fez a foto — e nesta o
-   assunto (a enseada e os edifícios) vive na borda do quadro. */
-.fig-photo{display:block;width:100%;max-width:860px;height:auto;margin:0 auto;
-  border:1px solid var(--line-2);
-  box-shadow:0 1px 0 rgba(255,255,255,.7), 0 14px 34px -22px rgba(18,18,20,.45)}
-/* o contorno do hero é gerado no tamanho real do contêiner (1 unidade = 1
-   pixel), então preenche sem distorcer e sem faixa vazia */
-.hero-art{display:block}
-.fig-cap{max-width:892px;margin:0 auto;padding:12px var(--pad) 20px;
-  display:flex;flex-wrap:wrap;gap:3px 11px;align-items:baseline}
-.fig-cap b{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--wine)}
-.fig-cap span{font-family:var(--fd);font-style:italic;font-size:14.5px;color:var(--ink-3)}
 
 /* ---------- tira de dados ---------- */
 .ticker{border-top:1px solid var(--line);border-bottom:1px solid var(--line);
@@ -239,14 +256,35 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   <button class="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i><i></i></button>
 </div></nav>
 
-<header class="doc" id="hero">
+<header class="hero" id="hero">
+  <!-- Praia Vermelha tomada do Morro da Urca, domínio público (acervo
+       Brascan / IMS via Wikimedia Commons). Crédito no rodapé. O
+       enquadramento desce conforme o scroll. -->
+  <div class="hero-ph">
+    <img id="hero-photo"
+         src="/assets/praia-vermelha.jpg"
+         srcset="/assets/praia-vermelha-900.jpg 900w, /assets/praia-vermelha.jpg 1800w"
+         sizes="100vw"
+         alt="Enseada da Praia Vermelha vista do Morro da Urca, com o conjunto de edifícios institucionais à esquerda da praia — o IME entre eles — e Botafogo ao fundo.">
+  </div>
   <svg class="hero-art contour" aria-hidden="true"></svg>
-  <div class="doc-in">
+  <div class="hero-in">
     <div class="stamp rv">
       <img src="/assets/logo-mark.png" alt="">
       <b>Liga de Empreendedorismo da Praia Vermelha</b>
     </div>
-    <h1 class="rv" style="--i:1">Engenharia que <i>empreende</i></h1>
+    <p class="impact rv" style="--i:1">Esta enseada forma engenheiros há gerações.
+      Estamos começando a formar <i>fundadores</i>.</p>
+    <div class="acts rv" style="--i:2">
+      <a class="btn btn-p" href="/login.html#solicitar"><span class="ar">→</span>Quero ser membro</a>
+      <a class="btn btn-g" href="#encontro">Próximo encontro</a>
+    </div>
+  </div>
+</header>
+
+<section class="doc">
+  <div class="doc-in">
+    <h1 class="rv">Engenharia que <i>empreende</i></h1>
     <div class="abstract">
       <p class="rv" style="--i:2">A LEPV constrói no IME o ambiente que o empreendedorismo
         precisa para existir: gente que se encontra toda semana, repertório que não está na
@@ -265,27 +303,10 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
         </dl>
       </aside>
     </div>
-    <div class="acts rv" style="--i:4">
-      <a class="btn btn-p" href="/login.html#solicitar"><span class="ar">→</span>Quero ser membro</a>
-      <a class="btn btn-g" href="#encontro">Próximo encontro</a>
-    </div>
   </div>
-</header>
+</section>
 
 <div class="rule2"></div>
-
-<figure class="fig" id="fig">
-  <div class="fig-in">
-    <img class="fig-photo"
-         src="/assets/praia-vermelha.jpg"
-         srcset="/assets/praia-vermelha-900.jpg 900w, /assets/praia-vermelha.jpg 1800w"
-         sizes="(min-width: 900px) 860px, 100vw"
-         alt="Vista aérea da enseada da Praia Vermelha tomada do Morro da Urca, com o conjunto de edifícios institucionais à esquerda da praia e o bairro de Botafogo ao fundo.">
-  </div>
-  <figcaption class="fig-cap"><b>Fig. 1</b>
-    <span>Praia Vermelha e o distrito de Botafogo, tomada do Morro da Urca. O
-      conjunto de edifícios à esquerda da enseada é onde fica o IME.</span></figcaption>
-</figure>
 
 <div class="ticker"><div class="ticker-in">
   <div class="tk"><b data-count="18">18</b><span>membros ativos</span></div>
@@ -350,10 +371,19 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   /* O relevo vive ao fundo do hero e se desenha conforme o scroll. Os tons
      são mais leves que na versão em palco próprio, porque agora há texto
      por cima. */
+  /* Só as ondas, sem o relevo em linhas: a montanha real já está na
+     fotografia, e desenhar outra por cima faz as duas silhuetas competirem.
+     As ondas são o gesto da marca e atravessam a base se desenhando. */
   LEPVArt.fitContour(document.querySelector('.hero-art'),
-    {waves:true, fill:.88, waveAmpRatio:.05, waveOpacity:.42, stagger:15,
-     drawWindow:.45, fadeLow:.06, fadeMid:.22, fadeHigh:.44});
+    {waves:true, levels:0, ribs:false, sea:false,
+     waveAmpRatio:.075, waveOpacity:.85, drawWindow:.5});
   LEPVArt.drawOnScroll(document.getElementById('hero'));
+
+  /* O enquadramento da fotografia desce conforme o scroll: sai do ceu e dos
+     morros distantes e chega na encosta em primeiro plano e na enseada. */
+  LEPVArt.panOnScroll(document.getElementById('hero-photo'),
+    {fromY: 10, toY: 92, fromX: 54, toX: 40, container: document.getElementById('hero')});
+
   LEPVArt.reveal();
   LEPVArt.countUp('[data-count]');
 

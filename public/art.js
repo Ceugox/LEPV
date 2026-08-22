@@ -31,7 +31,10 @@
     const W = o.W || 1000, base = o.base != null ? o.base : (o.H || 460) - 18;
     const peakH = o.peakH || base * 0.77;
     const terrain = makeTerrain(W, peakH);
-    const levels = o.levels || 22, ribStep = o.ribStep || 16;
+    // != null e nao ||: levels:0 significa "sem relevo, so as ondas",
+    // e com || o zero cairia no default de 22.
+    const levels = o.levels != null ? o.levels : 22;
+    const ribStep = o.ribStep || 16;
     const from = o.from || '#8A1E2D', to = o.to || '#A93245';
     const id = 'cg-' + Math.abs(W * levels + base);
 
@@ -249,7 +252,7 @@
         peakH: Math.round((H - waveRoom) * (opts.fill || 0.9)),
         // a densidade acompanha a largura para não virar mancha em telas grandes
         ribStep: Math.max(9, Math.round(W / 74)),
-        levels: opts.levels || (W < 640 ? 16 : 24),
+        levels: opts.levels != null ? opts.levels : (W < 640 ? 16 : 24),
         waveAmp: Math.round(H * (opts.waveAmpRatio || 0.055)),
         waveGap: Math.round(H * 0.045),
         waveDrop: Math.round(waveRoom * 0.55)
@@ -421,6 +424,53 @@
     });
   }
 
+  /* ---------- panorâmica ligada ao scroll ----------
+     Move o object-position da foto conforme o contêiner sobe pela tela, de
+     modo que o enquadramento DESCE enquanto se rola: começa no alto da
+     imagem e termina embaixo. Serve para revelar uma paisagem alta dentro
+     de um recorte largo, sem cortar nada da fotografia.
+
+     object-position é barato de animar (não força layout) e não depende de
+     transform, então o texto por cima fica parado. */
+  function panOnScroll(img, o) {
+    o = o || {};
+    const fromY = o.fromY != null ? o.fromY : 12;
+    const toY = o.toY != null ? o.toY : 88;
+    const fromX = o.fromX != null ? o.fromX : 50;
+    const toX = o.toX != null ? o.toX : 50;
+    const box = o.container || img.parentElement;
+
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      // sem movimento: fica num enquadramento intermediário, já legível
+      img.style.objectPosition = ((fromX + toX) / 2) + '% ' + ((fromY + toY) / 2) + '%';
+      return;
+    }
+
+    let top = 0, h = 0, vh = innerHeight, queued = false;
+    function measure() {
+      vh = innerHeight;
+      const r = box.getBoundingClientRect();
+      top = r.top + scrollY;
+      h = r.height;
+    }
+    function frame() {
+      queued = false;
+      // 0 quando o topo do contêiner está no topo da tela; 1 quando ele saiu
+      let p = (scrollY - top) / Math.max(1, h * 0.92 + vh * 0.22);
+      p = p < 0 ? 0 : p > 1 ? 1 : p;
+      const x = fromX + (toX - fromX) * p;
+      const y = fromY + (toY - fromY) * p;
+      img.style.objectPosition = x.toFixed(2) + '% ' + y.toFixed(2) + '%';
+    }
+    measure(); frame();
+    addEventListener('scroll', function () {
+      if (!queued) { queued = true; requestAnimationFrame(frame); }
+    }, {passive: true});
+    addEventListener('resize', function () { measure(); frame(); }, {passive: true});
+    if (img.complete) { measure(); frame(); }
+    else img.addEventListener('load', function () { measure(); frame(); });
+  }
+
   /* ---------- parallax leve, também por scroll ---------- */
   function parallax(el, strength) {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -436,5 +486,6 @@
   }
 
   global.LEPVArt = {contour, fitContour, maskedPhoto, silhouettePath, makeTerrain,
-                    drawOnEnter, drawOnScroll, reveal, autoReveal, countUp, parallax};
+                    drawOnEnter, drawOnScroll, reveal, autoReveal, countUp, parallax,
+                    panOnScroll};
 })(window);

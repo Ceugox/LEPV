@@ -113,14 +113,24 @@ function check(ok, label, detail) {
         if (!svg) return null;
         const r = svg.getBoundingClientRect();
         const vb = (svg.getAttribute('viewBox') || '').split(/\s+/).map(Number);
+        const paths = [...svg.querySelectorAll('path')];
+        // todo traço precisa das variáveis que o CSS usa para o dashoffset
+        const armed = paths.filter(p => p.style.getPropertyValue('--len') &&
+                                        p.style.getPropertyValue('--s') !== '').length;
         return { w: Math.round(r.width), h: Math.round(r.height), vb,
-                 paths: svg.querySelectorAll('path').length };
+                 paths: paths.length, armed };
       });
       if (contour) {
         check(Math.abs(contour.vb[2] - contour.w) <= 1 && Math.abs(contour.vb[3] - contour.h) <= 1,
               'viewBox == box renderizado',
               `vb=${contour.vb[2]}x${contour.vb[3]} box=${contour.w}x${contour.h}`);
-        check(contour.paths > 10, 'contorno gerou traços', `${contour.paths} paths`);
+        /* Sem limiar de quantidade: a página escolhe quanto desenhar (o topo
+           usa levels:0, só as duas ondas, porque a montanha real já está na
+           fotografia). O que importa aqui é que a arte renderizou e que todo
+           traço saiu preparado para o desenho por scroll. A malha completa é
+           coberta por verify-art.js, no fixture. */
+        check(contour.paths > 0 && contour.armed === contour.paths,
+              'traços prontos para desenhar', `${contour.armed}/${contour.paths}`);
       }
 
       check(errors.length === 0, 'sem erro de console', errors.slice(0, 2).join(' | ') || 'nenhum');
