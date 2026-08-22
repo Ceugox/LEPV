@@ -122,6 +122,172 @@ body.imersao {
   .strip-track, .m-track { animation: none !important; }
 }
 
+/* ============================================================
+   GRAMÁTICA DE DOCUMENTO — compartilhada por todas as páginas.
+   Ela nasceu no <style> da home; ficar presa lá foi o que fez as
+   páginas internas não conversarem com a landing. Toda superfície
+   nova deve montar-se a partir daqui, não reinventar.
+   ============================================================ */
+
+/* medida e respiro */
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 var(--pad); }
+
+/* selo: a marca ao lado do nome da liga. A marca nunca abaixo de 40px. */
+.stamp { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin: 0 0 24px; }
+.stamp img { height: 52px; width: auto; flex: none; }
+@media (min-width: 720px) { .stamp img { height: 64px } }
+.stamp b {
+  display: block; max-width: 22ch; font-family: var(--fd); font-weight: 400;
+  font-size: clamp(19px, 2.4vw, 26px); line-height: 1.08; letter-spacing: 0.01em;
+  color: var(--ink);
+}
+.stamp .sub {
+  display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--ink-3); margin-top: 5px;
+}
+
+/* filete duplo: separa capítulos do documento */
+.rule2 {
+  border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
+  height: 3px; box-sizing: content-box;
+}
+
+/* cabeça de seção: romano + serif em caixa MISTA + régua.
+   Serif em caixa alta fica torta — não usar text-transform aqui. */
+.blk-head { display: flex; align-items: baseline; gap: 14px; margin: 0 0 9px; }
+.blk-head .n {
+  font-family: var(--fd); font-size: clamp(18px, 2.2vw, 25px);
+  color: var(--wine); min-width: 1.9em;
+}
+.blk-head h2, .blk-head h3 {
+  font-family: var(--fd); font-weight: 400; color: var(--ink);
+  font-size: clamp(25px, 4vw, 40px); line-height: 1.04; margin: 0; text-transform: none;
+}
+.blk-head h2 i, .blk-head h3 i { font-style: italic; color: var(--wine); }
+.blk-head .r { flex: 1; height: 1px; background: var(--line); }
+.blk-note {
+  font-family: var(--fd); font-style: italic; font-size: 15px; color: var(--ink-3);
+  margin: 0 0 24px; padding-left: calc(1.9em + 14px);
+}
+
+/* seção: full-bleed com filete, em vez de card flutuante */
+section.blk, .blk { padding: 48px 0; }
+@media (min-width: 720px) { section.blk, .blk { padding: 72px 0 } }
+.blk + .blk { border-top: 1px solid var(--line); }
+
+/* tira de dados: rola sozinha no mobile, sem barra visível */
+.ticker {
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: var(--card); overflow-x: auto;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.ticker::-webkit-scrollbar { display: none; }
+.ticker-in {
+  max-width: var(--max); margin: 0 auto; padding: 0 var(--pad);
+  display: flex; min-width: max-content;
+}
+.tk {
+  display: flex; align-items: baseline; gap: 9px; white-space: nowrap;
+  padding: 14px 22px 14px 0; margin-right: 22px; border-right: 1px solid var(--line);
+}
+.tk:last-child { border-right: 0; margin-right: 0; }
+.tk b {
+  font-family: var(--fd); font-weight: 400; font-size: 27px; line-height: 1;
+  color: var(--ink); font-variant-numeric: tabular-nums;
+}
+.tk span {
+  font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3);
+}
+
+/* lista de dados: rótulo à esquerda, valor à direita, filete pontilhado */
+.datalist { margin: 0; }
+.datalist > div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  font-size: 13.5px; padding: 7px 0; border-bottom: 1px dotted var(--line-2);
+}
+.datalist > div:last-child { border-bottom: 0; }
+.datalist dt, .datalist .k { color: var(--ink-3); }
+.datalist dd, .datalist .v {
+  margin: 0; text-align: right; font-weight: 500; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.datalist.bordered { border-left: 1px solid var(--line-2); padding-left: 20px; }
+
+/* índice: uma linha por item, em vez de uma grade de cards */
+.idx { border-top: 1px solid var(--ink); }
+.irow {
+  display: grid; grid-template-columns: auto 1fr; gap: 9px 13px; align-items: center;
+  padding: 15px 0; border-bottom: 1px solid var(--line);
+  text-decoration: none; color: inherit; transition: background .16s, padding-left .16s;
+}
+@media (min-width: 860px) {
+  .irow { grid-template-columns: 78px 1fr 152px 116px 24px; gap: 18px; padding: 14px 0 }
+}
+.irow:hover { background: var(--card); padding-left: 8px; }
+.irow .k {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--wine); white-space: nowrap;
+}
+.irow .ti { grid-column: 1 / -1; }
+@media (min-width: 860px) { .irow .ti { grid-column: auto } }
+.irow h4 {
+  font-family: var(--fd); font-weight: 400; font-size: clamp(19px, 2.4vw, 25px);
+  line-height: 1.12; margin: 0; color: var(--ink); text-transform: none;
+}
+.irow .wh, .irow .st { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.irow .st b { color: var(--ink); font-weight: 600; }
+.irow .go { display: none; font-size: 17px; color: var(--line-2); transition: color .16s, transform .16s; }
+@media (min-width: 860px) { .irow .go { display: block; text-align: right } }
+.irow:hover .go { color: var(--wine); transform: translateX(3px); }
+.idx-empty {
+  padding: 20px 0; font-family: var(--fd); font-style: italic; font-size: 16px; color: var(--ink-3);
+}
+
+/* legenda: rótulo em vinho + texto em itálico */
+.cap {
+  display: flex; flex-wrap: wrap; gap: 3px 11px; align-items: baseline; margin: 0;
+}
+.cap b {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--wine);
+}
+.cap span { font-family: var(--fd); font-style: italic; font-size: 14.5px; color: var(--ink-3); }
+
+/* nota de rodapé do documento */
+.foot-note {
+  font-size: 12.5px; line-height: 1.7; color: var(--ink-3);
+  border-top: 1px solid var(--line); padding-top: 18px; margin: 28px 0 0;
+}
+.foot-note sup { color: var(--wine); font-weight: 700; }
+
+/* frase de impacto */
+.impact {
+  font-family: var(--fd); font-weight: 400; color: var(--ink);
+  font-size: clamp(23px, 3.4vw, 40px); line-height: 1.16; letter-spacing: -0.01em;
+  margin: 0 0 24px; max-width: 26ch; text-wrap: balance;
+}
+.impact i { font-style: italic; color: var(--wine); }
+
+/* botões da gramática nova (os .btn-primary/.btn-ghost seguem para o legado) */
+.btn {
+  font-size: 14.5px; font-weight: 600; padding: 13px 22px; text-decoration: none;
+  border-radius: 4px; border: 1px solid transparent; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 9px; min-height: 46px;
+  transition: background .18s, border-color .18s, color .18s;
+}
+.btn .ar { opacity: 0.65; font-weight: 400; }
+.btn-p { background: var(--wine); color: #fff; }
+.btn-p:hover { background: var(--wine-2); }
+.btn-g { border-color: var(--line-2); color: var(--ink); background: rgba(255,255,255,0.6); }
+.btn-g:hover { border-color: var(--ink); background: var(--card); }
+.btn-block { width: 100%; justify-content: center; }
+
+/* capitular: só no primeiro parágrafo de um bloco de abertura */
+.dropcap::first-letter {
+  font-family: var(--fd); font-size: 3.2em; line-height: 0.82; float: left;
+  margin: 0.05em 0.09em 0 0; color: var(--wine);
+}
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 body {
