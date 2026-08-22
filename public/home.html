@@ -98,14 +98,11 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
   font-size:clamp(38px,8vw,86px);line-height:1.0;letter-spacing:-.018em;margin:0 0 20px;max-width:17ch}
 .doc h1 i{font-style:italic;color:var(--wine)}
 
-.abstract{display:grid;grid-template-columns:1fr;gap:20px;margin:0 0 26px}
-@media(min-width:860px){ .abstract{grid-template-columns:1.42fr 1fr;gap:48px} }
-.abstract>p{margin:0;font-size:16px;line-height:1.72;color:var(--ink-2)}
-.abstract aside{align-self:start}
+/* Uma coluna: a lista de dados saiu, e medida de leitura confortável vale
+   mais que preencher a largura. */
+.abstract{margin:0 0 8px}
+.abstract>p{margin:0;max-width:62ch;font-size:16px;line-height:1.72;color:var(--ink-2)}
 
-
-
-section.blk + 
 /* ---------- verbete do próximo evento ---------- */
 .entry{display:grid;grid-template-columns:1fr;gap:16px;padding:24px 0 0;
   text-decoration:none;color:inherit}
@@ -141,10 +138,8 @@ section.blk +
   border-bottom:1px dotted var(--line-2);font-variant-numeric:tabular-nums}
 .entry .side div:last-of-type{border-bottom:0}
 .entry .side b{color:var(--ink);font-weight:600}
-.entry .side 
-@media(min-width:860px){
-  }
-
+/* o CTA fecha a coluna de dados ocupando a largura toda */
+.entry .side .btn{margin-top:14px;width:100%;justify-content:center}
 
 /* ---------- rodapé ---------- */
 footer.site{max-width:var(--max);margin:0 auto;padding:38px var(--pad) 46px;
@@ -206,36 +201,21 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
 <section class="doc">
   <div class="doc-in">
     <h1 class="rv">Engenharia que <i>empreende</i></h1>
+    <!-- Sem lista de números aqui, e sem a tira que existia abaixo: os valores
+         eram escritos à mão no HTML e não acompanhavam a realidade — a landing
+         afirmava 18 membros enquanto a API devolvia 9. Número que mente é pior
+         que número ausente. Se voltarem, precisam vir de um endpoint. -->
     <div class="abstract">
-      <p class="dropcap rv" style="--i:2">A LEPV constrói no IME o ambiente que o empreendedorismo
+      <p class="dropcap rv" style="--i:1">A LEPV constrói no IME o ambiente que o empreendedorismo
         precisa para existir: gente que se encontra toda semana, repertório que não está na
         grade curricular e uma rede de empresas e alumni ao alcance de quem está começando.
         Reuniões, aulas e visitas são os meios. O fim é um lugar onde fundar algo deixe de ser
         exceção dentro da engenharia.</p>
-      <aside class="datalist bordered rv" style="--i:3">
-        <!-- Ordem deliberada: os primeiros descrevem o ambiente (gente diversa
-             se encontrando). A rede vem depois, como prova — é meio, não fim. -->
-        <dl>
-          <div><dt>Membros ativos</dt><dd>18</dd></div>
-          <div><dt>Turmas na liga</dt><dd>XVII–XXX</dd></div>
-          <div><dt>Especialidades do IME</dt><dd>9</dd></div>
-          <div><dt>Empresas na rede</dt><dd>12</dd></div>
-          <div><dt>Primeira missão</dt><dd>São Paulo, 2026</dd></div>
-        </dl>
-      </aside>
     </div>
   </div>
 </section>
 
 <div class="rule2"></div>
-
-<div class="ticker"><div class="ticker-in">
-  <div class="tk"><b data-count="18">18</b><span>membros ativos</span></div>
-  <div class="tk"><b>XVII–XXX</b><span>turmas na liga</span></div>
-  <div class="tk"><b data-count="9">9</b><span>especialidades</span></div>
-  <div class="tk"><b data-count="12">12</b><span>empresas na rede</span></div>
-  <div class="tk"><b>2026</b><span>1ª missão · São Paulo</span></div>
-</div></div>
 
 <section class="blk" id="encontro"><div class="wrap">
   <div class="blk-head rv"><span class="n">I.</span><h2>O próximo <i>encontro</i></h2><span class="r"></span></div>
@@ -306,7 +286,6 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
     {fromY: 10, toY: 92, fromX: 54, toX: 40, container: document.getElementById('hero')});
 
   LEPVArt.reveal();
-  LEPVArt.countUp('[data-count]');
 
   // A marca só entra no nav depois que o cabeçalho de documento sai de cena —
   // nunca as duas ao mesmo tempo.
