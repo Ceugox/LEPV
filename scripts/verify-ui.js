@@ -5,7 +5,14 @@
    que protege a UI — a suíte e2e cobre API e não inspeciona markup. */
 const { chromium } = require('playwright');
 
-const BASE = (process.argv.find(a => a.startsWith('--base=')) || '--base=http://127.0.0.1:3000').slice(7);
+/* Base: --base= vence, depois LEPV_BASE, depois PORT, depois 3000.
+   Sem isso `npm run verify` so funciona se o server estiver na 3000. */
+const BASE = (function () {
+  const arg = process.argv.find(a => a.startsWith('--base='));
+  if (arg) return arg.slice(7);
+  if (process.env.LEPV_BASE) return process.env.LEPV_BASE;
+  return 'http://127.0.0.1:' + (process.env.PORT || 3000);
+})();
 const PAGES = ['/', '/login.html', '/presenca.html'];
 const WIDTHS = [390, 1440];
 
@@ -129,10 +136,19 @@ function check(ok, label, detail) {
   await page.waitForTimeout(400);
   console.log('\n[reduced-motion] /');
   const rm = await page.evaluate(() => {
+    /* NÃO usar parseFloat aqui: o Chromium devolve "calc(13px)" para traço
+       pendente quando o valor envolve var() em SVG, e parseFloat disso é
+       NaN — NaN > 1 é false, então a checagem passaria sempre sem verificar
+       nada. Extrair o número da string é o único jeito honesto. */
+    const num = s => {
+      const m = String(s || '').match(/-?[\d.]+/);
+      return m ? parseFloat(m[0]) : NaN;
+    };
     const rv = [...document.querySelectorAll('.rv')];
     const hidden = rv.filter(el => parseFloat(getComputedStyle(el).opacity) < 0.99).length;
     const paths = [...document.querySelectorAll('.contour path')];
-    const undrawn = paths.filter(p => parseFloat(getComputedStyle(p).strokeDashoffset) > 1).length;
+    const offs = paths.map(p => num(getComputedStyle(p).strokeDashoffset));
+    const undrawn = offs.filter(v => !(v <= 1)).length;   // NaN também reprova
     return { rv: rv.length, hidden, undrawn, total: paths.length };
   });
   if (rm.rv > 0) check(rm.hidden === 0, 'nada escondido sob reduced-motion', `${rm.hidden}/${rm.rv} com opacity<1`);

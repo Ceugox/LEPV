@@ -7,7 +7,12 @@
     "start": "node server.js",
     "seed": "node scripts/seed-credentials.js",
     "test": "node tests/e2e.js",
-    "verify:ui": "node scripts/verify-ui.js"
+    "verify:art": "node scripts/verify-art.js",
+    "verify:contrast": "python scripts/check-contrast.py",
+    "verify:ui": "node scripts/verify-ui.js",
+    "verify:app": "node scripts/verify-app.js",
+    "verify:tabs": "node scripts/verify-tabs.js",
+    "verify": "npm test && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:app && npm run verify:tabs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

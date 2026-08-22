@@ -1,5 +1,12 @@
 const { chromium } = require('playwright');
-const BASE = (process.argv.find(a => a.startsWith('--base=')) || '--base=http://127.0.0.1:3000').slice(7);
+/* Base: --base= vence, depois LEPV_BASE, depois PORT, depois 3000.
+   Sem isso `npm run verify` so funciona se o server estiver na 3000. */
+const BASE = (function () {
+  const arg = process.argv.find(a => a.startsWith('--base='));
+  if (arg) return arg.slice(7);
+  if (process.env.LEPV_BASE) return process.env.LEPV_BASE;
+  return 'http://127.0.0.1:' + (process.env.PORT || 3000);
+})();
 /* O app exige sessao, entao a medicao dele nao cabe em verify-ui.js.
    Loga via fetch no contexto da pagina e remove .pin-backdrop antes de
    medir — o modal de PIN intercepta cliques. A senha inicial dos
