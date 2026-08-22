@@ -65,7 +65,7 @@
     box-shadow: 0 0 0 1px rgba(255,255,255,0.18);
   }
   header.topbar .brandtext { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
-  header.topbar .brandtext .b1 { font-family: var(--font-display); font-weight: 400; font-size: 16px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.topbar .brandtext .b1 { font-family: var(--font-display); font-weight: 400; font-size: 16px; letter-spacing: 0.03em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   header.topbar .brandtext .b1 .accent { color: var(--red-2); }
   header.topbar .brandtext .b2 { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   header.topbar .who { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
@@ -81,9 +81,10 @@
   nav.tabs::-webkit-scrollbar { display: none; }
   nav.tabs button {
     min-height: 44px;   /* alvo de toque */
+    letter-spacing: 0;
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent;
     color: rgba(255,255,255,0.6); font-family: var(--font-display); font-weight: 400;
-    font-size: 14.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    font-size: 14.5px; letter-spacing: 0.04em;
     min-height: 44px; display: inline-flex; align-items: center;
     padding: 10px 11px; cursor: pointer; transition: color 0.18s, border-color 0.18s;
   }
@@ -93,9 +94,10 @@
   main { padding-top: 20px; }
   .panel { display: none; }
   .panel.active { display: block; }
+  /* Folha, nao card flutuante: mesma superficie plana da landing. */
   .card {
-    background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-lg);
-    padding: 16px; margin-bottom: 16px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+    padding: 18px; margin-bottom: 16px;
   }
 
   @media (min-width: 700px) {
@@ -111,9 +113,15 @@
     main { padding-top: 28px; }
     .card { padding: 22px; margin-bottom: 18px; }
   }
+  /* Cabeca de secao igual a da landing: serif em caixa mista + regua. */
   .section-label {
-    font-family: var(--font-body); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em;
-    color: var(--graphite-soft); margin: 0 0 16px; font-weight: 700;
+    font-family: var(--fd); font-weight: 400; font-size: clamp(21px, 2.6vw, 28px);
+    line-height: 1.06; letter-spacing: 0; text-transform: none;
+    color: var(--ink); margin: 0 0 16px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .section-label::after {
+    content: ""; flex: 1; height: 1px; background: var(--line);
   }
 
   /* Resumo — card "agora / a seguir / countdown" */
@@ -140,7 +148,7 @@
   .now-card .now-logo img { max-width: 28px; max-height: 22px; object-fit: contain; }
   .now-card .now-title {
     font-family: var(--font-display); font-weight: 400; font-size: 24px;
-    text-transform: uppercase; letter-spacing: 0.01em; line-height: 1.1; color: #fff;
+    letter-spacing: 0.01em; line-height: 1.1; color: #fff;
   }
   .now-card .now-time { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.85); }
   .now-card .now-addr { font-size: 12.5px; color: rgba(255,255,255,0.6); margin-top: 8px; line-height: 1.45; }
@@ -166,8 +174,7 @@
 
   /* Resumo */
   .mission-title {
-    font-family: var(--font-display); font-size: 26px; font-weight: 400; text-transform: uppercase;
-    letter-spacing: 0.01em; color: #fff; margin-bottom: 4px; line-height: 1.05;
+    font-family: var(--font-display); font-size: 26px; font-weight: 400; letter-spacing: 0.01em; color: #fff; margin-bottom: 4px; line-height: 1.05;
   }
   .mission-rule { width: 48px; height: 3px; background: var(--red); margin: 14px 0 18px; }
   .mission-summary { font-size: 14.5px; line-height: 1.65; color: var(--graphite); margin-bottom: 18px; max-width: 62ch; }
@@ -192,8 +199,7 @@
   .pioneer-item { padding: 14px 2px; border-top: 1px solid var(--line); }
   .pioneer-item:first-child { border-top: none; padding-top: 0; }
   .pioneer-item h3 {
-    font-family: var(--font-display); font-size: 15.5px; font-weight: 400; text-transform: uppercase;
-    letter-spacing: 0.01em; color: #fff; margin: 0 0 6px;
+    font-family: var(--font-display); font-size: 15.5px; font-weight: 400; letter-spacing: 0.01em; color: #fff; margin: 0 0 6px;
   }
   .pioneer-item p { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0; }
 
@@ -201,7 +207,7 @@
   .prepare-card { background: var(--offwhite); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px; }
   .prepare-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
   .prepare-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,0.22); }
-  .prepare-name { font-family: var(--font-display); font-weight: 400; font-size: 14px; text-transform: uppercase; letter-spacing: 0.01em; color: #fff; }
+  .prepare-name { font-family: var(--font-display); font-weight: 400; font-size: 14px; letter-spacing: 0.01em; color: #fff; }
   .prepare-card ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .prepare-card li { font-size: 12.5px; line-height: 1.5; color: var(--graphite); padding-left: 14px; position: relative; }
   .prepare-card li::before { content: "•"; color: var(--red-2); position: absolute; left: 0; font-weight: 700; }
@@ -221,9 +227,11 @@
     border: 1px solid var(--line); object-fit: cover; background: var(--white);
   }
   .hero-text { position: relative; min-width: 0; }
+  /* Herda a serif de h1,h2,h3 — por isso nao pode ter caixa alta nem
+     peso 800: a Instrument Serif so tem 400. */
   .hero-text h2 {
-    font-size: 34px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.01em;
-    color: var(--navy); line-height: 1; margin: 6px 0 10px;
+    font-size: clamp(30px, 4vw, 42px); font-weight: 400; text-transform: none;
+    letter-spacing: 0; color: var(--ink); line-height: 1.04; margin: 6px 0 12px;
   }
   .hero-text h2 .accent { color: var(--red); }
   .hero-copy { font-size: 14px; line-height: 1.65; color: var(--graphite); margin: 0; max-width: 58ch; }
@@ -235,8 +243,11 @@
   .stats-liga { display: grid; grid-template-columns: repeat(2, 1fr); padding: 0; overflow: hidden; }
   .stat-cell { padding: 16px 18px; border-top: 1px solid var(--line); }
   .stat-cell:nth-child(-n+2) { border-top: none; }
-  .stat-cell .sv { font-family: var(--font-display); font-size: 27px; font-weight: 400; color: var(--red); line-height: 1.05; }
-  .stat-cell .sk { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--graphite-soft); margin-top: 3px; }
+  .stat-cell .sv { font-family: var(--fd); font-size: 30px; font-weight: 400;
+                   color: var(--ink); line-height: 1.05;
+                   font-variant-numeric: tabular-nums; }
+  .stat-cell .sk { font-size: 11px; font-weight: 400; text-transform: uppercase;
+                   letter-spacing: 0.09em; color: var(--ink-3); margin-top: 4px; }
   @media (min-width: 700px) {
     .stats-liga { grid-template-columns: repeat(4, 1fr); }
     .stat-cell { border-top: none; border-left: 1px solid var(--line); }
@@ -285,7 +296,7 @@
   /* Aulas (aba Materiais) */
   .lesson-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .lesson-head .ldate { font-size: 12px; font-weight: 700; color: var(--graphite-soft); }
-  .lesson-head .ltitle { font-size: 15.5px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.02em; color: var(--navy); flex: 1; min-width: 140px; font-family: var(--font-display); }
+  .lesson-head .ltitle { font-size: 15.5px; font-weight: 400; letter-spacing: 0.02em; color: var(--navy); flex: 1; min-width: 140px; font-family: var(--font-display); }
   .lesson-head .del-lesson { border: none; background: none; color: var(--graphite-soft); cursor: pointer; font-size: 16px; padding: 0 2px; }
   .lesson-head .del-lesson:hover { color: var(--red-2); }
   .lesson-desc { font-size: 12.5px; color: var(--graphite-soft); line-height: 1.55; margin: 4px 0 0; }
@@ -391,7 +402,7 @@
   /* Hotel */
   .hotel-card { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
   .hotel-card .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; color: var(--graphite-soft); margin-bottom: 5px; }
-  .hotel-card .name { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: #fff; text-transform: uppercase; }
+  .hotel-card .name { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: #fff; }
   .hotel-card .addr { font-size: 13px; color: var(--graphite-soft); margin-top: 3px; }
   .hotel-card a { text-decoration: none; white-space: nowrap; width: 100%; text-align: center; }
   @media (min-width: 560px) {
@@ -401,7 +412,7 @@
 
   /* Agenda */
   .day-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 12px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
-  .day-head .weekday { font-family: var(--font-display); font-size: 22px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.01em; color: #fff; padding-bottom: 12px; }
+  .day-head .weekday { font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: 0.01em; color: #fff; padding-bottom: 12px; }
   .day-head .date { font-size: 13px; color: var(--graphite-soft); font-weight: 600; }
   .day-note {
     font-size: 12.5px; color: var(--pending); background: var(--pending-soft);
@@ -424,7 +435,7 @@
   }
   .stopcard .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .stopcard .stop-idx { margin-left: auto; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.38); letter-spacing: 0.04em; }
-  .stopcard .company { font-family: var(--font-display); font-weight: 400; font-size: 16px; color: #fff; text-transform: uppercase; letter-spacing: 0.01em; }
+  .stopcard .company { font-family: var(--font-display); font-weight: 400; font-size: 16px; color: #fff; letter-spacing: 0.01em; }
   .stop-logo {
     flex: none; width: 30px; height: 30px; border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center; overflow: hidden;
@@ -471,7 +482,7 @@
   .daypicker button {
     min-height: 44px;   /* alvo de toque */
     flex: none; border: none; border-bottom: 3px solid transparent; background: transparent; color: var(--graphite-soft);
-    font-family: var(--font-display); font-weight: 400; font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em;
+    font-family: var(--font-display); font-weight: 400; font-size: 14px; letter-spacing: 0.03em;
     min-height: 44px; display: inline-flex; align-items: center;
     padding: 8px 12px; cursor: pointer;
   }
@@ -489,7 +500,7 @@
   .company-chip .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px rgba(255,255,255,0.22); }
   .company-chip .lbl {
     font-family: var(--font-display); font-weight: 400; font-size: 12.5px; color: var(--graphite);
-    text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap;
+    letter-spacing: 0.02em; white-space: nowrap;
   }
   .company-chip.active .lbl { color: #fff; }
 
@@ -506,8 +517,7 @@
   .company-hero.logoBg-dark { background: var(--navy); border: 1px solid var(--line); }
   .company-hero img.company-logo { max-width: 130px; max-height: 46px; object-fit: contain; }
   .company-hero .company-fallback-name {
-    font-family: var(--font-display); font-weight: 400; font-size: 22px; text-transform: uppercase;
-  }
+    font-family: var(--font-display); font-weight: 400; font-size: 22px; }
   .company-hero.logoBg-dark .company-fallback-name { color: #fff; }
   .company-hero.logoBg-light .company-fallback-name { color: var(--navy); }
 
@@ -528,7 +538,7 @@
   .badges-header { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-bottom: 20px; }
   .edition-badge { flex: none; width: 76px; height: 76px; }
   .badges-summary { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 12px; }
-  .badges-summary .name { font-family: var(--font-display); font-size: 20px; font-weight: 400; color: #fff; text-transform: uppercase; }
+  .badges-summary .name { font-family: var(--font-display); font-size: 20px; font-weight: 400; color: #fff; }
   .progress-row { display: flex; flex-direction: column; gap: 4px; }
   .progress-row .plabel { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--graphite-soft); font-weight: 700; }
   .progress-track { height: 8px; border-radius: 999px; background: var(--offwhite); overflow: hidden; }
@@ -621,7 +631,7 @@
   /* Trajetos */
   .route-card { padding: 16px; }
   .route-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-  .route-path { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 400; font-size: 15px; color: #fff; text-transform: uppercase; letter-spacing: 0.01em; }
+  .route-path { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 400; font-size: 15px; color: #fff; letter-spacing: 0.01em; }
   .route-path .rp-arrow { color: var(--red-2); font-weight: 400; }
   .route-time { font-size: 12px; font-weight: 800; color: var(--lunch-dark); background: var(--lunch-soft); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
   .route-time.warn { color: var(--pending); background: var(--pending-soft); }
@@ -669,8 +679,7 @@
   /* ---- Legado: o acervo da imersão ---- */
   .legacy-hero .now-label { color: var(--red-2); }
   .legacy-hero .lh-title {
-    font-family: var(--font-display); font-weight: 400; text-transform: uppercase;
-    font-size: 26px; line-height: 1.08; color: #fff; margin: 0 0 8px; letter-spacing: 0.01em;
+    font-family: var(--font-display); font-weight: 400; font-size: 26px; line-height: 1.08; color: #fff; margin: 0 0 8px; letter-spacing: 0.01em;
   }
   .legacy-hero .lh-sub { font-size: 13.5px; line-height: 1.6; color: rgba(255,255,255,0.66); margin: 0 0 18px; max-width: 52ch; }
   @media (min-width: 700px) { .legacy-hero .lh-title { font-size: 32px; } }
@@ -737,8 +746,7 @@
   .lgroup-logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .lgroup-logo.dark { background: var(--navy-2); }
   .lgroup-name {
-    font-family: var(--font-display); font-weight: 400; font-size: 17px; text-transform: uppercase;
-    color: #fff; letter-spacing: 0.02em; line-height: 1.1;
+    font-family: var(--font-display); font-weight: 400; font-size: 17px; color: #fff; letter-spacing: 0.02em; line-height: 1.1;
   }
   .lgroup-meta { font-size: 11px; color: var(--graphite-soft); margin-top: 2px; }
   .lgroup-count {
@@ -786,7 +794,7 @@
     border-radius: var(--radius-md); background: rgba(255,255,255,0.015);
   }
   .legacy-empty .le-mark { font-family: var(--font-display); font-size: 38px; color: var(--line-strong); line-height: 1; }
-  .legacy-empty .le-title { font-family: var(--font-display); font-weight: 400; font-size: 17px; text-transform: uppercase; color: #fff; margin: 10px 0 6px; }
+  .legacy-empty .le-title { font-family: var(--font-display); font-weight: 400; font-size: 17px; color: #fff; margin: 10px 0 6px; }
   .legacy-empty .le-text { font-size: 13px; color: var(--graphite-soft); line-height: 1.6; max-width: 40ch; margin: 0 auto; }
 
   /* Ranking de contribuição */
@@ -821,7 +829,7 @@
   .album-day .ad-meta { position: absolute; left: 10px; right: 10px; bottom: 9px; text-align: left; }
   .album-day .ad-n {
     display: block; font-family: var(--font-display); font-weight: 400; font-size: 14px;
-    text-transform: uppercase; letter-spacing: 0.04em; color: #fff; line-height: 1.1;
+    letter-spacing: 0.04em; color: #fff; line-height: 1.1;
   }
   .album-day .ad-d { display: block; font-size: 10.5px; color: rgba(255,255,255,0.62); margin-top: 2px; }
 
@@ -883,8 +891,7 @@
 
   /* Arquivo */
   .archive-head {
-    font-family: var(--font-display); font-weight: 400; font-size: 15px; text-transform: uppercase;
-    letter-spacing: 0.05em; color: rgba(255,255,255,0.75); margin: 26px 0 12px;
+    font-family: var(--font-display); font-weight: 400; font-size: 15px; letter-spacing: 0.05em; color: rgba(255,255,255,0.75); margin: 26px 0 12px;
     display: flex; align-items: center; gap: 10px;
   }
   .archive-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
@@ -914,8 +921,7 @@
   /* O modal é injetado no body ao carregar (aba Início, tema claro), mas pode
      ficar aberto se o acervo for aberto atrás dele — daí a tinta por tema. */
   .pin-modal h3 {
-    font-family: var(--font-display); font-size: 21px; font-weight: 400; text-transform: uppercase;
-    color: var(--navy); margin: 0 0 10px; line-height: 1.15;
+    font-family: var(--font-display); font-size: 21px; font-weight: 400; color: var(--navy); margin: 0 0 10px; line-height: 1.15;
   }
   body.imersao .pin-modal h3 { color: #fff; }
   .pin-modal .pin-text { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0 0 18px; }
@@ -965,7 +971,7 @@
   .mural-date { font-size: 12px; color: var(--graphite-soft); }
   .mural-title {
     font-family: var(--font-display); font-size: 22px; font-weight: 400;
-    text-transform: uppercase; color: var(--navy); line-height: 1.15; margin: 0 0 8px;
+    color: var(--navy); line-height: 1.15; margin: 0 0 8px;
   }
   .mural-text { font-size: 13.5px; line-height: 1.65; color: var(--graphite); margin: 0; white-space: pre-line; }
   .mural-by { font-size: 11.5px; color: var(--graphite-soft); margin-top: auto; padding-top: 12px; }
@@ -1022,8 +1028,7 @@
   .event-date { font-size: 12.5px; font-weight: 700; color: var(--red); white-space: nowrap; }
   /* Agrupamento Próximos/Anteriores da aba Eventos (versão clara do .archive-head) */
   .events-group-head {
-    font-family: var(--font-display); font-weight: 400; font-size: 15px; text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--graphite-soft); margin: 26px 0 12px;
+    font-family: var(--font-display); font-weight: 400; font-size: 15px; letter-spacing: 0.05em; color: var(--graphite-soft); margin: 26px 0 12px;
     display: flex; align-items: center; gap: 10px;
   }
   .events-group-head::after { content: ""; flex: 1; height: 1px; background: var(--line); }
@@ -1034,8 +1039,7 @@
     padding: 3px 9px; border-radius: 2px; background: var(--red); color: #fff;
   }
   .event-title {
-    font-family: var(--font-display); font-size: 19px; font-weight: 400; text-transform: uppercase;
-    color: var(--navy); flex: 1; min-width: 0; line-height: 1.15;
+    font-family: var(--font-display); font-size: 19px; font-weight: 400; color: var(--navy); flex: 1; min-width: 0; line-height: 1.15;
   }
   .event-text { font-size: 13.5px; line-height: 1.6; color: var(--graphite); margin: 0; white-space: pre-line; }
   .event-photos { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1187,7 +1191,7 @@
       <div class="card rv stats-liga">
         <div class="stat-cell"><div class="sv" id="stat-membros">—</div><div class="sk">Membros ativos</div></div>
         <div class="stat-cell"><div class="sv">XVII–XXX</div><div class="sk">Turmas na liga</div></div>
-        <div class="stat-cell"><div class="sv">12</div><div class="sk">Empresas visitadas</div></div>
+        <div class="stat-cell"><div class="sv">12</div><div class="sk">Empresas na rede</div></div>
         <div class="stat-cell"><div class="sv">1ª</div><div class="sk">Imersão · SP 2026</div></div>
       </div>
 

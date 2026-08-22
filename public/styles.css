@@ -141,9 +141,11 @@ body.imersao {
   font-size: clamp(19px, 2.4vw, 26px); line-height: 1.08; letter-spacing: 0.01em;
   color: var(--ink);
 }
+/* family explicita: sem isso herda a serif do .stamp b e a caixa alta
+   deforma as letras. */
 .stamp .sub {
-  display: block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.17em;
-  text-transform: uppercase; color: var(--ink-3); margin-top: 5px;
+  display: block; font-family: var(--f); font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.17em; text-transform: uppercase; color: var(--ink-3); margin-top: 5px;
 }
 
 /* filete duplo: separa capítulos do documento */
@@ -496,9 +498,11 @@ hr.hair { border: none; border-top: 1px solid var(--line); margin: 0; }
   filter: brightness(0) invert(1); opacity: 0.85; transition: opacity 0.3s;
 }
 .m-logo:hover { opacity: 1; }
+/* Wordmark de empresa e sans, nao serif: em serif com caixa alta fica
+   torto, e logotipo nao usa serifada por acidente. */
 .m-word {
-  flex: none; font-family: var(--font-display); font-weight: 400; font-size: 25px;
-  text-transform: uppercase; letter-spacing: 0.04em; color: rgba(255,255,255,0.85); line-height: 1;
+  flex: none; font-family: var(--f); font-weight: 600; font-size: 21px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.85); line-height: 1;
 }
 @media (prefers-reduced-motion: reduce) {
   .m-track { animation: none; }
