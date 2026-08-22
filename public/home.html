@@ -54,14 +54,15 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 @media(min-width:760px){ .burger{display:none} }
 
 /* ---------- cabeçalho de documento ---------- */
-.doc{position:relative;overflow:hidden}
-.doc-ph{position:absolute;inset:0;z-index:0}
-.doc-ph img{width:100%;height:120%;object-fit:cover;object-position:50% 30%;
-  filter:grayscale(1) brightness(1.14) contrast(1.02);opacity:.62;will-change:transform}
-.doc-ph::after{content:"";position:absolute;inset:0;background:
-  linear-gradient(180deg,rgba(250,248,245,.90) 0%,rgba(250,248,245,.72) 34%,
-                  rgba(250,248,245,.88) 72%,var(--paper) 100%),
-  linear-gradient(90deg,rgba(250,248,245,.94) 0%,rgba(250,248,245,.58) 52%,rgba(250,248,245,.86) 100%)}
+/* O hero fica em papel limpo e recebe o relevo em linhas ao fundo — ele se
+   desenha conforme o scroll. Foto atrás de texto viraria textura invisível:
+   com o texto ocupando as duas colunas, o véu teria de apagar a imagem
+   justamente onde ela tem informação. A fotografia ganhou palco próprio
+   como Fig. 1, logo abaixo. */
+.doc{position:relative;overflow:hidden;
+  background:linear-gradient(180deg,var(--paper) 0%,var(--paper-2) 100%)}
+.hero-art{position:absolute;left:0;right:0;bottom:0;z-index:0;
+  width:100%;height:66%;pointer-events:none}
 .doc-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:30px var(--pad) 34px}
 @media(min-width:720px){ .doc-in{padding:48px var(--pad) 44px} }
 
@@ -102,11 +103,18 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 .rule2{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);height:3px;
   box-sizing:content-box}
 figure.fig{margin:0;background:var(--paper-2);border-bottom:1px solid var(--line)}
-.fig-in{max-width:var(--max);margin:0 auto;padding:6px var(--pad) 0}
-/* altura fixa; o contorno é gerado no tamanho real do contêiner (1 unidade
-   = 1 pixel), então preenche sem distorcer e sem faixa vazia */
-.contour{display:block;width:100%;height:clamp(150px,20vw,250px);pointer-events:none}
-.fig-cap{max-width:var(--max);margin:0 auto;padding:11px var(--pad) 13px;
+.fig-in{max-width:var(--max);margin:0 auto;padding:28px var(--pad) 4px}
+@media(min-width:720px){ .fig-in{padding:40px var(--pad) 8px} }
+/* Prancha, não banner: a fotografia aparece INTEIRA. Cortar reprodução de
+   acervo descarta justamente a composição de quem fez a foto — e nesta o
+   assunto (a enseada e os edifícios) vive na borda do quadro. */
+.fig-photo{display:block;width:100%;max-width:860px;height:auto;margin:0 auto;
+  border:1px solid var(--line-2);
+  box-shadow:0 1px 0 rgba(255,255,255,.7), 0 14px 34px -22px rgba(18,18,20,.45)}
+/* o contorno do hero é gerado no tamanho real do contêiner (1 unidade = 1
+   pixel), então preenche sem distorcer e sem faixa vazia */
+.hero-art{display:block}
+.fig-cap{max-width:892px;margin:0 auto;padding:12px var(--pad) 20px;
   display:flex;flex-wrap:wrap;gap:3px 11px;align-items:baseline}
 .fig-cap b{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--wine)}
 .fig-cap span{font-family:var(--fd);font-style:italic;font-size:14.5px;color:var(--ink-3)}
@@ -208,6 +216,14 @@ footer.site .links{margin-left:auto;display:flex;gap:12px;flex-wrap:wrap}
 footer.site a{color:var(--wine);font-weight:600;text-decoration:none;
   display:inline-flex;align-items:center;min-height:28px;padding:0 4px}
 footer.site a:hover{text-decoration:underline}
+footer.site .credit{flex-basis:100%;margin:14px 0 0;padding-top:14px;
+  border-top:1px solid var(--line);font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+footer.site .credit i{font-family:var(--fd);font-style:italic;font-size:13px}
+/* O link do crédito vive dentro de um parágrafo, então não pode virar
+   inline-flex (quebraria a linha). Ganha os 24px do WCAG 2.5.8 por
+   padding vertical, que não desloca o texto em volta. */
+footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-height:0;
+  line-height:1.2}
 </style>
 </head>
 <body>
@@ -224,7 +240,7 @@ footer.site a:hover{text-decoration:underline}
 </div></nav>
 
 <header class="doc" id="hero">
-  <div class="doc-ph"><img src="/gallery/liga-04.jpg" alt="" aria-hidden="true"></div>
+  <svg class="hero-art contour" aria-hidden="true"></svg>
   <div class="doc-in">
     <div class="stamp rv">
       <img src="/assets/logo-mark.png" alt="">
@@ -260,10 +276,15 @@ footer.site a:hover{text-decoration:underline}
 
 <figure class="fig" id="fig">
   <div class="fig-in">
-    <svg class="contour" aria-hidden="true"></svg>
+    <img class="fig-photo"
+         src="/assets/praia-vermelha.jpg"
+         srcset="/assets/praia-vermelha-900.jpg 900w, /assets/praia-vermelha.jpg 1800w"
+         sizes="(min-width: 900px) 860px, 100vw"
+         alt="Vista aérea da enseada da Praia Vermelha tomada do Morro da Urca, com o conjunto de edifícios institucionais à esquerda da praia e o bairro de Botafogo ao fundo.">
   </div>
   <figcaption class="fig-cap"><b>Fig. 1</b>
-    <span>Pão de Açúcar e Morro da Urca vistos da Praia Vermelha, onde fica o IME.</span></figcaption>
+    <span>Praia Vermelha e o distrito de Botafogo, tomada do Morro da Urca. O
+      conjunto de edifícios à esquerda da enseada é onde fica o IME.</span></figcaption>
 </figure>
 
 <div class="ticker"><div class="ticker-in">
@@ -315,19 +336,26 @@ footer.site a:hover{text-decoration:underline}
     <a href="https://www.instagram.com/lepv.rj" target="_blank" rel="noopener">Instagram</a>
     <a href="/login.html#solicitar">Solicitar acesso →</a>
   </span>
+  <p class="credit">Imagem do cabeçalho: <i>Praia Vermelha e Botafogo, tomada do Morro
+    da Urca</i> — Centro de Documentação e Memória da Brascan / Instituto Moreira Salles,
+    domínio público, via
+    <a href="https://commons.wikimedia.org/wiki/File:Praia_Vermelha_e_Botafogo_-_tomada_do_Morro_da_Urca_(013RJ009012).jpg"
+       target="_blank" rel="noopener">Wikimedia Commons</a>.</p>
 </footer>
 
 <script src="/art.js"></script>
 <script>
 (function () {
   /* ---------------- arte e motion ---------------- */
-  LEPVArt.fitContour(document.querySelector('.contour'),
-    {waves:true, fill:.90, waveAmpRatio:.058, stagger:17, drawWindow:.40,
-     fadeLow:.14, fadeMid:.52, fadeHigh:.92});
-  LEPVArt.drawOnScroll(document.getElementById('fig'));
+  /* O relevo vive ao fundo do hero e se desenha conforme o scroll. Os tons
+     são mais leves que na versão em palco próprio, porque agora há texto
+     por cima. */
+  LEPVArt.fitContour(document.querySelector('.hero-art'),
+    {waves:true, fill:.88, waveAmpRatio:.05, waveOpacity:.42, stagger:15,
+     drawWindow:.45, fadeLow:.06, fadeMid:.22, fadeHigh:.44});
+  LEPVArt.drawOnScroll(document.getElementById('hero'));
   LEPVArt.reveal();
   LEPVArt.countUp('[data-count]');
-  LEPVArt.parallax(document.querySelector('.doc-ph img'), .10);
 
   // A marca só entra no nav depois que o cabeçalho de documento sai de cena —
   // nunca as duas ao mesmo tempo.

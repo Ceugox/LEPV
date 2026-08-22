@@ -96,14 +96,16 @@
       /* Duas varreduras que se CRUZAM, como na marca — o mar é gesto, não régua.
          Cor sólida: aqui o gradiente do relevo já não alcança. */
       const wc = o.from || '#7F0A1A';
+      // waveOpacity permite discrição quando a arte fica ATRÁS de texto
+      const wo = o.waveOpacity != null ? o.waveOpacity : 1;
       add('M' + (-W * 0.02) + ' ' + (wy + a * 0.6) +
           ' C' + (W * 0.22) + ' ' + (wy + a * 1.8) +
           ', ' + (W * 0.58) + ' ' + (wy - a * 2.2) +
-          ', ' + (W * 1.02) + ' ' + (wy - a * 1.6), 4, 0.88, wc);
+          ', ' + (W * 1.02) + ' ' + (wy - a * 1.6), 4, 0.88 * wo, wc);
       add('M' + (-W * 0.02) + ' ' + (wy - gap - a * 1.4) +
           ' C' + (W * 0.30) + ' ' + (wy - gap + a * 1.5) +
           ', ' + (W * 0.72) + ' ' + (wy - gap + a * 0.2) +
-          ', ' + (W * 1.02) + ' ' + (wy - gap + a * 1.1), 2.6, 0.60, wc);
+          ', ' + (W * 1.02) + ' ' + (wy - gap + a * 1.1), 2.6, 0.60 * wo, wc);
     }
 
     /* Cada traço recebe sua fatia do progresso: --s é onde ele começa
@@ -116,6 +118,64 @@
     });
 
     return { terrain, W, base, peakH, paths: made };
+  }
+
+  /* ---------- silhueta CHEIA, para marca d'água de fundo ----------
+     Uso distinto do contorno em linhas: aqui o morro é uma massa quase
+     imperceptível de papel mais escuro. Serve de fundo sem competir com a
+     figura em linhas, que fica logo abaixo. Dimensiona ao contêiner, como
+     fitContour, porque com viewBox fixo sobra faixa vazia ou corta o pico. */
+  function silhouetteFill(svg, o) {
+    o = o || {};
+    let w = 0, h = 0, t;
+
+    function build() {
+      const r = svg.getBoundingClientRect();
+      const W = Math.max(320, Math.round(r.width));
+      const H = Math.max(120, Math.round(r.height));
+      if (W === w && H === h) return;
+      w = W; h = H;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      svg.setAttribute('preserveAspectRatio', 'none');
+
+      const base = H + 1;                       // encosta na base, sem folga
+      const peakH = Math.round(H * (o.fill || 0.82));
+      const terrain = makeTerrain(W, peakH);
+      const id = 'sf-' + Math.abs(W * 7 + H);
+
+      const defs = document.createElementNS(NS, 'defs');
+      defs.innerHTML =
+        '<linearGradient id="' + id + '" gradientUnits="userSpaceOnUse"' +
+          ' x1="0" y1="' + base + '" x2="0" y2="' + (base - peakH) + '">' +
+          '<stop offset="0" stop-color="' + (o.color || '#7F0A1A') +
+            '" stop-opacity="' + (o.lowOpacity != null ? o.lowOpacity : 0.030) + '"/>' +
+          '<stop offset="1" stop-color="' + (o.color || '#7F0A1A') +
+            '" stop-opacity="' + (o.highOpacity != null ? o.highOpacity : 0.085) + '"/>' +
+        '</linearGradient>';
+      svg.appendChild(defs);
+
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', silhouettePath(terrain, W, base, 4));
+      p.setAttribute('fill', 'url(#' + id + ')');
+      svg.appendChild(p);
+
+      // um fio na crista dá borda ao volume sem virar desenho de linhas
+      const edge = document.createElementNS(NS, 'path');
+      let d = 'M0 ' + base;
+      for (let x = 0; x <= W; x += 4) d += ' L' + x + ' ' + (base - terrain(x)).toFixed(1);
+      edge.setAttribute('d', d);
+      edge.setAttribute('fill', 'none');
+      edge.setAttribute('stroke', o.color || '#7F0A1A');
+      edge.setAttribute('stroke-opacity', o.edgeOpacity != null ? o.edgeOpacity : 0.16);
+      edge.setAttribute('stroke-width', 1);
+      svg.appendChild(edge);
+    }
+
+    build();
+    addEventListener('resize', function () { clearTimeout(t); t = setTimeout(build, 180); }, {passive: true});
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(build);
+    return { rebuild: build };
   }
 
   /* ---------- foto recortada pela silhueta do morro ---------- */
