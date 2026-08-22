@@ -87,21 +87,32 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
   .hero-in{padding-top:22px}
 }
 
-/* ---------- bloco de documento, depois do topo ---------- */
+/* ---------- bloco de documento, depois do topo ----------
+   Abertura de capítulo: o título ocupa a coluna larga à esquerda e o texto
+   corre na coluna à direita, alinhados pelo topo. Assim o bloco preenche a
+   largura da tela sem precisar de números inventados para encher espaço. */
 .doc{position:relative;background:var(--paper)}
-.doc-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:30px var(--pad) 34px}
-@media(min-width:720px){ .doc-in{padding:44px var(--pad) 40px} }
-
-
+.doc-in{position:relative;z-index:2;max-width:var(--max);margin:0 auto;
+  padding:34px var(--pad) 38px;
+  display:grid;grid-template-columns:1fr;gap:8px 56px;align-items:start}
+@media(min-width:900px){
+  .doc-in{grid-template-columns:1.16fr .84fr;padding:64px var(--pad) 60px;gap:0 64px}
+}
 
 .doc h1{font-family:var(--fd);font-weight:400;color:var(--ink);
-  font-size:clamp(38px,8vw,86px);line-height:1.0;letter-spacing:-.018em;margin:0 0 20px;max-width:17ch}
+  font-size:clamp(40px,8.6vw,96px);line-height:.98;letter-spacing:-.02em;
+  margin:0 0 18px;max-width:13ch;text-wrap:balance}
+@media(min-width:900px){ .doc h1{margin:0} }
 .doc h1 i{font-style:italic;color:var(--wine)}
 
-/* Uma coluna: a lista de dados saiu, e medida de leitura confortável vale
-   mais que preencher a largura. */
-.abstract{margin:0 0 8px}
-.abstract>p{margin:0;max-width:62ch;font-size:16px;line-height:1.72;color:var(--ink-2)}
+/* O texto ganha corpo: é a única coisa nesta coluna, então pode respirar. */
+.abstract{margin:0}
+.abstract>p{margin:0;max-width:46ch;font-size:17px;line-height:1.76;color:var(--ink-2)}
+@media(min-width:900px){
+  /* alinha a primeira linha do texto com a primeira linha do título */
+  .abstract{padding-top:10px}
+  .abstract>p{font-size:17.5px}
+}
 
 /* ---------- verbete do próximo evento ---------- */
 .entry{display:grid;grid-template-columns:1fr;gap:16px;padding:24px 0 0;
