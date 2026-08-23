@@ -40,7 +40,11 @@
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage("clear-cache");
       }
-      window.location.href = "/login.html";
+      // Sair do app leva à página pública, não à tela de login: quem saiu não
+      // está tentando entrar de novo. Os outros dois redirecionamentos deste
+      // arquivo continuam indo ao login, porque ali a tela de autenticação é
+      // o destino certo (sessão inválida e troca de senha obrigatória).
+      window.location.href = "/";
     });
   });
 
@@ -825,6 +829,9 @@
       renderVisitorsPanel(me);
       renderImmersionEntry(me);
       var grid = document.getElementById("member-grid");
+      // Preenchido durante o map, no cartão de isMe: é a lista de tags que o
+      // servidor acabou de devolver no roster.
+      var minhasTags = [];
       grid.innerHTML = members
         .map(function (m, i) {
           var isMe = m.order === me.order;
@@ -838,8 +845,32 @@
             : "";
           var courseLine = [m.turma ? "Turma " + m.turma : "", m.course, m.year].filter(Boolean).join(" · ");
           var metaHtml = (courseLine || cargoHtml) ? '<div class="meta">' + cargoHtml + esc(courseLine) + "</div>" : "";
-          var interestsHtml = (m.interests && m.interests.length)
-            ? '<div class="interests">' + m.interests.map(function (i) { return '<span class="interest-chip">' + esc(i) + "</span>"; }).join("") + "</div>"
+          // No cartão do próprio membro as tags viram editáveis: cada chip
+          // ganha um × e um campo acrescenta novas. Nos outros, nada muda.
+          var tags = m.interests || [];
+          // A base para editar vem do ROSTER, não de `me`: /api/me devolve
+          // sessionUser(), que não carrega interests. Usar me.interests
+          // apagava as tags existentes a cada gravação.
+          if (isMe) minhasTags = tags;
+          var chipsHtml = tags.map(function (t) {
+            return '<span class="interest-chip">' + esc(t) +
+              (isMe
+                ? '<button type="button" class="tag-x" data-tag-del="' + esc(t) +
+                  '" aria-label="Remover ' + esc(t) + '">&times;</button>'
+                : "") +
+              "</span>";
+          }).join("");
+          var interestsHtml = (tags.length || isMe)
+            ? '<div class="interests' + (isMe ? " editable" : "") + '">' + chipsHtml + "</div>" +
+              (isMe
+                ? '<div class="tag-add">' +
+                    '<input type="text" maxlength="30" data-tag-input' +
+                      (tags.length >= 8 ? " disabled" : "") +
+                      ' placeholder="' +
+                      (tags.length >= 8 ? "Limite de 8 tags" : "Nova tag e Enter") + '">' +
+                  "</div>" +
+                  '<p class="tag-msg" data-tag-msg></p>'
+                : "")
             : "";
           var photoBtnHtml = isMe
             ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
@@ -866,6 +897,62 @@
 
       var passBtn = document.getElementById("pass-edit-btn");
       if (passBtn) passBtn.addEventListener("click", openPasswordModal);
+
+      // Tags do próprio membro. O servidor devolve o array já normalizado,
+      // então o estado local passa a ser exatamente o que ficou gravado —
+      // truncamento e dedupe aparecem na hora, sem repetir a regra aqui.
+      (function ligarEdicaoDeTags() {
+        var msg = grid.querySelector("[data-tag-msg]");
+        var input = grid.querySelector("[data-tag-input]");
+        if (!msg && !input) return;
+
+        function aviso(texto, erro) {
+          if (!msg) return;
+          msg.textContent = texto || "";
+          msg.className = "tag-msg" + (erro ? " err" : "");
+        }
+        function salvar(lista) {
+          aviso("Salvando...");
+          return api("/api/me/interests", {
+            method: "POST",
+            body: JSON.stringify({ interests: lista }),
+          })
+            .then(function (r) {
+              if (!r || !r.ok) throw new Error("recusado");
+              // loadMembers refaz o fetch do roster, então minhasTags é
+              // repovoado com o que o servidor gravou — sem estado paralelo.
+              loadMembers();
+            })
+            .catch(function () {
+              aviso("Não deu para salvar. Tente de novo.", true);
+            });
+        }
+
+        grid.querySelectorAll("[data-tag-del]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var alvo = btn.getAttribute("data-tag-del");
+            btn.disabled = true;
+            salvar(minhasTags.filter(function (t) { return t !== alvo; }));
+          });
+        });
+
+        if (input) {
+          // Enter e vírgula confirmam. A vírgula é o separador que a pessoa
+          // já usava no campo único do cadastro antigo.
+          function confirmar() {
+            var v = input.value.trim();
+            if (!v) return;
+            input.value = "";
+            salvar(minhasTags.concat([v]));
+          }
+          input.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter" && e.key !== ",") return;
+            e.preventDefault();
+            confirmar();
+          });
+          input.addEventListener("blur", confirmar);
+        }
+      })();
 
       // Reset pelo super admin: o código novo aparece uma única vez, para ser
       // entregue à pessoa (não fica guardado em claro em lugar nenhum).
