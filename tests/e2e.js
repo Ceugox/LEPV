@@ -35,6 +35,10 @@ let volumeDir;
 let server;
 const results = { pass: 0, fail: 0 };
 
+// Função e não constante: volumeDir só recebe valor no setup.
+const signupsFile = () => path.join(volumeDir, "signups.json");
+const readSignupsStore = () => JSON.parse(fs.readFileSync(signupsFile(), "utf8"));
+
 function setupVolume() {
   volumeDir = fs.mkdtempSync(path.join(os.tmpdir(), "lepv-e2e-"));
   const seedMembers = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "members.json"), "utf8"));
@@ -1022,6 +1026,32 @@ test("histórico de falhas sobrevive a restart (failures.json no volume)", async
   const r = await admin.get("/api/admin/failures");
   eq(r.status, 200, "painel responde depois do restart");
   assert(r.data.failures.some((f) => f.scope === "job:teste-resiliencia"), "falhas persistidas voltaram do volume");
+});
+
+// ---------------------------------------------------------------------------
+// Tags de interesse do membro
+// ---------------------------------------------------------------------------
+
+test("cadastro normaliza as tags: limite, tamanho e repetição", async () => {
+  const c = client();
+  const r = await c.post("/api/register", {
+    name: "Fulano de Tal",
+    course: "Computação",
+    year: "2º ano",
+    phone: "21999999999",
+    password: "senha-boa",
+    interests: ["IA", "ia", "  Tech  ", "", "a".repeat(40),
+                "t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+  });
+  eq(r.status, 200, "cadastro aceito");
+
+  const pend = readSignupsStore().pending;
+  const tags = pend[pend.length - 1].interests;
+  eq(tags.length, 8, "no máximo 8 tags");
+  eq(tags[0], "IA", "primeira tag preservada");
+  assert(!tags.includes("ia"), "repetição ignorando caixa deveria sumir");
+  eq(tags[1], "Tech", "espaços nas pontas deveriam sumir");
+  eq(tags[2].length, 30, "tag longa deveria ser truncada em 30");
 });
 
 async function main() {

@@ -324,6 +324,24 @@ function activeMembers() {
 function findMember(order) {
   return activeMembers().find((m) => m.order === order);
 }
+// Tag é rótulo curto, não texto livre: 30 caracteres, no máximo 8, sem
+// repetição (ignorando caixa) e sem vazias. A regra vivia copiada em dois
+// pontos (cadastro por import e auto-cadastro); num lugar só elas não divergem.
+function normalizeInterests(raw) {
+  if (!Array.isArray(raw)) return [];
+  const vistos = new Set();
+  const out = [];
+  for (const item of raw) {
+    const t = String(item).trim().slice(0, 30);
+    if (!t) continue;
+    const chave = t.toLocaleLowerCase("pt-BR");
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    out.push(t);
+    if (out.length === 8) break;
+  }
+  return out;
+}
 function findMemberAny(order) {
   return allMembers().find((m) => m.order === order);
 }
@@ -978,9 +996,7 @@ app.post("/api/admin/import-members", requireSuperAdminApi, (req, res) => {
       turma: String(raw.turma || "").trim().slice(0, 20),
       status: String(raw.status || "").trim().toLowerCase().slice(0, 20),
       phone: String(raw.phone || "").trim().slice(0, 30),
-      interests: Array.isArray(raw.interests)
-        ? raw.interests.map((i) => String(i).trim().slice(0, 30)).filter(Boolean).slice(0, 8)
-        : [],
+      interests: normalizeInterests(raw.interests),
       // Qualquer cargo de diretoria (Presidente, Tesoureiro...) vira diretor.
       director: raw.director === true || (cargo !== "" && cargo.toLowerCase() !== "membro"),
       joinedAt: new Date().toISOString(),
@@ -1029,9 +1045,7 @@ app.post("/api/register", (req, res) => {
   const course = String(req.body.course || "").trim().slice(0, 80);
   const year = String(req.body.year || "").trim().slice(0, 40);
   const phone = String(req.body.phone || "").trim().slice(0, 30);
-  const interests = Array.isArray(req.body.interests)
-    ? req.body.interests.map((i) => String(i).trim().slice(0, 30)).filter(Boolean).slice(0, 8)
-    : [];
+  const interests = normalizeInterests(req.body.interests);
 
   if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
     return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
