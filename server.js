@@ -947,6 +947,29 @@ app.post("/api/set-password", requireSessionApi, (req, res) => {
   res.json({ ok: true });
 });
 
+// Cada membro edita as próprias tags de interesse. O order vem SEMPRE da
+// sessão: aceitar order do corpo deixaria um membro reescrever o perfil de
+// outro. A gravação vai para `profiles` no volume (ver allMembers), então
+// funciona igual para fundador do seed e para membro aprovado.
+app.post("/api/me/interests", requireSessionApi, (req, res) => {
+  const order = req.session.user.order;
+  const interests = normalizeInterests(req.body.interests);
+
+  const signups = readSignups();
+  if (!Array.isArray(signups.profiles)) signups.profiles = [];
+  const perfil = signups.profiles.find((p) => p.order === order);
+  if (perfil) {
+    perfil.interests = interests;
+  } else {
+    signups.profiles.push({ order, interests });
+  }
+  writeSignups(signups);
+
+  // Devolve o que ficou gravado: o front exibe o resultado do truncamento e
+  // do dedupe sem precisar repetir a regra no cliente.
+  res.json({ ok: true, interests });
+});
+
 // Reset de senha pelo super admin: gera um código novo (devolvido em claro UMA
 // vez, para entregar à pessoa) e marca troca obrigatória no 1º login. É o
 // caminho para aposentar as senhas iniciais dos fundadores — que eram o próprio

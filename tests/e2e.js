@@ -1078,6 +1078,51 @@ test("override de perfil no volume vence o seed", async () => {
   fs.writeFileSync(signupsFile(), JSON.stringify(limpo, null, 2));
 });
 
+test("membro grava as próprias tags e elas persistem", async () => {
+  const c = client();
+  eq((await c.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login");
+
+  const r = await c.post("/api/me/interests", {
+    interests: ["IA", "ia", "  Tech  ", "", "b".repeat(40),
+                "x1", "x2", "x3", "x4", "x5", "x6"],
+  });
+  eq(r.status, 200, "gravação aceita");
+  eq(r.data.interests.length, 8, "o servidor devolve no máximo 8");
+  eq(r.data.interests[0], "IA", "primeira tag preservada");
+  assert(!r.data.interests.includes("ia"), "repetição removida");
+  eq(r.data.interests[1], "Tech", "espaços aparados");
+  eq(r.data.interests[2].length, 30, "tag longa truncada");
+
+  // persistiu no volume, e não só na resposta
+  const perfil = (readSignupsStore().profiles || []).find((p) => p.order === MEMBER_ORDER);
+  assert(perfil, "deveria existir override para o fundador");
+  eq(perfil.interests[0], "IA", "gravado no volume");
+
+  // e aparece no roster
+  const roster = await c.get("/api/members");
+  const eu = roster.data.find((m) => m.order === MEMBER_ORDER);
+  eq(eu.interests[0], "IA", "roster reflete a tag nova");
+});
+
+test("tags do membro aparecem na lista pública", async () => {
+  const c = client();
+  await c.login(MEMBER_ORDER, MEMBER_PASS);
+  await c.post("/api/me/interests", { interests: ["Náutica"] });
+
+  const anon = client();
+  const r = await anon.get("/api/members-public");
+  eq(r.status, 200, "lista pública acessível sem sessão");
+  const eu = r.data.find((m) => m.order === MEMBER_ORDER);
+  assert(eu, "membro na lista pública");
+  assert(eu.interests.includes("Náutica"), "tag nova visível sem login");
+});
+
+test("gravar tags exige sessão", async () => {
+  const anon = client();
+  const r = await anon.post("/api/me/interests", { interests: ["X"] });
+  eq(r.status, 401, "sem sessão deveria dar 401");
+});
+
 async function main() {
   setupVolume();
   await startServer();
