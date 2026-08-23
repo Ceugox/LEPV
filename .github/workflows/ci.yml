@@ -1,0 +1,173 @@
+# Pipeline de testes do LEPV.
+#
+# POR QUE ELA EXISTE: o serviço do Railway observa a branch `main` e publica
+# sozinho a cada push. Sem CI, a única barreira entre um commit e o lepv.org
+# era alguém lembrar de rodar `npm run verify` na própria máquina.
+#
+# COMO ELA VIRA UM PORTÃO: no Railway, Service Settings → Deploy → **Wait for
+# CI**. Com o flag ligado, o deploy entra em WAITING enquanto este workflow
+# roda e vira SKIPPED se ele falhar. O flag só aparece quando existe um
+# workflow com gatilho `on: push` na branch — é este arquivo que o habilita.
+# Sem o toggle ligado, o CI roda em PARALELO com o deploy e não segura nada.
+#
+# O QUE ELA COBRE: sintaxe (inclusive dos <script> embutidos no HTML, onde vive
+# metade do JS do site), a suíte e2e de 42 casos contra um volume isolado, as
+# duas auditorias estáticas de CSS e contraste, e as sete verificações que
+# abrem o site num browser de verdade — incluindo inscricao.html e evento.html,
+# que só existem com evento publicado e por isso ganham fixture própria.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Push em sequência não precisa de fila: o run antigo é cancelado e o deploy
+# espera pelo mais novo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  estatico:
+    name: Sintaxe e dados do repo
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: JavaScript versionado precisa parsear
+        run: git ls-files '*.js' | xargs -r -n1 node --check
+
+      - name: Script embutido no HTML também
+        # Mesmo alvo que `npm run verify` roda na máquina de quem desenvolve.
+        run: npm run verify:inline
+
+      - name: JSON do repo precisa parsear
+        # members.json, credentials.json e companhia entram no ar como seed:
+        # um JSON quebrado aqui só apareceria no boot do deploy.
+        run: |
+          git ls-files '*.json' | while read -r f; do
+            node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f" \
+              || { echo "JSON inválido: $f"; exit 1; }
+          done
+
+  verificacoes:
+    name: e2e + verificações no browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PORT: "3000"
+      LEPV_CI_ADMIN_PASS: senha-de-ci-descartavel
+      # Sem isto, criar evento com endereço bate em Nominatim/Photon: rede
+      # externa dentro do CI é lentidão e vermelho intermitente de graça.
+      TRAVEL_ESTIMATE: fixed:6
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - run: npm ci
+
+      - name: Versão do Playwright (chave do cache)
+        id: pw
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache do Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      - name: Instala o Chromium
+        run: npx playwright install --with-deps chromium
+
+      # ---- suíte e2e: sobe o próprio server, em volume temporário próprio ----
+      - name: Testes e2e (42 casos)
+        run: npm test
+
+      # ---- auditorias estáticas: leem arquivo, não precisam de server ----
+      - name: CSS (tokens, duplicatas, cor solta)
+        run: npm run verify:css
+
+      - name: Contraste (WCAG)
+        run: npm run verify:contrast
+
+      # ---- daqui para baixo tudo mede o site rodando ----
+      - name: Sobe o site num volume descartável
+        run: |
+          VOL="$RUNNER_TEMP/lepv-vol"
+          node scripts/ci-fixtures.js prepare "$VOL"
+          RAILWAY_VOLUME_MOUNT_PATH="$VOL" nohup node server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          for _ in $(seq 1 40); do
+            curl -sf "http://127.0.0.1:$PORT/health" >/dev/null && break
+            sleep 1
+          done
+          curl -sf "http://127.0.0.1:$PORT/health" \
+            || { echo "server não respondeu ao /health:"; cat "$RUNNER_TEMP/server.log"; exit 1; }
+
+      - name: Publica os eventos de fixture
+        # Imprime LEPV_EVENTO_TOKEN / LEPV_INSCRICAO_TOKEN / LEPV_REUNIAO_TOKEN
+        # direto no ambiente dos passos seguintes.
+        run: node scripts/ci-fixtures.js events >> "$GITHUB_ENV"
+
+      - name: Arte generativa (contorno e ondas)
+        run: npm run verify:art
+
+      - name: Landing (alvos de toque, overflow, revelação)
+        run: npm run verify:ui
+
+      - name: Texto do topo
+        run: npm run verify:hero
+
+      - name: Revelação por scroll
+        run: npm run verify:reveal
+
+      - name: Consistência entre as superfícies
+        run: npm run verify:consistency
+
+      - name: App logado
+        run: npm run verify:app
+
+      - name: Troca de abas
+        run: npm run verify:tabs
+
+      - name: Tags do membro e logout
+        run: npm run verify:tags
+
+      # ---- autópsia: só quando algo acima falhou ----
+      - name: Screenshots e console das páginas
+        if: failure()
+        run: node scripts/ci-shots.js "$RUNNER_TEMP/ci-artifacts"
+
+      - name: Guarda os artefatos de diagnóstico
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostico-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/ci-artifacts
+            ${{ runner.temp }}/server.log
+          retention-days: 7
+          if-no-files-found: warn
