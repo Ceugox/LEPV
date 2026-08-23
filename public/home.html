@@ -98,12 +98,6 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 @media(min-width:900px){
   .doc-in{grid-template-columns:1.1fr .9fr;padding:60px var(--pad) 56px;gap:0 56px}
 }
-/* Em tela larga vira três colunas: título, texto e convite lado a lado. Com
-   duas, sobrava altura vazia embaixo do título — a coluna do texto media
-   606px contra 188px da do título. */
-@media(min-width:1180px){
-  .doc-in{grid-template-columns:1.05fr .95fr .9fr;gap:0 52px}
-}
 
 .doc h1{font-family:var(--fd);font-weight:400;color:var(--ink);
   font-size:clamp(40px,8.6vw,96px);line-height:.98;letter-spacing:-.02em;
@@ -112,26 +106,12 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 .doc h1 i{font-style:italic;color:var(--wine)}
 
 .abstract{margin:0}
-.abstract>p{margin:0;max-width:46ch;font-size:17px;line-height:1.76;color:var(--ink-2)}
+.abstract>p{margin:0;font-size:17px;line-height:1.76;color:var(--ink-2)}
 @media(min-width:900px){
   /* alinha a primeira linha do texto com a primeira linha do título */
-  .abstract{padding-top:10px}
-  .abstract>p{font-size:17.5px}
+  .abstract{padding-top:12px}
+  .abstract>p{font-size:18px;line-height:1.78}
 }
-
-/* ---------- convite ao parceiro ----------
-   Filete de separação em vez de caixa: é continuação do documento, não um
-   anúncio colado na página. Empilhado, o filete fica acima; em três colunas,
-   passa para a lateral, porque aí ele é vizinho e não sequência. */
-.invite{margin:28px 0 0;padding:24px 0 0;border-top:1px solid var(--line)}
-@media(min-width:1180px){
-  .invite{margin:10px 0 0;padding:0 0 0 52px;border-top:0;border-left:1px solid var(--line)}
-}
-.invite-k{margin:0 0 8px;font-size:10.5px;font-weight:700;letter-spacing:.15em;
-  text-transform:uppercase;color:var(--wine)}
-.invite-t{font-family:var(--fd);font-weight:400;text-transform:none;
-  font-size:clamp(25px,3vw,32px);line-height:1.04;color:var(--ink);margin:0 0 12px}
-.invite-p{margin:0 0 20px;max-width:44ch;font-size:15.5px;line-height:1.7;color:var(--ink-2)}
 
 /* ---------- verbete do próximo evento ---------- */
 .entry{display:grid;grid-template-columns:1fr;gap:16px;padding:24px 0 0;
@@ -242,21 +222,6 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
         Reuniões, aulas e visitas são os meios. O fim é um lugar onde fundar algo deixe de ser
         exceção dentro da engenharia.</p>
     </div>
-
-    <!-- Irmão do .abstract, não filho: para ocupar a terceira coluna do grid
-         ele precisa ser filho direto de .doc-in.
-         O parágrafo ao lado diz o que a liga é; este bloco dá o que fazer a
-         quem leu e concordou. Sem número: nada aqui depende de dado que a
-         liga não publique. -->
-    <aside class="invite rv" style="--i:2">
-      <p class="invite-k">Para empresas</p>
-      <h2 class="invite-t">Receber a liga</h2>
-      <p class="invite-p">Uma visita da LEPV é conversa de trabalho, não palestra. Um grupo
-        de alunos vai até a empresa, ouve quem toma a decisão e pergunta. Não há material
-        para preparar nem apresentação para montar — o que interessa é a operação como
-        ela é.</p>
-      <a class="btn btn-p" href="/login.html#solicitar"><span class="ar">→</span>Falar com a diretoria</a>
-    </aside>
   </div>
 </section>
 
