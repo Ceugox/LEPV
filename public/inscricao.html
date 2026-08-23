@@ -89,6 +89,53 @@
     border-radius: 3px; padding: 12px 14px;
   }
   .done .invite a { color: var(--wine); font-weight: 600; }
+
+  /* ---------- vindo do hackathon, redesenhado na gramática da folha ----------
+     .hint, .seats, .row2 e .ack já existem acima na versão nova e ficaram como
+     estão: as cópias que vinham do tema antigo caíam depois na cascata e
+     desfaziam o redesenho (o checkbox do .ack, por exemplo, voltava de 20px
+     para 16px, abaixo do alvo mínimo de toque). */
+
+  /* Manual e anexos públicos do evento: linha de documento com etiqueta de
+     tipo — mesmo hairline e raio de 3px dos campos do formulário, em vez do
+     botão âmbar de raio 8px com ícone preenchido. */
+  .materials-box { display: flex; flex-direction: column; gap: 8px; margin: 0 0 16px; }
+  .material-btn {
+    display: flex; align-items: center; gap: 12px; padding: 11px 13px;
+    text-decoration: none; color: var(--ink); font-size: 14px;
+    background: var(--card); border: 1px solid var(--line-2); border-radius: 3px;
+    min-height: 48px; transition: border-color .15s;
+  }
+  .material-btn:hover { border-color: var(--wine); }
+  .material-btn .ico {
+    flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--wine); background: var(--paper-2);
+    border: 1px solid var(--line); border-radius: 2px; padding: 4px 6px;
+  }
+
+  /* As datas do hackathon são proposta, não fato — o formulário pergunta se a
+     pessoa topa 16 e 17 e coleta alternativas. O aviso anda junto com a data,
+     como nota de documento, não como etiqueta colorida. */
+  .date-pending {
+    display: none; font-family: var(--fd); font-style: italic; font-size: 14.5px;
+    color: var(--ink-3); margin: 0 0 14px;
+  }
+  .date-pending.show { display: block; }
+
+  /* Cada pergunta (.field/.row2) dentro desses blocos precisa do mesmo
+     espaçamento vertical que as perguntas soltas direto no <form> (gap acima) —
+     sem isso, ficavam coladas umas nas outras dentro de ime-fields/hackathon-fields. */
+  #ime-fields, #hackathon-fields { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Grupo de caixas sob a mesma pergunta (datas alternativas). Fora de .field
+     de propósito: ali o seletor `.field label` vence `.ack` na especificidade e
+     transformava cada opção em kicker de 10.5px em maiúsculas. O rótulo é um
+     <span>, não um <label> — não aponta para um controle só. */
+  .ack-group { display: flex; flex-direction: column; gap: 2px; }
+  .ack-group .group-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px;
+  }
 </style>
 </head>
 <body>
@@ -114,7 +161,9 @@
         <p class="k" id="event-kind">Evento</p>
         <h2 id="lesson-title">Carregando...</h2>
         <p class="lesson-date" id="lesson-date"></p>
+        <p class="date-pending" id="date-pending">Datas e horários ainda serão confirmados!</p>
         <p class="lesson-desc" id="lesson-desc"></p>
+        <div class="materials-box" id="materials-box"></div>
         <p class="seats" id="seats"></p>
         <!-- Fora do <form>: com as inscrições encerradas o formulário some e
              este aviso precisa continuar na tela. -->
@@ -134,19 +183,88 @@
           <label for="s-phone">WhatsApp</label>
           <input type="tel" id="s-phone" autocomplete="tel" placeholder="(21) 9...." required>
         </div>
-        <div class="row2">
-          <div class="field">
-            <label for="s-turma">Turma</label>
-            <select id="s-turma" required><option value="">Selecione</option></select>
+        <div id="ime-fields">
+          <div class="row2">
+            <div class="field">
+              <label for="s-turma">Turma</label>
+              <select id="s-turma" required><option value="">Selecione</option></select>
+            </div>
+            <div class="field">
+              <label for="s-idade">Idade</label>
+              <input type="number" id="s-idade" min="14" max="99" placeholder="Ex.: 20" required>
+            </div>
           </div>
           <div class="field">
-            <label for="s-idade">Idade</label>
-            <input type="number" id="s-idade" min="14" max="99" placeholder="Ex.: 20" required>
+            <label for="s-esp">Especialidade</label>
+            <select id="s-esp" required><option value="">Selecione</option></select>
           </div>
         </div>
-        <div class="field">
-          <label for="s-esp">Especialidade</label>
-          <select id="s-esp" required><option value="">Selecione</option></select>
+        <div id="hackathon-fields" style="display:none;">
+          <div class="field">
+            <label for="s-vinculo">Vínculo</label>
+            <select id="s-vinculo">
+              <option value="">Selecione</option>
+              <option value="Ativa do IME">Ativa do IME</option>
+              <option value="Reserva do IME">Reserva do IME</option>
+              <option value="FGV">FGV</option>
+            </select>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="s-ano">Ano da faculdade</label>
+              <select id="s-ano">
+                <option value="">Selecione</option>
+                <option value="1">1º</option>
+                <option value="2">2º</option>
+                <option value="3">3º</option>
+                <option value="4">4º</option>
+                <option value="5">5º</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="s-topa">Pode nos dias 16 e 17/10?</label>
+              <select id="s-topa">
+                <option value="">Selecione</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+          </div>
+          <!-- Datas alternativas: as caixas usam .ack como os outros
+               checkboxes da folha. Antes vinham com style inline (13px e
+               checkbox de 16px), o que dava alvo de toque abaixo do mínimo e
+               fugia da tipografia do formulário. -->
+          <div class="ack-group">
+            <span class="group-label">Datas alternativas que também funcionariam</span>
+            <label class="ack">
+              <input type="checkbox" class="s-datas" value="2 e 3 de outubro"> 2 e 3 de outubro
+            </label>
+            <label class="ack">
+              <input type="checkbox" class="s-datas" value="9 e 10 de outubro"> 9 e 10 de outubro
+            </label>
+            <label class="ack">
+              <input type="checkbox" id="s-datas-outro-check" class="s-datas" value="Outro"> Outro
+            </label>
+            <input type="text" id="s-datas-outro" placeholder="Qual data?" maxlength="120" style="display:none; margin-top:2px;">
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="s-grupo">Já tem grupo (2 a 4 pessoas)?</label>
+              <select id="s-grupo">
+                <option value="">Selecione</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="s-tema">Já tem tema em mente?</label>
+              <select id="s-tema">
+                <option value="">Selecione</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+          </div>
         </div>
         <label class="ack">
           <input type="checkbox" id="s-aware-local" required>
@@ -154,7 +272,7 @@
         </label>
         <label class="ack">
           <input type="checkbox" id="s-aware-time" required>
-          <span>Estou ciente do horário<span id="ack-time"></span></span>
+          <span><span id="ack-time-label">Estou ciente do horário</span><span id="ack-time"></span></span>
         </label>
         <p class="error" id="s-error"></p>
         <button type="submit" class="btn-primary" id="s-submit">Confirmar inscrição</button>
@@ -177,6 +295,19 @@
   var form = document.getElementById("signup-form");
   var errorEl = document.getElementById("s-error");
   var submitBtn = document.getElementById("s-submit");
+  var isHackathon = false;
+
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  document.getElementById("s-datas-outro-check").addEventListener("change", function () {
+    var outro = document.getElementById("s-datas-outro");
+    outro.style.display = this.checked ? "block" : "none";
+    if (!this.checked) outro.value = "";
+  });
 
   function fail(msg) {
     document.getElementById("lesson-title").textContent = "Link inválido";
@@ -196,27 +327,56 @@
         document.getElementById("event-kind").textContent = ev.kind || "Evento";
         document.getElementById("lesson-title").textContent = ev.title;
         var p = String(ev.date || "").split("-");
-        var trajeto = ev.travelMinutes > 0 ? " (~" + ev.travelMinutes + " min do IME)" : "";
+        // Trajeto do IME não faz sentido pro Hackathon (é na FGV, não numa
+        // reunião comum da liga) — só aparece nos outros tipos de evento.
+        var trajeto = ev.travelMinutes > 0 && ev.type !== "hackathon" ? " (~" + ev.travelMinutes + " min do IME)" : "";
         var quando = [p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : ""];
         if (ev.time) quando.push(ev.time);
         if (ev.location) quando.push(ev.location + trajeto);
         document.getElementById("lesson-date").textContent =
           quando.filter(Boolean).join(" · ") + (ev.open ? "" : " · inscrições encerradas");
+        if (ev.type === "hackathon") document.getElementById("date-pending").classList.add("show");
         if (ev.text) document.getElementById("lesson-desc").textContent = ev.text;
+        if (ev.materials && ev.materials.length) {
+          document.getElementById("materials-box").innerHTML = ev.materials.map(function (m) {
+            var isPdf = m.type === "pdf";
+            return (
+              '<a class="material-btn" target="_blank" rel="noopener" href="' + escHtml(m.url + (isPdf ? "?dl=1" : "")) + '">' +
+                '<span class="ico">' + (isPdf ? "PDF" : "LINK") + "</span>" +
+                "<span>" + (isPdf ? "Baixar " : "Abrir ") + escHtml(m.title) + "</span>" +
+              "</a>"
+            );
+          }).join("");
+        }
 
-        // As listas fechadas vêm do servidor: turma nova entra só no server.js.
-        (ev.turmas || []).forEach(function (t) {
-          var opt = document.createElement("option");
-          opt.value = t; opt.textContent = t;
-          document.getElementById("s-turma").appendChild(opt);
-        });
-        (ev.especialidades || []).forEach(function (e2) {
-          var opt = document.createElement("option");
-          opt.value = e2; opt.textContent = e2;
-          document.getElementById("s-esp").appendChild(opt);
-        });
+        isHackathon = ev.type === "hackathon";
+        if (isHackathon) {
+          document.getElementById("ime-fields").style.display = "none";
+          document.getElementById("s-turma").required = false;
+          document.getElementById("s-idade").required = false;
+          document.getElementById("s-esp").required = false;
+          document.getElementById("hackathon-fields").style.display = "flex";
+          document.getElementById("s-vinculo").required = true;
+          // As datas ainda não são fixas para o Hackathon (ver "topaDias16e17" e
+          // "datasAlternativas"), então o texto de ciência não pode afirmar um
+          // horário como certo.
+          document.getElementById("ack-time-label").textContent =
+            "Estou ciente que as datas e horários ainda não estão confirmados!";
+        } else {
+          // As listas fechadas vêm do servidor: turma nova entra só no server.js.
+          (ev.turmas || []).forEach(function (t) {
+            var opt = document.createElement("option");
+            opt.value = t; opt.textContent = t;
+            document.getElementById("s-turma").appendChild(opt);
+          });
+          (ev.especialidades || []).forEach(function (e2) {
+            var opt = document.createElement("option");
+            opt.value = e2; opt.textContent = e2;
+            document.getElementById("s-esp").appendChild(opt);
+          });
+        }
         if (ev.location) document.getElementById("ack-local").textContent = ": " + ev.location + trajeto;
-        if (ev.time) document.getElementById("ack-time").textContent = ": " + ev.time;
+        if (ev.time && !isHackathon) document.getElementById("ack-time").textContent = ": " + ev.time;
         // Vaga é informação de decisão: quem chega com a sala cheia precisa
         // saber que está entrando numa fila, não numa vaga.
         var seats = document.getElementById("seats");
@@ -244,19 +404,32 @@
     errorEl.classList.remove("show");
     submitBtn.disabled = true;
     submitBtn.textContent = "Enviando...";
+    var body = {
+      name: document.getElementById("s-name").value,
+      email: document.getElementById("s-email").value,
+      phone: document.getElementById("s-phone").value,
+      awareLocation: document.getElementById("s-aware-local").checked,
+      awareTime: document.getElementById("s-aware-time").checked,
+    };
+    if (isHackathon) {
+      body.vinculo = document.getElementById("s-vinculo").value;
+      body.anoFaculdade = document.getElementById("s-ano").value;
+      body.topaDias16e17 = document.getElementById("s-topa").value;
+      body.datasAlternativas = Array.prototype.slice
+        .call(document.querySelectorAll(".s-datas:checked"))
+        .map(function (el) { return el.value; });
+      body.datasAlternativasOutro = document.getElementById("s-datas-outro").value;
+      body.temGrupo = document.getElementById("s-grupo").value;
+      body.temTema = document.getElementById("s-tema").value;
+    } else {
+      body.turma = document.getElementById("s-turma").value;
+      body.especialidade = document.getElementById("s-esp").value;
+      body.idade = parseInt(document.getElementById("s-idade").value, 10);
+    }
     fetch("/api/event-signup/" + encodeURIComponent(token), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: document.getElementById("s-name").value,
-        email: document.getElementById("s-email").value,
-        phone: document.getElementById("s-phone").value,
-        turma: document.getElementById("s-turma").value,
-        especialidade: document.getElementById("s-esp").value,
-        idade: parseInt(document.getElementById("s-idade").value, 10),
-        awareLocation: document.getElementById("s-aware-local").checked,
-        awareTime: document.getElementById("s-aware-time").checked,
-      }),
+      body: JSON.stringify(body),
     })
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {

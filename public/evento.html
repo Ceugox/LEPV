@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evento — LEPV</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/logo-mark.png">
+<meta name="theme-color" content="#0A0A0B">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* Página de detalhes do evento. Mesma gramática de documento da landing e da
+     inscrição: papel claro, serifa no título, hairline no lugar de sombra.
+     Antes era um palco navy com grade e card flutuante — o tema que o redesenho
+     aposentou; quem chega aqui pelo cartaz da home não pode trocar de mundo no
+     meio do caminho. */
+  body { background-color: var(--paper); }
+
+  /* verbete do evento, no alto da folha (igual ao da inscrição) */
+  .ev-head { margin: 0 0 4px; }
+  .ev-head .k {
+    display: inline-flex; align-items: center; gap: 8px; margin: 0 0 9px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--wine);
+  }
+  .ev-head h2 {
+    font-family: var(--fd); font-weight: 400; text-transform: none;
+    font-size: clamp(28px, 4.4vw, 42px); line-height: 1.04; color: var(--ink); margin: 0 0 10px;
+  }
+  .ev-date { font-size: 14px; color: var(--ink-3); margin: 0 0 12px; font-variant-numeric: tabular-nums; }
+  /* pre-line porque a descrição do evento é editada em textarea pela diretoria:
+     os parágrafos vêm como quebras de linha, não como HTML. */
+  .ev-description {
+    font-size: 15.5px; color: var(--ink-2); line-height: 1.68; margin: 0 0 20px;
+    max-width: 60ch; white-space: pre-line;
+  }
+  .error {
+    display: none; font-size: 13px; line-height: 1.55; color: var(--danger);
+    background: var(--danger-soft); border: 1px solid var(--danger-line);
+    border-radius: 3px; padding: 11px 13px;
+  }
+  .error.show { display: block; }
+
+  /* As datas do hackathon são proposta, não fato — o formulário pergunta se a
+     pessoa topa 16 e 17 e coleta alternativas. Nota de documento, não etiqueta. */
+  .date-pending {
+    display: none; font-family: var(--fd); font-style: italic; font-size: 14.5px;
+    color: var(--ink-3); margin: -4px 0 16px;
+  }
+  .date-pending.show { display: block; }
+
+  /* Manual e anexos públicos: linha de documento com etiqueta de tipo, mesmo
+     desenho da folha de inscrição. */
+  .materials-box { display: flex; flex-direction: column; gap: 8px; margin: 0 0 22px; }
+  .material-btn {
+    display: flex; align-items: center; gap: 12px; padding: 11px 13px;
+    text-decoration: none; color: var(--ink); font-size: 14px;
+    background: var(--card); border: 1px solid var(--line-2); border-radius: 3px;
+    min-height: 48px; transition: border-color .15s;
+  }
+  .material-btn:hover { border-color: var(--wine); }
+  .material-btn .ico {
+    flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--wine); background: var(--paper-2);
+    border: 1px solid var(--line); border-radius: 2px; padding: 4px 6px;
+  }
+
+  /* Trilha do hackathon: rail de 1px e marcador pequeno. A etapa atual é a
+     única em vinho; as concluídas ficam em tinta, as futuras em cinza. */
+  .roadmap { display: none; flex-direction: column; margin: 4px 0 22px;
+             padding-top: 20px; border-top: 1px solid var(--line); }
+  .roadmap.show { display: flex; }
+  .roadmap-title {
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.14em; color: var(--ink-3); margin: 0 0 14px;
+  }
+  .roadmap-step { display: flex; gap: 14px; position: relative; padding-bottom: 18px; }
+  .roadmap-step:last-child { padding-bottom: 0; }
+  .roadmap-step::before {
+    content: ""; position: absolute; left: 11px; top: 25px; bottom: -2px;
+    width: 1px; background: var(--line);
+  }
+  .roadmap-step:last-child::before { display: none; }
+  .roadmap-step.done::before { background: var(--line-2); }
+  .roadmap-dot {
+    width: 23px; height: 23px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+    background: var(--card); border: 1px solid var(--line-2); color: var(--ink-3);
+  }
+  .roadmap-step.done .roadmap-dot { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .roadmap-step.active .roadmap-dot { background: var(--wine); border-color: var(--wine); color: #fff; }
+  .roadmap-label { font-size: 14.5px; color: var(--ink-3); padding-top: 2px; }
+  .roadmap-step.done .roadmap-label { color: var(--ink-2); }
+  .roadmap-step.active .roadmap-label { color: var(--ink); font-weight: 600; }
+
+  .cta-status {
+    font-size: 14px; line-height: 1.6; color: var(--ink-2);
+    background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 3px; padding: 12px 14px; margin: 0;
+  }
+  .btn-primary { width: 100%; justify-content: center; }
+</style>
+</head>
+<body>
+  <!-- Faixa da mesma fotografia da landing: continuidade visual em vez de
+       queda numa tela preta. -->
+  <header class="page-top">
+    <div class="page-top-ph">
+      <img src="/assets/praia-vermelha-900.jpg" alt="" aria-hidden="true">
+    </div>
+    <div class="page-top-in">
+      <a class="stamp" href="/" style="text-decoration:none">
+        <img src="/assets/logo-mark.png" alt="LEPV">
+        <b>Liga de Empreendedorismo da Praia Vermelha<span class="sub">Sobre o evento</span></b>
+      </a>
+    </div>
+  </header>
+
+  <div class="rule2"></div>
+
+  <main class="sheet">
+    <section class="rv">
+      <div class="ev-head" id="ev-info">
+        <p class="k" id="event-kind">Evento</p>
+        <h2 id="ev-title">Carregando...</h2>
+        <p class="ev-date" id="ev-date"></p>
+        <p class="date-pending" id="date-pending">Datas e horários ainda serão confirmados!</p>
+        <p class="ev-description" id="ev-description"></p>
+        <p class="error" id="ev-notice"></p>
+      </div>
+
+      <div class="materials-box" id="materials-box"></div>
+
+      <div class="roadmap" id="roadmap">
+        <p class="roadmap-title">Próximos passos</p>
+        <div id="roadmap-steps"></div>
+      </div>
+
+      <div id="cta-area"></div>
+    </section>
+  </main>
+
+<script>
+(function () {
+  var token = new URLSearchParams(window.location.search).get("t") || "";
+
+  var PHASES = [
+    { key: "pre-inscricao", label: "Pré-inscrição" },
+    { key: "inscricao-oficial", label: "Inscrição oficial" },
+    { key: "confirmacao", label: "Confirmação enviada" },
+    { key: "presencial", label: "Hackathon presencial" },
+  ];
+  var CTA_LABEL = { "pre-inscricao": "Fazer pré-inscrição", "inscricao-oficial": "Fazer inscrição oficial" };
+  var STATUS_LABEL = {
+    confirmacao: "Inscrições encerradas — aguarde a confirmação por e-mail/WhatsApp.",
+    presencial: "O Hackathon está em andamento (ou já aconteceu). Até a próxima!",
+  };
+
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function fail(msg) {
+    document.getElementById("ev-title").textContent = "Link inválido";
+    document.getElementById("ev-date").textContent = "";
+    var aviso = document.getElementById("ev-notice");
+    aviso.textContent = msg;
+    aviso.classList.add("show");
+  }
+
+  if (!token) {
+    fail("Peça o link atualizado a alguém da diretoria.");
+  } else {
+    fetch("/api/event-signup/" + encodeURIComponent(token))
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function (ev) {
+        document.getElementById("event-kind").textContent = ev.kind || "Evento";
+        document.getElementById("ev-title").textContent = ev.title;
+
+        var p = String(ev.date || "").split("-");
+        // Trajeto do IME não faz sentido pro Hackathon (é na FGV, não numa
+        // reunião comum da liga) — só aparece nos outros tipos de evento.
+        var trajeto = ev.travelMinutes > 0 && ev.type !== "hackathon" ? " (~" + ev.travelMinutes + " min do IME)" : "";
+        var quando = [p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : ""];
+        if (ev.time) quando.push(ev.time);
+        if (ev.location) quando.push(ev.location + trajeto);
+        document.getElementById("ev-date").textContent = quando.filter(Boolean).join(" · ");
+        if (ev.type === "hackathon") document.getElementById("date-pending").classList.add("show");
+
+        // Descrição completa é o texto principal desta página; sem ela, cai
+        // para o mesmo aviso curto usado no mural/formulário.
+        document.getElementById("ev-description").textContent = ev.description || ev.text || "";
+
+        if (ev.materials && ev.materials.length) {
+          document.getElementById("materials-box").innerHTML = ev.materials.map(function (m) {
+            var isPdf = m.type === "pdf";
+            return (
+              '<a class="material-btn" target="_blank" rel="noopener" href="' + escHtml(m.url + (isPdf ? "?dl=1" : "")) + '">' +
+                '<span class="ico">' + (isPdf ? "PDF" : "LINK") + "</span>" +
+                "<span>" + (isPdf ? "Baixar " : "Abrir ") + escHtml(m.title) + "</span>" +
+              "</a>"
+            );
+          }).join("");
+        }
+
+        if (ev.type === "hackathon") {
+          var atualIdx = PHASES.map(function (ph) { return ph.key; }).indexOf(ev.phase);
+          document.getElementById("roadmap-steps").innerHTML = PHASES.map(function (ph, i) {
+            var cls = i < atualIdx ? "done" : i === atualIdx ? "active" : "";
+            return (
+              '<div class="roadmap-step ' + cls + '">' +
+                '<span class="roadmap-dot">' + (i < atualIdx ? "✓" : i + 1) + "</span>" +
+                '<span class="roadmap-label">' + escHtml(ph.label) + "</span>" +
+              "</div>"
+            );
+          }).join("");
+          document.getElementById("roadmap").classList.add("show");
+        }
+
+        var ctaArea = document.getElementById("cta-area");
+        // CTA_LABEL/STATUS_LABEL descrevem a trilha do Hackathon — todo
+        // evento nasce com phase "pre-inscricao" por padrão, então sem essa
+        // trava um evento comum encerrado mostraria "aguarde a confirmação
+        // por e-mail/WhatsApp" em vez do aviso genérico de baixo.
+        if (ev.open) {
+          var label = ev.type === "hackathon" ? (CTA_LABEL[ev.phase] || "Inscreva-se") : "Inscreva-se";
+          ctaArea.innerHTML = '<a class="btn-primary" style="display:block; text-align:center; text-decoration:none;" href="/inscricao.html?t=' +
+            encodeURIComponent(token) + '">' + escHtml(label) + "</a>";
+        } else {
+          var status = ev.type === "hackathon" ? (STATUS_LABEL[ev.phase] || "Inscrições encerradas.") : "Inscrições encerradas.";
+          ctaArea.innerHTML = '<p class="cta-status">' + escHtml(status) + "</p>";
+        }
+      })
+      .catch(function () { fail("Este link não corresponde a nenhum evento."); });
+  }
+})();
+</script>
+<script src="/art.js"></script>
+<script>LEPVArt.reveal();</script>
+</body>
+</html>

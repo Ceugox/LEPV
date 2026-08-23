@@ -84,6 +84,13 @@ function audit() {
   if (process.env.LEPV_INSCRICAO_TOKEN) {
     pages.push(['/inscricao.html?t=' + process.env.LEPV_INSCRICAO_TOKEN, 'inscricao']);
   }
+  // Mesmo opt-in por token da inscrição: a página de detalhes do evento também
+  // só existe com um evento publicado. Ela nasceu no tema navy antigo e foi
+  // trazida para a gramática de documento — sem passar por aqui, a única
+  // verificação dela seria olhar.
+  if (process.env.LEPV_EVENTO_TOKEN) {
+    pages.push(['/evento.html?t=' + process.env.LEPV_EVENTO_TOKEN, 'evento']);
+  }
 
   const seen = {};
   for (const [path, name] of pages) {
@@ -144,7 +151,7 @@ function audit() {
     check(d.grammar.marca > 0, name + ': marca presente', String(d.grammar.marca));
   }
   // fundo papel nas superfícies públicas (era preto e quebrava a continuidade)
-  for (const name of ['landing', 'login', 'presenca', 'inscricao']) {
+  for (const name of ['landing', 'login', 'presenca', 'inscricao', 'evento']) {
     if (!seen[name]) continue;
     const bg = seen[name].grammar.bodyBg;
     const claro = /^rgb\((2[0-9]{2}|1[89][0-9])/.test(bg);

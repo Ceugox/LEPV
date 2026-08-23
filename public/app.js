@@ -1011,8 +1011,19 @@
     { key: "aula", label: "Aulas" },
     { key: "visita", label: "Visitas" },
     { key: "social", label: "Social" },
+    { key: "hackathon", label: "Hackathons" },
   ];
-  var TIPO_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Social" };
+  var TIPO_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Social", hackathon: "Hackathon" };
+  // Trilha de próximos passos exibida em evento.html (só para hackathon) —
+  // etapa atual escolhida à mão aqui porque pré-inscrição e inscrição
+  // oficial usam o mesmo mecanismo de formulário/signups, então não dá pra
+  // inferir automaticamente qual etapa está em curso.
+  var PHASES = [
+    { key: "pre-inscricao", label: "Pré-inscrição" },
+    { key: "inscricao-oficial", label: "Inscrição oficial" },
+    { key: "confirmacao", label: "Confirmação enviada" },
+    { key: "presencial", label: "Hackathon presencial" },
+  ];
   var eventFilter = "";
   var eventExpanded = null;
   var eventsCache = null;
@@ -1101,7 +1112,7 @@
       '<p class="section-label">Editar evento</p>' +
       '<div class="meeting-new">' +
         '<select class="edit-type" aria-label="Tipo do evento">' +
-          ["reuniao", "aula", "visita", "social"].map(function (t) {
+          ["reuniao", "aula", "visita", "social", "hackathon"].map(function (t) {
             return '<option value="' + t + '"' + (ev.type === t ? " selected" : "") + ">" + TIPO_LABEL[t] + "</option>";
           }).join("") +
         "</select>" +
@@ -1115,6 +1126,19 @@
       "</div>" +
       '<div class="meeting-new" style="margin-top:8px;">' +
         '<input type="text" class="edit-text" maxlength="600" value="' + esc(ev.text || "") + '" placeholder="Aviso que aparece no mural" aria-label="Texto do aviso" style="flex:1 1 100%;">' +
+      "</div>" +
+      '<div class="meeting-new" style="margin-top:8px;">' +
+        '<textarea class="edit-description" maxlength="4000" placeholder="Descrição completa (aparece na página do evento, evento.html)" aria-label="Descrição completa" rows="4" style="flex:1 1 100%; font:inherit; font-size:13px; padding:8px 10px; border-radius:var(--radius-sm); border:1px solid var(--line); resize:vertical;">' + esc(ev.description || "") + "</textarea>" +
+      "</div>" +
+      // Sempre no DOM (só escondido quando o tipo atual não é hackathon) —
+      // trocar o tipo no select acima precisa mostrar/esconder isso na hora,
+      // sem esperar o painel fechar e reabrir (ver listener de "edit-type").
+      '<div class="meeting-new edit-phase-row" style="margin-top:8px;' + (ev.type === "hackathon" ? "" : " display:none;") + '">' +
+        '<select class="edit-phase" aria-label="Etapa atual da trilha">' +
+          PHASES.map(function (p) {
+            return '<option value="' + p.key + '"' + (ev.phase === p.key ? " selected" : "") + ">" + p.label + "</option>";
+          }).join("") +
+        "</select>" +
       "</div>";
 
     var codes =
@@ -1161,10 +1185,19 @@
 
     var listaInscritos = ev.signups.length
       ? ev.signups.map(function (s) {
+          var datasAlt = (s.datasAlternativas || []).map(function (d) {
+            return d === "Outro" && s.datasAlternativasOutro ? s.datasAlternativasOutro : d;
+          }).join(", ");
           var contato = [
             s.turma ? "Turma " + s.turma : "",
             s.especialidade || "",
             s.idade ? s.idade + " anos" : "",
+            s.vinculo || "",
+            s.anoFaculdade ? s.anoFaculdade + "º ano" : "",
+            s.topaDias16e17 ? "Topa 16-17: " + s.topaDias16e17 : "",
+            datasAlt ? "Datas alt.: " + datasAlt : "",
+            s.temGrupo ? "Grupo: " + s.temGrupo : "",
+            s.temTema ? "Tema: " + s.temTema : "",
             s.email,
             s.phone,
           ].filter(Boolean).join(" · ");
@@ -1304,6 +1337,7 @@
             '<select id="new-event-type" aria-label="Tipo de evento">' +
               '<option value="reuniao">Reunião</option><option value="aula">Aula</option>' +
               '<option value="visita">Visita</option><option value="social">Social</option>' +
+              '<option value="hackathon">Hackathon</option>' +
             "</select>" +
             '<input type="text" id="new-event-title" placeholder="Título" maxlength="100">' +
             '<input type="date" id="new-event-date">' +
@@ -1461,12 +1495,23 @@
     var box = card.querySelector(".event-manage");
     if (!box) return;
 
+    // Trocar o tipo pra/de "hackathon" mostra ou esconde o seletor de etapa
+    // na hora — sem isso, só aparecia depois de salvar e reabrir o painel.
+    var editTypeEl = box.querySelector(".edit-type");
+    if (editTypeEl) {
+      editTypeEl.addEventListener("change", function () {
+        var row = box.querySelector(".edit-phase-row");
+        if (row) row.style.display = this.value === "hackathon" ? "" : "none";
+      });
+    }
+
     box.querySelector("[data-save]").addEventListener("click", function (e) {
       var btn = e.currentTarget;
       btn.disabled = true;
       btn.textContent = "Salvando...";
       function salvar(confirmTravel) {
         var cap = box.querySelector(".cap-input").value;
+        var phaseEl = box.querySelector(".edit-phase");
         api("/api/events/" + id, {
           method: "PATCH",
           body: JSON.stringify({
@@ -1476,6 +1521,8 @@
             time: box.querySelector(".edit-time").value,
             location: box.querySelector(".edit-local").value,
             text: box.querySelector(".edit-text").value,
+            description: box.querySelector(".edit-description").value,
+            phase: phaseEl ? phaseEl.value : undefined,
             capacity: cap === "" ? null : parseInt(cap, 10),
             confirmTravel: confirmTravel === true,
           }),

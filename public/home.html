@@ -151,6 +151,48 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
 /* o CTA fecha a coluna de dados ocupando a largura toda */
 .entry .side .btn{margin-top:14px;width:100%;justify-content:center}
 
+/* ---------- cartaz do evento com peça de divulgação própria ----------
+   O hackathon chega com imagem de divulgação pronta, então não disputa o
+   verbete da seção I: ganha um cartaz de largura inteira. Mesma gramática do
+   resto do documento — papel, hairline, raio de 4px, sem sombra. O card de
+   raio 20px com box-shadow do tema antigo não sobrevive aqui. */
+.poster{display:grid;grid-template-columns:1fr;margin:0 0 30px;
+  border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--card)}
+@media(min-width:900px){ .poster{grid-template-columns:minmax(300px,.92fr) 1.2fr} }
+/* A arte do hackathon é PÔSTER, não foto de fundo: tem título, tópicos e o
+   aviso de pré-inscrições dentro da imagem. Daí object-fit:contain e a razão
+   natural (1200×980) — com cover, o banner anterior cortava justamente a
+   faixa de baixo, onde está "pré-inscrições abertas". A moldura é absoluta
+   como no verbete, para a altura vir do texto e não da imagem. */
+.poster .ph{position:relative;aspect-ratio:1200/980;background:var(--paper-2);
+  border-bottom:1px solid var(--line)}
+@media(min-width:900px){
+  .poster .ph{aspect-ratio:auto;min-height:280px;border-bottom:0;border-right:1px solid var(--line)}
+  .poster .ph img{position:absolute;inset:0}
+}
+.poster .ph img{width:100%;height:100%;object-fit:contain;display:block}
+.poster .body{padding:24px var(--pad) 26px;display:flex;flex-direction:column;
+  justify-content:center;gap:13px}
+@media(min-width:900px){ .poster .body{padding:30px 32px} }
+.poster .k{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--wine);margin:0}
+.poster .k i{width:6px;height:6px;background:var(--wine);border-radius:50%;font-style:normal;
+  animation:pulse 2.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){ .poster .k i{animation:none} }
+.poster h3{font-family:var(--fd);font-weight:400;font-size:clamp(28px,4vw,40px);
+  line-height:1.03;margin:0;color:var(--ink)}
+.poster p{font-size:15.5px;line-height:1.68;margin:0;color:var(--ink-2);max-width:46ch}
+.poster .facts{margin:2px 0 0;font-size:13px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.poster .facts b{color:var(--ink);font-weight:600}
+/* As datas do hackathon são propostas, não fixas — o formulário pergunta se a
+   pessoa topa 16 e 17 e coleta alternativas. O aviso acompanha a data em vez de
+   substituí-la, e vem como nota de documento (serifa em itálico), não como
+   etiqueta colorida de raio 8px do tema antigo. */
+.poster .note{font-family:var(--fd);font-style:italic;font-size:14.5px;
+  color:var(--ink-3);margin:0}
+.poster .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+
 /* ---------- rodapé ---------- */
 footer.site{max-width:var(--max);margin:0 auto;padding:38px var(--pad) 46px;
   display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
@@ -230,6 +272,7 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
 <section class="blk" id="encontro"><div class="wrap">
   <div class="blk-head rv"><span class="n">I.</span><h2>O próximo <i>encontro</i></h2><span class="r"></span></div>
   <p class="blk-note rv">Inscrições abertas, com vagas e fila de espera.</p>
+  <div id="hk-poster"></div>
   <div id="next-card"></div>
 </div></section>
 
@@ -391,6 +434,41 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   function kindDe(ev) {
     return ev.kind || "Evento";
   }
+  // Evento com peça de divulgação própria (hoje, type "hackathon") não disputa
+  // o verbete da seção I: vira cartaz acima dele, com a imagem pronta. A
+  // descrição e a data vêm da API — no banner anterior a descrição estava
+  // escrita à mão no HTML, e a landing já provou que texto fixo aqui envelhece
+  // sem ninguém notar. O aviso de datas a confirmar continua, porque 16 e 17 de
+  // outubro são proposta: o formulário pergunta se a pessoa topa e coleta
+  // alternativas.
+  function posterHtml(ev) {
+    var fatos = [];
+    if (ev.time) fatos.push("<b>" + escHtml(ev.time) + "</b>");
+    if (ev.location) fatos.push(escHtml(ev.location));
+    if (ev.travelMinutes > 0) fatos.push("~" + ev.travelMinutes + " min do IME");
+    return (
+      '<div class="poster rv">' +
+        '<div class="ph">' +
+          '<img src="/img/hackathon-banner-1200.jpg"' +
+               ' srcset="/img/hackathon-banner-800.jpg 800w, /img/hackathon-banner-1200.jpg 1200w"' +
+               ' sizes="(min-width:900px) 42vw, 100vw"' +
+               ' alt="' + escHtml(ev.title) + '" loading="lazy">' +
+        "</div>" +
+        '<div class="body">' +
+          '<p class="k"><i></i>' + escHtml(kindDe(ev) + " · " + diaMes(ev)) + "</p>" +
+          "<h3>" + escHtml(ev.title) + "</h3>" +
+          (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
+          (fatos.length ? '<p class="facts">' + fatos.join(" · ") + "</p>" : "") +
+          '<p class="note">Datas e horários ainda serão confirmados.</p>' +
+          '<div class="acts">' +
+            '<a class="btn btn-p" href="' + escHtml(ev.detailsUrl) + '">' +
+              '<span class="ar">→</span>Confira todos os detalhes</a>' +
+            '<a class="btn btn-g" href="' + escHtml(ev.signupUrl) + '">' + ctaDe(ev) + "</a>" +
+          "</div>" +
+        "</div>" +
+      "</div>"
+    );
+  }
 
   fetch("/api/public-events")
     .then(function (r) { return r.ok ? r.json() : { events: [] }; })
@@ -405,32 +483,53 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
         return (a.date + " " + (a.time || "")) < (b.date + " " + (b.time || "")) ? -1 : 1;
       });
 
-      // O mais próximo abre a seção I como verbete completo.
-      var d = events[0];
-      var lugar = lugarDe(d);
-      document.getElementById("next-card").innerHTML =
-        '<div class="entry rv">' +
-          '<div class="ph"><img src="/gallery/liga-06.jpg" alt="" loading="lazy"></div>' +
-          '<div class="mid">' +
-            '<p class="k"><i></i>' + escHtml(kindDe(d) + " · " + diaMes(d)) + '</p>' +
-            "<h3>" + escHtml(d.title) + "</h3>" +
-            (d.text ? "<p>" + escHtml(d.text) + "</p>" : "") +
-            '<span class="fill"></span>' +
-            '<p class="hint">Aberto a visitantes · confirmação por QR no dia</p>' +
-          "</div>" +
-          '<div class="side">' +
-            (d.time ? "<div><span>Horário</span><b>" + escHtml(d.time) + "</b></div>" : "") +
-            (d.location ? "<div><span>Local</span><b>" + escHtml(d.location) + "</b></div>" : "") +
-            (d.travelMinutes > 0 ? "<div><span>Trajeto do IME</span><b>" + d.travelMinutes + " min</b></div>" : "") +
-            "<div><span>Vagas</span><b>" + vagasTexto(d).replace(/<\/?b>/g, "") + "</b></div>" +
-            '<a class="btn btn-p" href="' + escHtml(d.signupUrl) + '"><span class="ar">→</span>' + ctaDe(d) + "</a>" +
-          "</div>" +
-        "</div>";
+      // Só o hackathon mais próximo ganha cartaz — dois cartazes grandes não
+      // cabem na mesma seção. Um segundo hackathon aberto ao mesmo tempo não
+      // desaparece: continua no índice da seção II, como qualquer evento.
+      var cartazes = events.filter(function (ev) { return ev.type === "hackathon"; });
+      if (cartazes.length) {
+        document.getElementById("hk-poster").innerHTML = posterHtml(cartazes[0]);
+      }
 
-      // Todos os eventos entram no índice da seção II, inclusive o destaque.
+      // O verbete da seção I é dos tipos comuns: o hackathon já tem
+      // protagonismo no cartaz e repetir o mesmo evento nas duas peças, uma
+      // embaixo da outra, só duplicaria a leitura.
+      var regulares = events.filter(function (ev) { return ev.type !== "hackathon"; });
+      if (!regulares.length) {
+        document.getElementById("next-card").innerHTML =
+          '<p class="idx-empty rv">Nenhuma reunião, aula ou visita com inscrições abertas agora. ' +
+          "A próxima aparece aqui assim que for publicada.</p>";
+      } else {
+        // O mais próximo abre a seção I como verbete completo.
+        var d = regulares[0];
+        var lugar = lugarDe(d);
+        document.getElementById("next-card").innerHTML =
+          '<div class="entry rv">' +
+            '<div class="ph"><img src="/gallery/liga-06.jpg" alt="" loading="lazy"></div>' +
+            '<div class="mid">' +
+              '<p class="k"><i></i>' + escHtml(kindDe(d) + " · " + diaMes(d)) + '</p>' +
+              "<h3>" + escHtml(d.title) + "</h3>" +
+              (d.text ? "<p>" + escHtml(d.text) + "</p>" : "") +
+              '<span class="fill"></span>' +
+              '<p class="hint">Aberto a visitantes · confirmação por QR no dia</p>' +
+            "</div>" +
+            '<div class="side">' +
+              (d.time ? "<div><span>Horário</span><b>" + escHtml(d.time) + "</b></div>" : "") +
+              (d.location ? "<div><span>Local</span><b>" + escHtml(d.location) + "</b></div>" : "") +
+              (d.travelMinutes > 0 ? "<div><span>Trajeto do IME</span><b>" + d.travelMinutes + " min</b></div>" : "") +
+              "<div><span>Vagas</span><b>" + vagasTexto(d).replace(/<\/?b>/g, "") + "</b></div>" +
+              '<a class="btn btn-p" href="' + escHtml(d.signupUrl) + '"><span class="ar">→</span>' + ctaDe(d) + "</a>" +
+            "</div>" +
+          "</div>";
+      }
+
+      // Todos os eventos entram no índice da seção II, inclusive os que já
+      // apareceram acima. A linha do hackathon leva à página de detalhes, não
+      // ao formulário: é lá que estão o manual, a trilha e o regulamento.
       idx.innerHTML = events.map(function (ev, i) {
+        var destino = ev.type === "hackathon" ? ev.detailsUrl : ev.signupUrl;
         return (
-          '<a class="irow rv" style="--i:' + Math.min(i, 6) + '" href="' + escHtml(ev.signupUrl) + '">' +
+          '<a class="irow rv" style="--i:' + Math.min(i, 6) + '" href="' + escHtml(destino) + '">' +
             '<span class="k">' + escHtml(kindDe(ev)) + "</span>" +
             '<span class="ti"><h4>' + escHtml(ev.title) + "</h4></span>" +
             '<span class="wh">' + escHtml(quandoDe(ev)) + "</span>" +

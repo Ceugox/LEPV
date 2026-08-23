@@ -14,6 +14,7 @@ data/events.json
 data/event-photos/
 data/avatars/
 data/sessions.json
+data/access-log.json
 # cópias de segurança da escrita atômica dos stores
 *.json.bak
 *.json.tmp

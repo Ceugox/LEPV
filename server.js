@@ -1515,15 +1515,27 @@ app.get("/api/legacy", requireImmersionApi, (req, res) => {
 // eram três coisas separadas (meetings.json, lessons.json e o mural); a
 // migração abaixo junta tudo preservando presença, visitantes e materiais.
 
-const EVENT_TYPES = ["reuniao", "aula", "visita", "social"];
+const EVENT_TYPES = ["reuniao", "aula", "visita", "social", "hackathon"];
 const EVENT_TEXT_MAX = 600;
+const EVENT_DESCRIPTION_MAX = 4000;
 const EVENT_PHOTOS_MAX = 6;
+// Trilha de próximos passos da página pública do evento (hoje só usada pelo
+// Hackathon) — etapa atual escolhida à mão pela diretoria em "Editar evento",
+// não inferida de signups.open (pré-inscrição e inscrição oficial usam o
+// mesmo mecanismo de formulário, então não dá pra distinguir automaticamente).
+const EVENT_PHASES = ["pre-inscricao", "inscricao-oficial", "confirmacao", "presencial"];
 // Listas fechadas do formulário público de inscrição (público do IME).
 const SIGNUP_TURMAS = ["XXX", "XXIX", "XXVIII", "XXVII", "XXVI"];
 const SIGNUP_ESPECIALIDADES = [
   "Básico", "Computação", "Elétrica", "Eletrônica", "Comunicações",
   "Mecânica", "Materiais", "Química", "Cartografia",
 ];
+// Listas fechadas do formulário público de inscrição do Hackathon LEPV × FGV
+// (evento type "hackathon" usa este conjunto de campos em vez do padrão IME).
+const HACKATHON_VINCULOS = ["Ativa do IME", "Reserva do IME", "FGV"];
+const HACKATHON_ANOS_FACULDADE = ["1", "2", "3", "4", "5"];
+const HACKATHON_SIMNAO = ["Sim", "Não"];
+const HACKATHON_DATAS_ALT = ["2 e 3 de outubro", "9 e 10 de outubro", "Outro"];
 // Com 2+ presenças o visitante deve ser convidado a virar membro.
 const VISITOR_INVITE_THRESHOLD = 2;
 
@@ -1663,6 +1675,8 @@ function normalizeEvent(ev) {
   if (!("capacity" in ev.signups)) ev.signups.capacity = null;
   if (!ev.qrToken) ev.qrToken = crypto.randomBytes(8).toString("hex");
   if (EVENT_TYPES.indexOf(ev.type) === -1) ev.type = "reuniao";
+  if (typeof ev.description !== "string") ev.description = "";
+  if (EVENT_PHASES.indexOf(ev.phase) === -1) ev.phase = "pre-inscricao";
   return ev;
 }
 
@@ -1817,6 +1831,8 @@ function eventView(ev, user) {
     type: ev.type,
     title: ev.title,
     text: ev.text || "",
+    description: ev.description || "",
+    phase: ev.phase || "pre-inscricao",
     date: ev.date,
     location: ev.location || "",
     time: ev.time || "",
@@ -1942,6 +1958,8 @@ app.post("/api/events", requireDirectorApi, async (req, res) => {
     type,
     title,
     text: String(req.body.text || "").trim().slice(0, EVENT_TEXT_MAX),
+    description: String(req.body.description || "").trim().slice(0, EVENT_DESCRIPTION_MAX),
+    phase: EVENT_PHASES.indexOf(String(req.body.phase)) !== -1 ? String(req.body.phase) : "pre-inscricao",
     date,
     location,
     time,
@@ -1987,6 +2005,8 @@ app.patch("/api/events/:id", requireDirectorApi, async (req, res) => {
     ev.title = title;
   }
   if (req.body.text !== undefined) ev.text = String(req.body.text).trim().slice(0, EVENT_TEXT_MAX);
+  if (req.body.description !== undefined) ev.description = String(req.body.description).trim().slice(0, EVENT_DESCRIPTION_MAX);
+  if (req.body.phase !== undefined && EVENT_PHASES.indexOf(String(req.body.phase)) !== -1) ev.phase = String(req.body.phase);
   if (newLocation !== undefined) {
     ev.location = newLocation;
     ev.travelMinutes = travelMinutes;
@@ -2114,6 +2134,20 @@ app.post("/api/events/:id/materials/link", requireDirectorApi, (req, res) => {
   res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
 });
 
+// Compartilhado pelas duas rotas que servem PDF de material (autenticada
+// aqui embaixo, pública em /api/event-signup/:token/materials/:materialId)
+// — só muda quem pode chegar até o item e o Cache-Control.
+function sendPdfMaterial(item, req, res, cacheControl) {
+  const filePath = path.join(EVENT_FILES_DIR, item.file);
+  if (!fs.existsSync(filePath)) return res.status(410).json({ error: "file_missing", message: "O arquivo não está mais no servidor." });
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": (req.query.dl === "1" ? "attachment" : "inline") + "; filename*=UTF-8''" + encodeURIComponent(item.title) + ".pdf",
+    "Cache-Control": cacheControl,
+  });
+  res.sendFile(filePath);
+}
+
 app.get("/api/events/materials/:id/file", requireAuthApi, (req, res) => {
   const data = readEventsStore();
   let found = null;
@@ -2122,14 +2156,7 @@ app.get("/api/events/materials/:id/file", requireAuthApi, (req, res) => {
     if (item) { found = item; break; }
   }
   if (!found || found.type !== "pdf") return res.status(404).json({ error: "not_found" });
-  const filePath = path.join(EVENT_FILES_DIR, found.file);
-  if (!fs.existsSync(filePath)) return res.status(410).json({ error: "file_missing", message: "O arquivo não está mais no servidor." });
-  res.set({
-    "Content-Type": "application/pdf",
-    "Content-Disposition": (req.query.dl === "1" ? "attachment" : "inline") + "; filename*=UTF-8''" + encodeURIComponent(found.title) + ".pdf",
-    "Cache-Control": "private, max-age=3600",
-  });
-  res.sendFile(filePath);
+  sendPdfMaterial(found, req, res, "private, max-age=3600");
 });
 
 app.delete("/api/events/:id/materials/:materialId", requireDirectorApi, (req, res) => {
@@ -2407,7 +2434,7 @@ function publicFormRateLimited(ip) {
   return rec.count > PUBLIC_FORM_MAX;
 }
 
-const TYPE_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Encontro" };
+const TYPE_LABEL = { reuniao: "Reunião", aula: "Aula", visita: "Visita", social: "Encontro", hackathon: "Hackathon" };
 
 app.get("/api/event-signup/:token", (req, res) => {
   const ev = readEventsStore().events.find((e) => e.signups.token === req.params.token);
@@ -2420,13 +2447,47 @@ app.get("/api/event-signup/:token", (req, res) => {
     location: ev.location || "",
     travelMinutes: ev.travelMinutes,
     text: ev.text || "",
+    description: ev.description || "",
+    phase: ev.phase || "pre-inscricao",
     kind: TYPE_LABEL[ev.type] || "Evento",
+    type: ev.type,
     open: ev.signups.open,
     capacity: ev.signups.capacity,
     seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
     turmas: SIGNUP_TURMAS,
     especialidades: SIGNUP_ESPECIALIDADES,
+    vinculos: HACKATHON_VINCULOS,
+    anosFaculdade: HACKATHON_ANOS_FACULDADE,
+    simNao: HACKATHON_SIMNAO,
+    datasAlternativas: HACKATHON_DATAS_ALT,
+    // Manual e outros materiais em destaque na própria página pública do
+    // evento — mesmo objeto ev.materials do painel da diretoria, só que
+    // servido por uma rota sem sessão (ver /materials/:materialId abaixo).
+    materials: ev.materials.map((m) => ({
+      id: m.id,
+      type: m.type,
+      title: m.title,
+      url: m.type === "link" ? m.url : "/api/event-signup/" + req.params.token + "/materials/" + m.id,
+      size: m.size || 0,
+    })),
   });
+});
+
+// Mesmo arquivo servido para a diretoria em /api/events/materials/:id/file,
+// mas sem exigir sessão: quem chega pelo formulário público (visitante do
+// IME/FGV) não tem login. O token da inscrição já é a credencial pública
+// desta página — o acesso ao material fica restrito ao mesmo evento. Mesmo
+// rate limit por IP das outras rotas públicas deste bloco (o token circula
+// livremente, então nada além do IP protege contra baixar em loop).
+app.get("/api/event-signup/:token/materials/:materialId", (req, res) => {
+  if (publicFormRateLimited(req.ip)) {
+    return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
+  }
+  const ev = readEventsStore().events.find((e) => e.signups.token === req.params.token);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const item = ev.materials.find((m) => m.id === req.params.materialId);
+  if (!item || item.type !== "pdf") return res.status(404).json({ error: "not_found" });
+  sendPdfMaterial(item, req, res, "public, max-age=3600");
 });
 
 // A vitrine da home: eventos futuros com inscrições abertas, com o link do
@@ -2442,6 +2503,7 @@ app.get("/api/public-events", (req, res) => {
       return {
         title: ev.title,
         kind: TYPE_LABEL[ev.type] || "Evento",
+        type: ev.type,
         date: ev.date,
         time: ev.time || "",
         location: ev.location || "",
@@ -2450,6 +2512,7 @@ app.get("/api/public-events", (req, res) => {
         capacity: ev.signups.capacity,
         seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
         signupUrl: "/inscricao.html?t=" + ev.signups.token,
+        detailsUrl: "/evento.html?t=" + ev.signups.token,
       };
     });
   res.json({ events });
@@ -2468,9 +2531,6 @@ app.post("/api/event-signup/:token", (req, res) => {
   const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
   const email = String(req.body.email || "").trim().toLowerCase().slice(0, 120);
   const phone = String(req.body.phone || "").trim().slice(0, 30);
-  const turma = String(req.body.turma || "").trim();
-  const especialidade = String(req.body.especialidade || "").trim();
-  const idade = parseInt(req.body.idade, 10);
   if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
     return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
   }
@@ -2480,15 +2540,66 @@ app.post("/api/event-signup/:token", (req, res) => {
   if (phone.replace(/\D/g, "").length < 10) {
     return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
   }
-  if (SIGNUP_TURMAS.indexOf(turma) === -1) {
-    return res.status(400).json({ error: "invalid_turma", message: "Escolha sua turma." });
+
+  const isHackathon = ev.type === "hackathon";
+  let extraFields;
+  if (isHackathon) {
+    const vinculo = String(req.body.vinculo || "").trim();
+    const anoFaculdade = String(req.body.anoFaculdade || "").trim();
+    const topaDias16e17 = String(req.body.topaDias16e17 || "").trim();
+    const temGrupo = String(req.body.temGrupo || "").trim();
+    const temTema = String(req.body.temTema || "").trim();
+    const datasAlternativas = Array.isArray(req.body.datasAlternativas)
+      ? req.body.datasAlternativas.map((d) => String(d))
+      : [];
+    const datasAlternativasOutro = String(req.body.datasAlternativasOutro || "").trim().slice(0, 200);
+
+    if (HACKATHON_VINCULOS.indexOf(vinculo) === -1) {
+      return res.status(400).json({ error: "invalid_vinculo", message: "Escolha seu vínculo." });
+    }
+    if (anoFaculdade && HACKATHON_ANOS_FACULDADE.indexOf(anoFaculdade) === -1) {
+      return res.status(400).json({ error: "invalid_ano", message: "Ano da faculdade inválido." });
+    }
+    if (topaDias16e17 && HACKATHON_SIMNAO.indexOf(topaDias16e17) === -1) {
+      return res.status(400).json({ error: "invalid_topa", message: "Resposta inválida." });
+    }
+    if (temGrupo && HACKATHON_SIMNAO.indexOf(temGrupo) === -1) {
+      return res.status(400).json({ error: "invalid_grupo", message: "Resposta inválida." });
+    }
+    if (temTema && HACKATHON_SIMNAO.indexOf(temTema) === -1) {
+      return res.status(400).json({ error: "invalid_tema", message: "Resposta inválida." });
+    }
+    if (datasAlternativas.some((d) => HACKATHON_DATAS_ALT.indexOf(d) === -1)) {
+      return res.status(400).json({ error: "invalid_datas", message: "Opção de data inválida." });
+    }
+    if (datasAlternativas.includes("Outro") && !datasAlternativasOutro) {
+      return res.status(400).json({ error: "invalid_datas_outro", message: "Descreva a data alternativa." });
+    }
+    extraFields = {
+      vinculo,
+      anoFaculdade,
+      topaDias16e17,
+      datasAlternativas,
+      datasAlternativasOutro: datasAlternativas.includes("Outro") ? datasAlternativasOutro : "",
+      temGrupo,
+      temTema,
+    };
+  } else {
+    const turma = String(req.body.turma || "").trim();
+    const especialidade = String(req.body.especialidade || "").trim();
+    const idade = parseInt(req.body.idade, 10);
+    if (SIGNUP_TURMAS.indexOf(turma) === -1) {
+      return res.status(400).json({ error: "invalid_turma", message: "Escolha sua turma." });
+    }
+    if (SIGNUP_ESPECIALIDADES.indexOf(especialidade) === -1) {
+      return res.status(400).json({ error: "invalid_especialidade", message: "Escolha sua especialidade." });
+    }
+    if (!Number.isInteger(idade) || idade < 14 || idade > 99) {
+      return res.status(400).json({ error: "invalid_idade", message: "Informe sua idade." });
+    }
+    extraFields = { turma, especialidade, idade };
   }
-  if (SIGNUP_ESPECIALIDADES.indexOf(especialidade) === -1) {
-    return res.status(400).json({ error: "invalid_especialidade", message: "Escolha sua especialidade." });
-  }
-  if (!Number.isInteger(idade) || idade < 14 || idade > 99) {
-    return res.status(400).json({ error: "invalid_idade", message: "Informe sua idade." });
-  }
+
   // Ciência de local e horário é compromisso, não burocracia: quem marca leu
   // onde e quando é — o que reduz no-show.
   if (req.body.awareLocation !== true || req.body.awareTime !== true) {
@@ -2502,18 +2613,11 @@ app.post("/api/event-signup/:token", (req, res) => {
   if (existing) {
     status = existing.status;
   } else {
-    status = addSignup(ev, {
-      type: "external",
-      name,
-      email,
-      phone,
-      turma,
-      especialidade,
-      idade,
-      awareLocation: true,
-      awareTime: true,
-      at: new Date().toISOString(),
-    });
+    status = addSignup(ev, Object.assign(
+      { type: "external", name, email, phone },
+      extraFields,
+      { awareLocation: true, awareTime: true, at: new Date().toISOString() }
+    ));
     writeEvents(data);
   }
   res.json({
