@@ -70,7 +70,7 @@
     "photo": "/members/5.png",
     "course": "Engenharia Química",
     "year": "3º ano",
-    "interests": [],
+    "interests": ["Educação", "Química", "Esportes"],
     "director": true,
     "cargo": "Diretor de Pessoas",
     "turma": "XXVIII",
