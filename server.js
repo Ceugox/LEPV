@@ -315,8 +315,18 @@ if (!fs.existsSync(SIGNUPS_PATH)) {
 
 // allMembers inclui inativos (Carol e Ana ficam no histórico da imersão, mas
 // não são membros da liga); activeMembers é o roster que loga e aparece.
+// O volume vence o seed, mesma regra que as credenciais já seguem: o membro
+// edita o próprio perfil e a mudança sobrevive a deploy. Sem isto, quem está
+// em data/members.json (os fundadores) perderia a edição no próximo
+// `railway up`, porque o registro dele vem do repositório e não do volume.
 function allMembers() {
-  return seedMembers.concat(readSignups().members);
+  const s = readSignups();
+  const over = new Map((s.profiles || []).map((p) => [p.order, p]));
+  return seedMembers.concat(s.members).map((m) => {
+    const o = over.get(m.order);
+    // order é a chave e nunca muda; o resto do override vence o base.
+    return o ? Object.assign({}, m, o, { order: m.order }) : m;
+  });
 }
 function activeMembers() {
   return allMembers().filter((m) => m.active !== false);

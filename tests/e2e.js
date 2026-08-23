@@ -1054,6 +1054,30 @@ test("cadastro normaliza as tags: limite, tamanho e repetição", async () => {
   eq(tags[2].length, 30, "tag longa deveria ser truncada em 30");
 });
 
+test("override de perfil no volume vence o seed", async () => {
+  // MEMBER_ORDER é fundador: mora em data/members.json, do repositório, não no
+  // volume. Sem o override, gravar nele seria perdido no próximo deploy.
+  const store = readSignupsStore();
+  store.profiles = [{ order: MEMBER_ORDER, interests: ["Robótica"] }];
+  fs.writeFileSync(signupsFile(), JSON.stringify(store, null, 2));
+
+  const c = client();
+  eq((await c.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login do fundador");
+  const r = await c.get("/api/members");
+  eq(r.status, 200, "roster acessível");
+
+  // /api/members devolve um array direto, não um envelope { members: [] }
+  const eu = r.data.find((m) => m.order === MEMBER_ORDER);
+  assert(eu, "fundador deveria estar no roster");
+  eq(JSON.stringify(eu.interests), JSON.stringify(["Robótica"]),
+     "o override do volume deveria vencer os interesses do seed");
+
+  // limpa para não contaminar os casos seguintes
+  const limpo = readSignupsStore();
+  delete limpo.profiles;
+  fs.writeFileSync(signupsFile(), JSON.stringify(limpo, null, 2));
+});
+
 async function main() {
   setupVolume();
   await startServer();
