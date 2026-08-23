@@ -431,7 +431,7 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   function ctaDe(ev) {
     return ev.capacity && ev.seatsLeft <= 0 ? "Entrar na fila de espera" : "Garantir vaga";
   }
-  function kindDe(ev) {
+  function kindDe(ev) { if (ev {
     return ev.kind || "Evento";
   }
   // Evento com peça de divulgação própria (hoje, type "hackathon") não disputa
