@@ -15,6 +15,13 @@
 # duas auditorias estáticas de CSS e contraste, e as sete verificações que
 # abrem o site num browser de verdade — incluindo inscricao.html e evento.html,
 # que só existem com evento publicado e por isso ganham fixture própria.
+#
+# VERSÃO DAS ACTIONS: as majors aqui são as que rodam em Node 24 (25/08/2026).
+# Nas anteriores o runner avisava "Node.js 20 is deprecated" e forçava Node 24
+# assim mesmo — aviso hoje, quebra quando o runner parar de forçar. Só o
+# setup-node pede atenção ao subir: a partir da v5 ele liga cache sozinho se o
+# package.json tiver `packageManager` (não tem, e o cache de npm aqui é
+# explícito no job de verificações).
 
 name: CI
 
@@ -44,9 +51,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -77,14 +84,14 @@ jobs:
       # externa dentro do CI é lentidão e vermelho intermitente de graça.
       TRAVEL_ESTIMATE: fixed:6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -95,7 +102,7 @@ jobs:
         run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Cache do Chromium
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
@@ -163,7 +170,7 @@ jobs:
 
       - name: Guarda os artefatos de diagnóstico
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: diagnostico-${{ github.run_number }}
           path: |
