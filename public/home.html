@@ -125,11 +125,18 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
    A altura vem do texto; a foto cobre o que sobrar. */
 .entry .ph{border:1px solid var(--line);border-radius:4px;overflow:hidden;
   background:var(--card);position:relative;aspect-ratio:16/10}
+/* Com capa própria o slot toma a proporção da arte (6:5) em vez do 16/10 de
+   fotografia: senão o contain deixa um quarto do quadro em papel vazio. */
+.entry .ph.art{aspect-ratio:6/5}
 @media(min-width:900px){
   .entry .ph{aspect-ratio:auto;align-self:stretch;min-height:210px}
+  .entry .ph.art{aspect-ratio:auto}
   .entry .ph img{position:absolute;inset:0}
 }
 .entry .ph img{width:100%;height:100%;object-fit:cover;display:block}
+/* Capa que é arte, não fotografia: aparece inteira sobre o papel. */
+.entry .ph.art{background:var(--paper);border-color:var(--line-2)}
+.entry .ph.art img{object-fit:contain}
 .entry .mid{display:flex;flex-direction:column}
 .entry .mid .fill{flex:1}
 .entry .k{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;
@@ -434,6 +441,14 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   function kindDe(ev) {
     return ev.kind || "Evento";
   }
+  // Evento remoto não tem porta com QR. O local é campo livre, então a
+  // detecção é pelo texto que a diretoria digita ("Online (Google Meet)") —
+  // sem isso o primeiro bate-papo online promete uma confirmação que não
+  // existe. Link da chamada vai como material e aparece nas duas páginas
+  // públicas (evento.html e inscricao.html).
+  function ehRemoto(ev) {
+    return /online|remoto|à dist|a dist|meet|zoom|teams/i.test(String(ev.location || ""));
+  }
   // Evento com peça de divulgação própria (hoje, type "hackathon") não disputa
   // o verbete da seção I: vira cartaz acima dele, com a imagem pronta. A
   // descrição e a data vêm da API — no banner anterior a descrição estava
@@ -505,13 +520,21 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
         var lugar = lugarDe(d);
         document.getElementById("next-card").innerHTML =
           '<div class="entry rv">' +
-            '<div class="ph"><img src="/gallery/liga-06.jpg" alt="" loading="lazy"></div>' +
+            // Arte de divulgação do evento, quando existe, no lugar da foto de
+            // arquivo. Ela é peça fechada (texto dentro da imagem), então entra
+            // inteira: recortar no cover comeria o título. Sem capa, segue a
+            // foto da liga em cover, que é fotografia e aguenta corte.
+            '<div class="ph' + (d.cover ? " art" : "") + '">' +
+              '<img src="' + escHtml(d.cover || "/gallery/liga-06.jpg") + '" alt="" loading="lazy">' +
+            "</div>" +
             '<div class="mid">' +
               '<p class="k"><i></i>' + escHtml(kindDe(d) + " · " + diaMes(d)) + '</p>' +
               "<h3>" + escHtml(d.title) + "</h3>" +
               (d.text ? "<p>" + escHtml(d.text) + "</p>" : "") +
               '<span class="fill"></span>' +
-              '<p class="hint">Aberto a visitantes · confirmação por QR no dia</p>' +
+              '<p class="hint">' + (ehRemoto(d)
+                ? "Aberto a visitantes · link da videochamada na página do evento"
+                : "Aberto a visitantes · confirmação por QR no dia") + "</p>" +
             "</div>" +
             '<div class="side">' +
               (d.time ? "<div><span>Horário</span><b>" + escHtml(d.time) + "</b></div>" : "") +

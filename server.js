@@ -1655,8 +1655,18 @@ function attendanceState(ev) {
   return ev.date > todayBR() ? "agendada" : "encerrada";
 }
 
+// Capa própria do evento (arte de divulgação que substitui a foto genérica no
+// verbete da home). Só caminho do próprio site: a home é pública e capa vinda
+// de fora seria requisição a terceiro em toda visita — e URL de terceiro que
+// morre deixa buraco na página. "//host" é rejeitado junto com "http://".
+function coverPath(value) {
+  const v = String(value || "").trim().slice(0, 200);
+  return /^\/[^/]/.test(v) ? v : "";
+}
+
 function normalizeEvent(ev) {
   if (!Array.isArray(ev.photos)) ev.photos = [];
+  if (typeof ev.cover !== "string") ev.cover = "";
   if (typeof ev.location !== "string") ev.location = "";
   if (typeof ev.time !== "string") ev.time = "";
   if (typeof ev.travelMinutes !== "number") ev.travelMinutes = null;
@@ -1837,6 +1847,7 @@ function eventView(ev, user) {
     location: ev.location || "",
     time: ev.time || "",
     travelMinutes: ev.travelMinutes,
+    cover: ev.cover || "",
     photos: ev.photos.map((p) => ({ id: p.id, url: "/api/events/" + ev.id + "/photos/" + p.id })),
     materials: ev.materials.map((m) => ({
       id: m.id,
@@ -1964,6 +1975,7 @@ app.post("/api/events", requireDirectorApi, async (req, res) => {
     location,
     time,
     travelMinutes,
+    cover: coverPath(req.body.cover),
     codes: [generateCode()],
     // O formulário de inscrição nasce publicado junto com o aviso: token e
     // inscrições abertas desde a criação, sem passo manual da diretoria.
@@ -2012,6 +2024,7 @@ app.patch("/api/events/:id", requireDirectorApi, async (req, res) => {
     ev.travelMinutes = travelMinutes;
   }
   if (req.body.time !== undefined) ev.time = String(req.body.time);
+  if (req.body.cover !== undefined) ev.cover = coverPath(req.body.cover);
   if (req.body.date !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.date))) ev.date = String(req.body.date);
   if (req.body.type !== undefined && EVENT_TYPES.indexOf(String(req.body.type)) !== -1) ev.type = String(req.body.type);
   if (req.body.capacity !== undefined) {
@@ -2509,6 +2522,7 @@ app.get("/api/public-events", (req, res) => {
         location: ev.location || "",
         travelMinutes: ev.travelMinutes,
         text: ev.text || "",
+        cover: ev.cover || "",
         capacity: ev.signups.capacity,
         seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
         signupUrl: "/inscricao.html?t=" + ev.signups.token,
