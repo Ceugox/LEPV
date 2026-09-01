@@ -569,13 +569,21 @@
     if (!panel) return;
     if (!me.superadmin) { panel.innerHTML = ""; return; }
     api("/api/signups").then(function (data) {
-      if (!data.pending.length) { panel.innerHTML = ""; return; }
       var pendingById = {};
       data.pending.forEach(function (p) { pendingById[p.id] = p; });
       panel.innerHTML =
         '<div class="card signup-panel">' +
+          '<p class="section-label">Convidar novo membro</p>' +
+          '<div class="meeting-new">' +
+            '<input id="invite-name" maxlength="80" placeholder="Nome completo" autocomplete="name">' +
+            '<input id="invite-course" maxlength="80" placeholder="Curso (opcional)"> ' +
+            '<input id="invite-year" maxlength="40" placeholder="Ano (opcional)"> ' +
+            '<input id="invite-phone" maxlength="30" placeholder="WhatsApp (opcional)" inputmode="tel">' +
+            '<button type="button" class="btn-primary" id="invite-btn">Gerar convite</button>' +
+          '</div>' +
+          '<p class="questions-hint">O código temporário aparece uma vez para você copiar e encaminhar.</p>' +
           '<p class="section-label">Solicitações de acesso (super admin) · ' + data.pending.length + "</p>" +
-          data.pending.map(function (p) {
+          (data.pending.length ? data.pending.map(function (p) {
             var meta = [p.course, p.year].filter(Boolean).join(" · ");
             var when = p.requestedAt ? new Date(p.requestedAt).toLocaleDateString("pt-BR") : "";
             var zap = waLink(p.phone);
@@ -598,8 +606,34 @@
                 "</div>" +
               "</div>"
             );
-          }).join("") +
+          }).join("") : '<p class="questions-hint">Nenhuma solicitação pendente.</p>') +
         "</div>";
+      var inviteBtn = panel.querySelector("#invite-btn");
+      if (inviteBtn) inviteBtn.addEventListener("click", function () {
+        var name = panel.querySelector("#invite-name").value.trim();
+        if (!name) { window.alert("Informe o nome completo da pessoa."); return; }
+        inviteBtn.disabled = true;
+        inviteBtn.textContent = "Gerando...";
+        api("/api/admin/invitations", {
+          method: "POST",
+          body: JSON.stringify({
+            name: name,
+            course: panel.querySelector("#invite-course").value.trim(),
+            year: panel.querySelector("#invite-year").value.trim(),
+            phone: panel.querySelector("#invite-phone").value.trim(),
+          }),
+        })
+          .then(function (r) {
+            if (!r.code || !r.member) throw new Error("falhou");
+            window.prompt("Código temporário de " + r.member.name + " — copie e encaminhe agora:", r.code);
+            loadMembers();
+          })
+          .catch(function () {
+            window.alert("Não foi possível gerar o convite. Verifique os dados e tente novamente.");
+            inviteBtn.disabled = false;
+            inviteBtn.textContent = "Gerar convite";
+          });
+      });
       panel.querySelectorAll("[data-action]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var row = btn.closest(".signup-row");
@@ -878,7 +912,10 @@
                 '<button type="button" class="avatar-edit" id="pass-edit-btn">Trocar senha</button>' +
               "</div>"
             : (me.superadmin
-                ? '<button type="button" class="avatar-edit" data-reset-pass="' + m.order + '">Resetar senha</button>'
+                ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+                    '<button type="button" class="avatar-edit" data-reset-pass="' + m.order + '">Resetar senha</button>' +
+                    '<button type="button" class="btn-reject" data-member-delete="' + m.order + '">Excluir usuário</button>' +
+                  '</div>'
                 : "");
 
           return (
@@ -971,6 +1008,23 @@
             .catch(function () {
               window.alert("Não foi possível resetar a senha.");
               loadMembers();
+            });
+        });
+      });
+
+      grid.querySelectorAll("[data-member-delete]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var order = parseInt(btn.dataset.memberDelete, 10);
+          var member = members.filter(function (m) { return m.order === order; })[0];
+          if (!member || !window.confirm("Excluir " + member.name + "? Esta pessoa perderá o acesso imediatamente.")) return;
+          btn.disabled = true;
+          btn.textContent = "Excluindo...";
+          api("/api/admin/members/" + order, { method: "DELETE" })
+            .then(function () { loadMembers(); })
+            .catch(function () {
+              window.alert("Não foi possível excluir este usuário.");
+              btn.disabled = false;
+              btn.textContent = "Excluir usuário";
             });
         });
       });

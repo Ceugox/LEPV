@@ -21,10 +21,9 @@ const BASE = "http://127.0.0.1:" + PORT;
 const ADMIN_PASS = "teste-superadmin";
 const MEMBER_ORDER = 2; // fundador comum, usado no resto da suíte
 const MEMBER_PASS = "teste-membro";
-// O teste de reset queima a senha de quem ele usa, então usa um fundador só
-// dele — e parte da senha do seed (o número de inscrição) de propósito.
+// O teste de reset usa um fundador exclusivo. Credenciais do seed não são
+// aceitas: a diretoria gera um código temporário para o primeiro acesso.
 const RESET_ORDER = 3;
-const RESET_SEED_PASS = "3";
 
 // Todo evento agora exige local e horário no cadastro.
 const EV_LOCAL = { time: "19:00", location: "Auditório do IME" };
@@ -247,10 +246,10 @@ test("troca voluntária de senha exige a senha atual", async () => {
   await c2.post("/api/set-password", { currentPassword: "nova-senha-1", password: ADMIN_PASS });
 });
 
-test("senha do seed é o número de inscrição (estado que o reset existe para corrigir)", async () => {
+test("credencial legada do seed não autentica fundador sem código emitido", async () => {
   const c = client();
-  const r = await c.login(RESET_ORDER, RESET_SEED_PASS);
-  eq(r.status, 200, "fundador sem override entra com o número de inscrição");
+  const r = await c.login(RESET_ORDER, String(RESET_ORDER));
+  eq(r.status, 401, "número de inscrição não pode ser senha inicial");
 });
 
 test("reset pelo superadmin invalida a senha antiga e força troca no 1º login", async () => {
@@ -261,7 +260,7 @@ test("reset pelo superadmin invalida a senha antiga e força troca no 1º login"
   assert(typeof r.data.code === "string" && r.data.code.length >= 6, "deveria devolver o código novo");
 
   const m = client();
-  eq((await m.login(RESET_ORDER, RESET_SEED_PASS)).status, 401, "senha antiga deveria morrer no reset");
+  eq((await m.login(RESET_ORDER, String(RESET_ORDER))).status, 401, "credencial legada continua recusada após reset");
   const login = await m.login(RESET_ORDER, r.data.code);
   eq(login.status, 200, "login com o código novo");
   assert(login.data.mustChangePassword === true, "deveria exigir troca de senha");
@@ -286,6 +285,69 @@ test("rate limit por IP entra antes de varrer a lista de membros", async () => {
   assert(sawLimit, "deveria bloquear por IP depois de várias contas erradas");
   // libera o lock para os testes seguintes
   await new Promise((r) => setTimeout(r, 30500));
+});
+
+test("cadastro recusa senhas curtas", async () => {
+  const c = client();
+  const r = await c.post("/api/register", {
+    name: "Senha Curta",
+    course: "Computação",
+    year: "2º ano",
+    phone: "21999999999",
+    password: "1234",
+    interests: [],
+  });
+  eq(r.status, 400, "senha de quatro caracteres deve ser recusada");
+  eq(r.data.error, "invalid_password", "erro de senha esperado");
+});
+
+test("superadmin convida e exclui usuário sem deixar credencial ativa", async () => {
+  const member = client();
+  await member.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await member.post("/api/admin/invitations", { name: "Convite Indevido" })).status, 403, "membro não pode convidar");
+
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const invite = await admin.post("/api/admin/invitations", {
+    name: "Convidada de Teste",
+    course: "Computação",
+    year: "2º ano",
+    phone: "21999999999",
+    interests: ["IA"],
+  });
+  eq(invite.status, 200, "convite criado");
+  assert(invite.data.member && Number.isInteger(invite.data.member.order), "convite devolve membro criado");
+  assert(typeof invite.data.code === "string" && invite.data.code.length >= 8, "convite devolve código temporário");
+
+  const guest = client();
+  const login = await guest.login(invite.data.member.order, invite.data.code);
+  eq(login.status, 200, "convidada entra com código temporário");
+  assert(login.data.mustChangePassword === true, "convite obriga troca de senha");
+  eq((await guest.post("/api/set-password", { password: "senha-convidada" })).status, 200, "convidada define senha própria");
+
+  const removed = await admin.del("/api/admin/members/" + invite.data.member.order);
+  eq(removed.status, 200, "superadmin exclui convidada");
+  eq((await guest.get("/api/members")).status, 401, "sessão da pessoa excluída perde acesso");
+  eq((await guest.login(invite.data.member.order, "senha-convidada")).status, 401, "credencial excluída não autentica");
+  eq((await admin.del("/api/admin/members/1")).status, 400, "superadmin não pode apagar a própria conta");
+});
+
+test("landing fornece atalho de conteúdo e menu mobile operável", async () => {
+  const home = fs.readFileSync(path.join(ROOT, "public", "home.html"), "utf8");
+  assert(home.includes('class="skip-link" href="#main-content"'), "landing deveria oferecer atalho para o conteúdo principal");
+  assert(home.includes('id="main-content"'), "conteúdo principal deveria ter destino para o atalho");
+  assert(home.includes('id="mobile-menu"'), "landing deveria ter navegação móvel identificada");
+  assert(home.includes('aria-controls="mobile-menu"'), "botão do menu deveria declarar o painel controlado");
+  assert(home.includes('function setMobileMenu('), "menu mobile deveria ter controle explícito de estado");
+});
+
+test("páginas públicas têm atalho, conteúdo principal e título de nível um", async () => {
+  for (const page of ["home.html", "login.html", "inscricao.html", "presenca.html", "evento.html", "app.html"]) {
+    const html = fs.readFileSync(path.join(ROOT, "public", page), "utf8");
+    assert(html.includes('class="skip-link"'), page + " deveria ter atalho para conteúdo");
+    assert(/<main\b[^>]*id="main-content"/.test(html), page + " deveria identificar o conteúdo principal");
+    assert(/<h1\b/.test(html), page + " deveria ter um título h1");
+  }
 });
 
 // ---- Privacidade do roster ----

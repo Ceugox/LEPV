@@ -52,6 +52,10 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
   border:0;padding:0;cursor:pointer;min-width:44px;min-height:44px}
 .burger i{display:block;width:19px;height:1.5px;background:var(--ink)}
 @media(min-width:760px){ .burger{display:none} }
+.mobile-menu{display:flex;flex-direction:column;gap:2px;padding:10px var(--pad) 14px;
+  background:var(--paper);border-bottom:1px solid var(--line)}
+.mobile-menu a{display:flex;align-items:center;min-height:44px;padding:0 6px;color:var(--ink-2);text-decoration:none}
+@media(min-width:760px){ .mobile-menu{display:none!important} }
 
 /* ---------- topo: a fotografia ocupa a tela e o quadro DESCE no scroll ----
    A foto foi tomada do Morro da Urca, então descer o enquadramento é descer
@@ -220,6 +224,8 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
 </head>
 <body>
 
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+
 <nav class="top"><div class="nav-in">
   <a class="brand" href="/"><img src="/assets/logo-mark.png" alt=""><b>LEPV</b></a>
   <div class="nav-links">
@@ -228,9 +234,16 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
     <a href="/login.html">Membros</a>
   </div>
   <a href="/login.html" class="nav-cta">Entrar</a>
-  <button class="burger" aria-label="Menu" aria-expanded="false"><i></i><i></i><i></i></button>
+  <button class="burger" aria-label="Menu" aria-controls="mobile-menu" aria-expanded="false"><i></i><i></i><i></i></button>
 </div></nav>
 
+<nav class="mobile-menu" id="mobile-menu" aria-label="Navegação móvel" hidden>
+  <a href="#encontro">Próximo encontro</a>
+  <a href="#semestre">Semestre</a>
+  <a href="/login.html">Membros</a>
+</nav>
+
+<main id="main-content" tabindex="-1">
 <header class="hero" id="hero">
   <!-- Praia Vermelha tomada do Morro da Urca, domínio público (acervo
        Brascan / IMS via Wikimedia Commons). Crédito no rodapé. O
@@ -311,6 +324,8 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   </div>
 </section>
 
+</main>
+
 <footer class="site">
   <img src="/assets/logo-mark.png" alt="LEPV">
   <span>LEPV — Liga de Empreendedorismo da Praia Vermelha · Rio de Janeiro</span>
@@ -328,6 +343,21 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
 <script src="/art.js"></script>
 <script>
 (function () {
+  var burger = document.querySelector('.burger');
+  var mobileMenu = document.getElementById('mobile-menu');
+  function setMobileMenu(open) {
+    mobileMenu.hidden = !open;
+    burger.setAttribute('aria-expanded', String(open));
+  }
+  burger.addEventListener('click', function () {
+    setMobileMenu(burger.getAttribute('aria-expanded') !== 'true');
+  });
+  mobileMenu.addEventListener('click', function (event) {
+    if (event.target.closest('a')) setMobileMenu(false);
+  });
+  window.addEventListener('resize', function () {
+    if (window.matchMedia('(min-width: 760px)').matches) setMobileMenu(false);
+  });
   /* ---------------- arte e motion ---------------- */
   /* O relevo vive ao fundo do hero e se desenha conforme o scroll. Os tons
      são mais leves que na versão em palco próprio, porque agora há texto

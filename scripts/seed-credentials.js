@@ -7,17 +7,18 @@ const credsPath = path.join(__dirname, "..", "data", "credentials.json");
 
 const members = JSON.parse(fs.readFileSync(membersPath, "utf8"));
 
-// Admins têm senha própria (definida fora do seed) — um re-seed não pode
-// rebaixá-la de volta pro número de inscrição. Preserva o hash existente.
-const existing = fs.existsSync(credsPath)
-  ? new Map(JSON.parse(fs.readFileSync(credsPath, "utf8")).map((c) => [c.order, c.passwordHash]))
-  : new Map();
+const superadmins = members.filter((m) => m.superadmin === true);
+const password = String(process.env.SEED_SUPERADMIN_PASSWORD || "");
+if (!superadmins.length) throw new Error("Nenhum superadmin encontrado em members.json.");
+if (password.length < 8) {
+  throw new Error("Defina SEED_SUPERADMIN_PASSWORD com ao menos 8 caracteres antes de gerar credenciais.");
+}
 
-const credentials = members.map((m) => ({
+// Somente a conta de bootstrap recebe hash no repositório. Os demais membros
+// recebem códigos temporários emitidos pelo superadmin, no volume persistente.
+const credentials = superadmins.map((m) => ({
   order: m.order,
-  passwordHash: m.admin && existing.has(m.order)
-    ? existing.get(m.order)
-    : bcrypt.hashSync(String(m.order), 10),
+  passwordHash: bcrypt.hashSync(password, 10),
 }));
 
 fs.writeFileSync(credsPath, JSON.stringify(credentials, null, 2) + "\n", "utf8");

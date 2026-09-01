@@ -8,6 +8,7 @@ const QRCode = require("qrcode");
 
 const DATA_DIR = path.join(__dirname, "data");
 const PUBLIC_DIR = path.join(__dirname, "public");
+const MIN_PASSWORD_LENGTH = 8;
 
 // Em produção (Railway), STORAGE_DIR aponta para um volume persistente —
 // os demais arquivos em data/ são só leitura e podem ser reconstruídos a
@@ -322,7 +323,8 @@ if (!fs.existsSync(SIGNUPS_PATH)) {
 function allMembers() {
   const s = readSignups();
   const over = new Map((s.profiles || []).map((p) => [p.order, p]));
-  return seedMembers.concat(s.members).map((m) => {
+  const removed = new Set(s.removedOrders || []);
+  return seedMembers.concat(s.members).filter((m) => !removed.has(m.order)).map((m) => {
     const o = over.get(m.order);
     // order é a chave e nunca muda; o resto do override vence o base.
     return o ? Object.assign({}, m, o, { order: m.order }) : m;
@@ -355,13 +357,18 @@ function normalizeInterests(raw) {
 function findMemberAny(order) {
   return allMembers().find((m) => m.order === order);
 }
-// O volume vence o seed: trocar a senha grava um override em signups.json,
-// que sobrevive a deploys — a credencial do repo vira só o estado inicial.
+// O volume vence o seed. Credenciais de fundadores comuns nunca são lidas do
+// repositório: senhas iniciais previsíveis não podem voltar a autenticar após
+// um deploy. O hash legado do superadmin é mantido somente como caminho de
+// migração, para que a própria pessoa com acesso administrativo possa emitir
+// códigos temporários aos demais fundadores.
 function findCredential(order) {
-  return (
-    readSignups().credentials.find((c) => c.order === order) ||
-    seedCredentials.find((c) => c.order === order)
-  );
+  const persisted = readSignups().credentials.find((c) => c.order === order);
+  if (persisted) return persisted;
+  const member = seedMembers.find((m) => m.order === order);
+  return member && member.superadmin
+    ? seedCredentials.find((c) => c.order === order)
+    : null;
 }
 
 // Flags de sessão derivam sempre do cadastro atual — recalculadas no login e
@@ -912,8 +919,8 @@ app.get("/api/admin/access-log", requireSuperAdminApi, (req, res) => {
 // usar o app; qualquer membro pode usar para trocar a senha depois.
 app.post("/api/set-password", requireSessionApi, (req, res) => {
   const password = String(req.body.password || "");
-  if (password.length < 4 || password.length > 72) {
-    return res.status(400).json({ error: "invalid_password", message: "A senha precisa ter pelo menos 4 caracteres." });
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > 72) {
+    return res.status(400).json({ error: "invalid_password", message: "A senha precisa ter pelo menos " + MIN_PASSWORD_LENGTH + " caracteres." });
   }
   const order = req.session.user.order;
   // Troca voluntária exige a senha atual — uma sessão esquecida aberta não
@@ -1046,6 +1053,58 @@ app.post("/api/admin/import-members", requireSuperAdminApi, (req, res) => {
   res.json({ created, skipped });
 });
 
+// Convite individual: cria a conta já aprovada e devolve um código temporário
+// para o superadmin enviar pelo canal que preferir. O primeiro acesso exige
+// troca de senha, como no import em lote.
+app.post("/api/admin/invitations", requireSuperAdminApi, (req, res) => {
+  const name = String(req.body.name || "").trim().replace(/\s+/g, " ");
+  if (name.length < 3 || name.length > 80 || !name.includes(" ")) {
+    return res.status(400).json({ error: "invalid_name", message: "Informe nome e sobrenome." });
+  }
+  if (allMembers().some((m) => m.name.trim().toLowerCase() === name.toLowerCase())) {
+    return res.status(409).json({ error: "name_taken", message: "Já existe um membro com esse nome." });
+  }
+  const signups = readSignups();
+  const order = signups.nextOrder;
+  const code = generateCode(8);
+  signups.nextOrder += 1;
+  signups.members.push({
+    order,
+    name,
+    photo: null,
+    course: String(req.body.course || "").trim().slice(0, 80),
+    year: String(req.body.year || "").trim().slice(0, 40),
+    phone: String(req.body.phone || "").trim().slice(0, 30),
+    interests: normalizeInterests(req.body.interests),
+    joinedAt: new Date().toISOString(),
+    invitedAt: new Date().toISOString(),
+    invitedBy: req.session.user.order,
+  });
+  signups.credentials.push({ order, passwordHash: bcrypt.hashSync(code, 10), mustChangePassword: true });
+  writeSignups(signups);
+  res.json({ ok: true, member: { order, name }, code });
+});
+
+// A exclusão remove a conta e as credenciais; nos fundadores, o número vai
+// para uma lista de remoção no volume para que o dado não reapareça no deploy.
+// Históricos de eventos mantêm apenas o identificador, sem reativar o acesso.
+app.delete("/api/admin/members/:order", requireSuperAdminApi, (req, res) => {
+  const order = parseInt(req.params.order, 10);
+  const member = findMemberAny(order);
+  if (!member) return res.status(404).json({ error: "not_found" });
+  if (order === req.session.user.order || member.superadmin === true) {
+    return res.status(400).json({ error: "protected_member", message: "Não é permitido excluir uma conta superadmin." });
+  }
+  const signups = readSignups();
+  signups.members = signups.members.filter((m) => m.order !== order);
+  signups.credentials = signups.credentials.filter((c) => c.order !== order);
+  signups.profiles = (signups.profiles || []).filter((p) => p.order !== order);
+  if (!Array.isArray(signups.removedOrders)) signups.removedOrders = [];
+  if (!signups.removedOrders.includes(order)) signups.removedOrders.push(order);
+  writeSignups(signups);
+  res.json({ ok: true, order, name: member.name });
+});
+
 // ---- Cadastro de novos membros (com aprovação do super admin) ----
 
 // O pedido nasce pendente e invisível: só vira membro (e só aparece no
@@ -1086,8 +1145,8 @@ app.post("/api/register", (req, res) => {
   if (phone.replace(/\D/g, "").length < 10) {
     return res.status(400).json({ error: "invalid_phone", message: "Informe um WhatsApp com DDD." });
   }
-  if (password.length < 4 || password.length > 72) {
-    return res.status(400).json({ error: "invalid_password", message: "A senha precisa ter pelo menos 4 caracteres." });
+  if (password.length < MIN_PASSWORD_LENGTH || password.length > 72) {
+    return res.status(400).json({ error: "invalid_password", message: "A senha precisa ter pelo menos " + MIN_PASSWORD_LENGTH + " caracteres." });
   }
 
   const signups = readSignups();
