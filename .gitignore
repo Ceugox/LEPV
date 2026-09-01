@@ -1,4 +1,5 @@
 node_modules/
+.worktrees/
 # runtime local (em produção vivem no volume do Railway)
 data/questions.json
 data/learnings.json
