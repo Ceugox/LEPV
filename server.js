@@ -2831,6 +2831,187 @@ app.get("/health", (req, res) => {
   });
 });
 
+// ---- Agenda da diretoria: encontros externos (spec 2026-09-07) ----
+//
+// Não é evento da liga: sem inscrição, presença nem página pública. Objeto
+// próprio, store próprio, tudo atrás de requireDirectorApi. Reaproveitar
+// events.json faria cada rota pública virar um ponto de vazamento de encontro
+// confidencial. O kanban do cliente é o ciclo de vida abaixo (BOARD_STATUSES).
+const BOARD_MEETINGS_PATH = path.join(STORAGE_DIR, "board-meetings.json");
+const BOARD_TOKENS_PATH = path.join(STORAGE_DIR, "board-calendar-tokens.json");
+function readBoardMeetings() { return readStore(BOARD_MEETINGS_PATH); }
+function writeBoardMeetings(value) { writeStore(BOARD_MEETINGS_PATH, value); }
+function readBoardTokens() { return readStore(BOARD_TOKENS_PATH); }
+function writeBoardTokens(value) { writeStore(BOARD_TOKENS_PATH, value); }
+if (!fs.existsSync(BOARD_MEETINGS_PATH)) writeBoardMeetings({ meetings: [] });
+if (!fs.existsSync(BOARD_TOKENS_PATH)) writeBoardTokens({ tokens: [] });
+
+const BOARD_STATUSES = ["a_marcar", "marcado", "realizado", "pendencia"];
+const BOARD_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const BOARD_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function isDirectorMember(m) {
+  return m.director === true || m.superadmin === true;
+}
+function boardDirectors() {
+  return activeMembers().filter(isDirectorMember).map((m) => ({ order: m.order, name: m.name }));
+}
+
+// Valida e normaliza. `base` é o encontro atual (PATCH) ou null (POST): campo
+// ausente no corpo herda do base, e as exigências por status valem sobre o
+// resultado final, não só sobre o que veio no corpo — mover para "marcado"
+// sem data reprova mesmo que o corpo só traga o status.
+function validateBoardMeeting(body, base) {
+  const cur = base || {};
+  const errors = [];
+  const has = (k) => body[k] !== undefined;
+  const str = (k, max) => (has(k) ? String(body[k] == null ? "" : body[k]).trim().slice(0, max) : String(cur[k] || ""));
+  const out = {};
+
+  out.title = str("title", 120);
+  if (out.title.length < 3) errors.push("title");
+
+  const cp = has("counterpart")
+    ? (body.counterpart && typeof body.counterpart === "object" ? body.counterpart : {})
+    : (cur.counterpart || {});
+  out.counterpart = {
+    org: String(cp.org == null ? "" : cp.org).trim().slice(0, 80),
+    person: String(cp.person == null ? "" : cp.person).trim().slice(0, 80),
+  };
+  if (!out.counterpart.org) errors.push("counterpart.org");
+
+  out.front = str("front", 30);
+
+  out.status = has("status") ? String(body.status) : (cur.status || "a_marcar");
+  if (BOARD_STATUSES.indexOf(out.status) === -1) errors.push("status");
+
+  out.date = has("date") ? String(body.date || "") : (cur.date || "");
+  if (out.date && !BOARD_DATE_RE.test(out.date)) errors.push("date");
+  out.time = has("time") ? String(body.time || "") : (cur.time || "");
+  if (out.time && !BOARD_TIME_RE.test(out.time)) errors.push("time");
+  if (out.status !== "a_marcar") {
+    if (!out.date) errors.push("date");
+    if (!out.time) errors.push("time");
+  }
+
+  const dur = has("durationMin") ? Number(body.durationMin) : (cur.durationMin == null ? 60 : cur.durationMin);
+  if (Number.isInteger(dur) && dur >= 15 && dur <= 480) out.durationMin = dur;
+  else { out.durationMin = 60; errors.push("durationMin"); }
+
+  out.location = str("location", 160);
+  out.link = str("link", 500);
+  if (out.link && !/^https?:\/\//i.test(out.link)) errors.push("link");
+
+  // Responsáveis só entre diretores ativos. Quando o corpo não traz owners, o
+  // valor atual fica como está (um diretor rebaixado não invalida o PATCH de
+  // outro campo).
+  if (has("owners")) {
+    const allowed = new Set(boardDirectors().map((d) => d.order));
+    const raw = Array.isArray(body.owners) ? body.owners : null;
+    if (!raw) { out.owners = []; errors.push("owners"); }
+    else {
+      const uniq = Array.from(new Set(raw.map(Number)));
+      if (uniq.some((o) => !allowed.has(o))) errors.push("owners");
+      out.owners = uniq.filter((o) => allowed.has(o));
+    }
+  } else {
+    out.owners = Array.isArray(cur.owners) ? cur.owners.slice() : [];
+  }
+
+  out.agenda = str("agenda", 2000);
+  out.outcome = str("outcome", 2000);
+
+  const fu = has("followUp")
+    ? (body.followUp && typeof body.followUp === "object" ? body.followUp : {})
+    : (cur.followUp || {});
+  out.followUp = {
+    text: String(fu.text == null ? "" : fu.text).trim().slice(0, 300),
+    dueDate: String(fu.dueDate == null ? "" : fu.dueDate),
+  };
+  if (out.followUp.dueDate && !BOARD_DATE_RE.test(out.followUp.dueDate)) errors.push("followUp.dueDate");
+  if (out.status === "pendencia" && !out.followUp.text) errors.push("followUp.text");
+
+  return { value: out, errors: Array.from(new Set(errors)) };
+}
+
+// Fechar um encontro que ainda não aconteceu é quase sempre engano de data.
+// Espelha o travel_confirm dos eventos: 409 e o cliente reenvia com confirm.
+function boardNeedsFutureConfirm(value, body) {
+  return (value.status === "realizado" || value.status === "pendencia") &&
+    value.date > todayBR() && body.confirm !== true;
+}
+
+function boardRoster() {
+  return new Map(allMembers().map((m) => [m.order, m.name]));
+}
+function boardMeetingView(m, roster) {
+  const r = roster || boardRoster();
+  return Object.assign({}, m, {
+    ownersView: (m.owners || []).map((o) => ({ order: o, name: r.get(o) || "nº " + o })),
+  });
+}
+// Com data primeiro, em ordem cronológica; sem data por último, na ordem de criação.
+function boardMeetingCompare(a, b) {
+  if (a.date && b.date) return (a.date + (a.time || "")).localeCompare(b.date + (b.time || ""));
+  if (a.date) return -1;
+  if (b.date) return 1;
+  return String(a.createdAt).localeCompare(String(b.createdAt));
+}
+function boardInvalid(res, errors) {
+  return res.status(400).json({ error: "invalid_meeting", fields: errors, message: "Confira os campos: " + errors.join(", ") });
+}
+function boardFutureConfirm(res) {
+  return res.status(409).json({ error: "future_meeting", message: "A data desse encontro ainda não chegou. Confirma que ele já aconteceu?" });
+}
+
+app.get("/api/board/meetings", requireDirectorApi, (req, res) => {
+  const data = readBoardMeetings();
+  const roster = boardRoster();
+  res.json({
+    meetings: data.meetings.slice().sort(boardMeetingCompare).map((m) => boardMeetingView(m, roster)),
+    directors: boardDirectors(),
+  });
+});
+
+app.post("/api/board/meetings", requireDirectorApi, (req, res) => {
+  const body = req.body || {};
+  const { value, errors } = validateBoardMeeting(body, null);
+  if (errors.length) return boardInvalid(res, errors);
+  if (boardNeedsFutureConfirm(value, body)) return boardFutureConfirm(res);
+  const now = new Date().toISOString();
+  const meeting = Object.assign(
+    { id: "bm" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex") },
+    value,
+    { createdBy: req.session.user.order, createdAt: now, updatedAt: now }
+  );
+  const data = readBoardMeetings();
+  data.meetings.push(meeting);
+  writeBoardMeetings(data);
+  res.json({ ok: true, meeting: boardMeetingView(meeting) });
+});
+
+app.patch("/api/board/meetings/:id", requireDirectorApi, (req, res) => {
+  const body = req.body || {};
+  const data = readBoardMeetings();
+  const meeting = data.meetings.find((m) => m.id === req.params.id);
+  if (!meeting) return res.status(404).json({ error: "not_found" });
+  const { value, errors } = validateBoardMeeting(body, meeting);
+  if (errors.length) return boardInvalid(res, errors);
+  if (boardNeedsFutureConfirm(value, body)) return boardFutureConfirm(res);
+  Object.assign(meeting, value, { updatedAt: new Date().toISOString() });
+  writeBoardMeetings(data);
+  res.json({ ok: true, meeting: boardMeetingView(meeting) });
+});
+
+app.delete("/api/board/meetings/:id", requireDirectorApi, (req, res) => {
+  const data = readBoardMeetings();
+  const before = data.meetings.length;
+  data.meetings = data.meetings.filter((m) => m.id !== req.params.id);
+  if (data.meetings.length === before) return res.status(404).json({ error: "not_found" });
+  writeBoardMeetings(data);
+  res.json({ ok: true });
+});
+
 app.use(express.static(PUBLIC_DIR, { index: false }));
 
 const PORT = process.env.PORT || 4000;

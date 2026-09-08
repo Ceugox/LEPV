@@ -1185,6 +1185,162 @@ test("gravar tags exige sessão", async () => {
   eq(r.status, 401, "sem sessão deveria dar 401");
 });
 
+// ---- Agenda da diretoria (spec 2026-09-07) ----
+// Encontros externos: objeto próprio, store próprio, só diretor. O e2e cobre
+// papel, validação por status, confirmação de data futura e o feed .ics.
+test("membro comum não acessa a agenda da diretoria", async () => {
+  const c = client();
+  await c.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await c.get("/api/board/meetings")).status, 403, "GET lista");
+  eq((await c.post("/api/board/meetings", { title: "X" })).status, 403, "POST");
+  eq((await c.patch("/api/board/meetings/nada", {})).status, 403, "PATCH");
+  eq((await c.del("/api/board/meetings/nada")).status, 403, "DELETE");
+  eq((await client().get("/api/board/meetings")).status, 401, "anônimo");
+});
+
+test("diretor cria, lista, edita, move e apaga um encontro", async () => {
+  const c = client();
+  await c.login(1, ADMIN_PASS);
+  const r = await c.post("/api/board/meetings", {
+    title: "Acordo comercial do Hackathon",
+    counterpart: { org: "OpenAI", person: "Ana" },
+    front: "Hackathon",
+    owners: [1, 3],
+    agenda: "Discutir patrocínio",
+  });
+  eq(r.status, 200, "criar: " + JSON.stringify(r.data));
+  eq(r.data.meeting.status, "a_marcar", "nasce a marcar");
+  eq(r.data.meeting.durationMin, 60, "duração padrão");
+  eq(r.data.meeting.ownersView.length, 2, "responsáveis resolvidos");
+  eq(r.data.meeting.createdBy, 1, "autor");
+  const id = r.data.meeting.id;
+
+  const lista = await c.get("/api/board/meetings");
+  eq(lista.status, 200);
+  eq(lista.data.meetings.filter((m) => m.id === id).length, 1, "aparece na lista");
+  assert(Array.isArray(lista.data.directors) && lista.data.directors.some((d) => d.order === 3), "lista de diretores");
+  assert(!lista.data.directors.some((d) => d.order === MEMBER_ORDER), "membro comum não é diretor");
+
+  const mv = await c.patch("/api/board/meetings/" + id, { status: "marcado", date: "2030-01-15", time: "14:00" });
+  eq(mv.status, 200, "marcar: " + JSON.stringify(mv.data));
+  eq(mv.data.meeting.status, "marcado");
+  eq(mv.data.meeting.title, "Acordo comercial do Hackathon", "PATCH parcial preserva título");
+  eq(mv.data.meeting.owners.length, 2, "PATCH parcial preserva responsáveis");
+
+  const ed = await c.patch("/api/board/meetings/" + id, { link: "https://meet.google.com/abc", location: "Online (Google Meet)" });
+  eq(ed.status, 200);
+  eq(ed.data.meeting.link, "https://meet.google.com/abc");
+
+  eq((await c.patch("/api/board/meetings/inexistente", { title: "Novo" })).status, 404, "PATCH inexistente");
+  eq((await c.del("/api/board/meetings/" + id)).status, 200, "apagar");
+  eq((await c.del("/api/board/meetings/" + id)).status, 404, "apagar de novo");
+});
+
+test("validação do encontro: campos exigidos por status, link e responsáveis", async () => {
+  const c = client();
+  await c.login(1, ADMIN_PASS);
+  const semTitulo = await c.post("/api/board/meetings", { counterpart: { org: "X" } });
+  eq(semTitulo.status, 400);
+  eq(semTitulo.data.error, "invalid_meeting");
+  assert(semTitulo.data.fields.includes("title"), "aponta title");
+
+  const semOrg = await c.post("/api/board/meetings", { title: "Reunião" });
+  eq(semOrg.status, 400);
+  assert(semOrg.data.fields.includes("counterpart.org"), "aponta counterpart.org");
+
+  const marcadoSemData = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, status: "marcado" });
+  eq(marcadoSemData.status, 400);
+  assert(marcadoSemData.data.fields.includes("date") && marcadoSemData.data.fields.includes("time"), "aponta date e time");
+
+  const horaRuim = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, status: "marcado", date: "2030-01-01", time: "25:00" });
+  eq(horaRuim.status, 400);
+  assert(horaRuim.data.fields.includes("time"), "aponta time inválido");
+
+  const linkRuim = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, link: "meet.google.com/x" });
+  eq(linkRuim.status, 400);
+  assert(linkRuim.data.fields.includes("link"), "aponta link");
+
+  const naoDiretor = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, owners: [MEMBER_ORDER] });
+  eq(naoDiretor.status, 400);
+  assert(naoDiretor.data.fields.includes("owners"), "aponta owners");
+
+  const duracao = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, durationMin: 5 });
+  eq(duracao.status, 400);
+  assert(duracao.data.fields.includes("durationMin"), "aponta durationMin");
+
+  const pendSemTexto = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, status: "pendencia", date: "2020-01-01", time: "10:00" });
+  eq(pendSemTexto.status, 400);
+  assert(pendSemTexto.data.fields.includes("followUp.text"), "aponta followUp.text");
+});
+
+test("realizado com data futura pede confirmação", async () => {
+  const c = client();
+  await c.login(1, ADMIN_PASS);
+  const r = await c.post("/api/board/meetings", { title: "Conselho", counterpart: { org: "Lameiras" }, status: "realizado", date: "2030-05-05", time: "09:00" });
+  eq(r.status, 409, "sem confirm");
+  eq(r.data.error, "future_meeting");
+  const ok = await c.post("/api/board/meetings", { title: "Conselho", counterpart: { org: "Lameiras" }, status: "realizado", date: "2030-05-05", time: "09:00", confirm: true });
+  eq(ok.status, 200, "com confirm");
+  // passado não pede confirmação
+  const passado = await c.patch("/api/board/meetings/" + ok.data.meeting.id, { date: "2020-05-05" });
+  eq(passado.status, 200, "data passada sem confirm");
+  await c.del("/api/board/meetings/" + ok.data.meeting.id);
+});
+
+test("feed .ics por token: conteúdo, fuso, sigilo e rotação", async () => {
+  const c = client();
+  await c.login(1, ADMIN_PASS);
+  const criado = await c.post("/api/board/meetings", {
+    title: "Meet de aconselhamento",
+    counterpart: { org: "Lameiras", person: "Prof. Lameiras" },
+    status: "marcado", date: "2030-03-10", time: "14:00", durationMin: 45,
+    location: "Online (Google Meet)", link: "https://meet.google.com/xyz",
+    agenda: "PAUTA CONFIDENCIAL", owners: [1],
+  });
+  eq(criado.status, 200, "criar: " + JSON.stringify(criado.data));
+  const semData = await c.post("/api/board/meetings", { title: "Ainda sem data", counterpart: { org: "Alguém" } });
+  eq(semData.status, 200);
+
+  const tk = await c.get("/api/board/calendar-token");
+  eq(tk.status, 200, "token");
+  assert(/^[0-9a-f]{64}$/.test(tk.data.token), "token hex de 64");
+  assert(tk.data.webcal.startsWith("webcal://") && tk.data.webcal.endsWith("/api/board/calendar/" + tk.data.token + ".ics"), "url webcal: " + tk.data.webcal);
+  const denovo = await c.get("/api/board/calendar-token");
+  eq(denovo.data.token, tk.data.token, "GET repetido devolve o mesmo token");
+
+  const feed = await client().get("/api/board/calendar/" + tk.data.token + ".ics");
+  eq(feed.status, 200, "feed sem sessão");
+  assert((feed.headers.get("content-type") || "").startsWith("text/calendar"), "content-type");
+  assert(feed.data.startsWith("BEGIN:VCALENDAR"), "vcalendar");
+  assert(feed.data.includes("DTSTART:20300310T170000Z"), "14:00 BRT = 17:00Z");
+  assert(feed.data.includes("DTEND:20300310T174500Z"), "45 min");
+  assert(feed.data.includes("SUMMARY:Meet de aconselhamento · Lameiras"), "summary");
+  assert(!feed.data.includes("PAUTA CONFIDENCIAL"), "pauta vazou");
+  assert(!feed.data.includes("Ainda sem data"), "encontro sem data não entra no feed");
+  eq((feed.data.match(/BEGIN:VEVENT/g) || []).length, 1, "um VEVENT");
+
+  const avulso = await c.get("/api/board/meetings/" + criado.data.meeting.id + ".ics");
+  eq(avulso.status, 200, "ics avulso");
+  assert(avulso.data.includes("UID:" + criado.data.meeting.id + "@lepv.org"), "uid do avulso");
+  eq((await client().get("/api/board/meetings/" + criado.data.meeting.id + ".ics")).status, 401, "avulso exige sessão");
+  eq((await c.get("/api/board/meetings/" + semData.data.meeting.id + ".ics")).status, 400, "sem data não vira .ics");
+
+  const rot = await c.post("/api/board/calendar-token/rotate");
+  eq(rot.status, 200);
+  assert(rot.data.token !== tk.data.token, "token novo");
+  eq((await client().get("/api/board/calendar/" + tk.data.token + ".ics")).status, 404, "token antigo morreu");
+  eq((await client().get("/api/board/calendar/" + rot.data.token + ".ics")).status, 200, "token novo vive");
+  eq((await client().get("/api/board/calendar/" + "f".repeat(64) + ".ics")).status, 404, "token inexistente");
+  eq((await client().get("/api/board/calendar/abc.ics")).status, 404, "token malformado");
+
+  const m = client();
+  await m.login(MEMBER_ORDER, MEMBER_PASS);
+  eq((await m.get("/api/board/calendar-token")).status, 403, "membro não tem token");
+
+  await c.del("/api/board/meetings/" + criado.data.meeting.id);
+  await c.del("/api/board/meetings/" + semData.data.meeting.id);
+});
+
 async function main() {
   setupVolume();
   await startServer();
