@@ -76,7 +76,9 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
   check(r.overflowX === 0, 'sem overflow horizontal', r.overflowX);
 
   // menu de mover abre no cartão, com as outras três colunas
-  await click(p, '.board-card [data-act="move"]');
+  // Ancorado na coluna Marcado (onde vive o fixture): o primeiro cartão do
+  // quadro pode ser de outra coluna quando o volume já tem encontros.
+  await click(p, '.board-col[data-status="marcado"] .board-card [data-act="move"]');
   const moveTargets = await p.evaluate(() => [...document.querySelectorAll('.board-menu [data-move]')].map(b => b.dataset.move));
   check(moveTargets.length === 3 && !moveTargets.includes('marcado'), 'menu Mover oferece as outras três colunas', moveTargets.join(','));
 
