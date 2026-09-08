@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
+const ical = require("./lib/ical.js");
 const QRCode = require("qrcode");
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -650,7 +651,7 @@ function pruneRateLimits() {
   for (const [key, rec] of loginAttempts) {
     if ((rec.seenAt || 0) < cutoff && !isLockedOut(key)) loginAttempts.delete(key);
   }
-  for (const map of [registerAttempts, publicFormAttempts]) {
+  for (const map of [registerAttempts, publicFormAttempts, boardFeedAttempts]) {
     for (const [key, rec] of map) {
       if (rec.resetAt < Date.now()) map.delete(key);
     }
@@ -3010,6 +3011,89 @@ app.delete("/api/board/meetings/:id", requireDirectorApi, (req, res) => {
   if (data.meetings.length === before) return res.status(404).json({ error: "not_found" });
   writeBoardMeetings(data);
   res.json({ ok: true });
+});
+
+// Token do feed: capacidade privada por diretor. O calendário assina a URL
+// sem cookie, então a URL É a credencial: 32 bytes aleatórios, comparação em
+// tempo constante, rotação mata a anterior, e um diretor rebaixado perde o
+// feed na próxima busca porque o dono é conferido de novo a cada request.
+function boardTokenFor(order) {
+  const data = readBoardTokens();
+  let rec = data.tokens.find((t) => t.order === order);
+  if (!rec) {
+    rec = { order, token: crypto.randomBytes(32).toString("hex"), createdAt: new Date().toISOString() };
+    data.tokens.push(rec);
+    writeBoardTokens(data);
+  }
+  return rec;
+}
+function boardTokenPayload(req, rec) {
+  const pathPart = "/api/board/calendar/" + rec.token + ".ics";
+  const host = req.get("host");
+  return { token: rec.token, https: req.protocol + "://" + host + pathPart, webcal: "webcal://" + host + pathPart };
+}
+function findBoardToken(token) {
+  if (!/^[0-9a-f]{64}$/.test(token)) return null;
+  const given = Buffer.from(token, "hex");
+  const rec = readBoardTokens().tokens.find((t) => {
+    const b = Buffer.from(t.token, "hex");
+    return b.length === given.length && crypto.timingSafeEqual(b, given);
+  });
+  if (!rec) return null;
+  const owner = findMember(rec.order);
+  return owner && isDirectorMember(owner) ? rec : null;
+}
+// Calendários consultam o feed a cada poucas horas; 120/h por IP é folga para
+// vários diretores atrás do mesmo NAT e ainda barra varredura de token.
+const boardFeedAttempts = new Map();
+function boardFeedRateLimited(ip) {
+  const now = Date.now();
+  const rec = boardFeedAttempts.get(ip);
+  if (!rec || rec.resetAt < now) {
+    boardFeedAttempts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return false;
+  }
+  rec.count += 1;
+  return rec.count > 120;
+}
+function boardFeedMeetings(data) {
+  return data.meetings.filter((m) => m.status !== "a_marcar" && m.date && m.time).sort(boardMeetingCompare);
+}
+function boardOwnerNames(roster) {
+  return (m) => (m.owners || []).map((o) => roster.get(o)).filter(Boolean);
+}
+function sendIcs(res, filename, body) {
+  res.set("Content-Type", "text/calendar; charset=utf-8");
+  res.set("Content-Disposition", 'inline; filename="' + filename + '"');
+  res.set("Cache-Control", "no-store");
+  res.send(body);
+}
+
+app.get("/api/board/calendar-token", requireDirectorApi, (req, res) => {
+  res.json(boardTokenPayload(req, boardTokenFor(req.session.user.order)));
+});
+app.post("/api/board/calendar-token/rotate", requireDirectorApi, (req, res) => {
+  const data = readBoardTokens();
+  data.tokens = data.tokens.filter((t) => t.order !== req.session.user.order);
+  const rec = { order: req.session.user.order, token: crypto.randomBytes(32).toString("hex"), createdAt: new Date().toISOString() };
+  data.tokens.push(rec);
+  writeBoardTokens(data);
+  res.json(boardTokenPayload(req, rec));
+});
+// Sem sessão de propósito: é o que Google/Apple/Outlook buscam. 404 idêntico
+// para token malformado e inexistente.
+app.get("/api/board/calendar/:token.ics", (req, res) => {
+  if (boardFeedRateLimited(req.ip)) return res.status(429).end();
+  const rec = findBoardToken(String(req.params.token || ""));
+  if (!rec) return res.status(404).end();
+  const data = readBoardMeetings();
+  sendIcs(res, "lepv-diretoria.ics", ical.calendar(boardFeedMeetings(data), { ownerNames: boardOwnerNames(boardRoster()) }));
+});
+app.get("/api/board/meetings/:id.ics", requireDirectorApi, (req, res) => {
+  const meeting = readBoardMeetings().meetings.find((m) => m.id === req.params.id);
+  if (!meeting) return res.status(404).json({ error: "not_found" });
+  if (!meeting.date || !meeting.time) return res.status(400).json({ error: "no_date", message: "Encontro sem data não vira arquivo de calendário." });
+  sendIcs(res, "lepv-" + meeting.id + ".ics", ical.singleEvent(meeting, { ownerNames: boardOwnerNames(boardRoster()) }));
 });
 
 app.use(express.static(PUBLIC_DIR, { index: false }));
