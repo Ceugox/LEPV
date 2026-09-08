@@ -28,6 +28,10 @@ for (const l of dobrada.split("\r\n")) assert.ok(Buffer.byteLength(l, "utf8") <=
 assert.ok(dobrada.split("\r\n")[1].startsWith(" "), "continuação sem espaço");
 assert.equal(dobrada.replace(/\r\n /g, ""), longa, "dobra perdeu conteúdo");
 
+// CR solto também vira \n literal; URI não pode carregar quebra de linha (injeção de propriedade)
+assert.equal(ical.icsEscape("a\rb"), "a\\nb");
+assert.equal(ical.icsUri("https://a.com/x\r\nDESCRIPTION:injetado"), "https://a.com/xDESCRIPTION:injetado");
+
 // 14:00 de Brasília é 17:00Z (offset fixo -03:00)
 assert.equal(ical.utcStamp(ical.brToDate("2026-09-15", "14:00")), "20260915T170000Z");
 

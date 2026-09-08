@@ -2848,8 +2848,22 @@ if (!fs.existsSync(BOARD_MEETINGS_PATH)) writeBoardMeetings({ meetings: [] });
 if (!fs.existsSync(BOARD_TOKENS_PATH)) writeBoardTokens({ tokens: [] });
 
 const BOARD_STATUSES = ["a_marcar", "marcado", "realizado", "pendencia"];
-const BOARD_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const BOARD_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+// Regex não basta: "2026-02-30" passa no formato e vira Invalid Date no
+// gerador iCalendar, que derrubaria o feed de todos os assinantes com 500.
+function isValidISODate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(s + "T00:00:00Z");
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+// Campo de uma linha: quebra de linha e controle viram espaço. Sem isso, um
+// CR/LF dentro de título ou link viraria linha nova dentro do arquivo .ics.
+function oneLine(s) {
+  return s.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+function multiLine(s) {
+  return s.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b-\u001f\u007f]+/g, "").trim();
+}
 
 function isDirectorMember(m) {
   return m.director === true || m.superadmin === true;
@@ -2866,7 +2880,11 @@ function validateBoardMeeting(body, base) {
   const cur = base || {};
   const errors = [];
   const has = (k) => body[k] !== undefined;
-  const str = (k, max) => (has(k) ? String(body[k] == null ? "" : body[k]).trim().slice(0, max) : String(cur[k] || ""));
+  const str = (k, max, multi) => {
+    if (!has(k)) return String(cur[k] || "");
+    const raw = String(body[k] == null ? "" : body[k]);
+    return (multi ? multiLine(raw) : oneLine(raw)).slice(0, max);
+  };
   const out = {};
 
   out.title = str("title", 120);
@@ -2876,8 +2894,8 @@ function validateBoardMeeting(body, base) {
     ? (body.counterpart && typeof body.counterpart === "object" ? body.counterpart : {})
     : (cur.counterpart || {});
   out.counterpart = {
-    org: String(cp.org == null ? "" : cp.org).trim().slice(0, 80),
-    person: String(cp.person == null ? "" : cp.person).trim().slice(0, 80),
+    org: oneLine(String(cp.org == null ? "" : cp.org)).slice(0, 80),
+    person: oneLine(String(cp.person == null ? "" : cp.person)).slice(0, 80),
   };
   if (!out.counterpart.org) errors.push("counterpart.org");
 
@@ -2887,7 +2905,7 @@ function validateBoardMeeting(body, base) {
   if (BOARD_STATUSES.indexOf(out.status) === -1) errors.push("status");
 
   out.date = has("date") ? String(body.date || "") : (cur.date || "");
-  if (out.date && !BOARD_DATE_RE.test(out.date)) errors.push("date");
+  if (out.date && !isValidISODate(out.date)) errors.push("date");
   out.time = has("time") ? String(body.time || "") : (cur.time || "");
   if (out.time && !BOARD_TIME_RE.test(out.time)) errors.push("time");
   if (out.status !== "a_marcar") {
@@ -2901,7 +2919,8 @@ function validateBoardMeeting(body, base) {
 
   out.location = str("location", 160);
   out.link = str("link", 500);
-  if (out.link && !/^https?:\/\//i.test(out.link)) errors.push("link");
+  // URL não tem espaço: o que sobrou de um CR/LF sanitizado também reprova.
+  if (out.link && (!/^https?:\/\//i.test(out.link) || /\s/.test(out.link))) errors.push("link");
 
   // Responsáveis só entre diretores ativos. Quando o corpo não traz owners, o
   // valor atual fica como está (um diretor rebaixado não invalida o PATCH de
@@ -2919,17 +2938,17 @@ function validateBoardMeeting(body, base) {
     out.owners = Array.isArray(cur.owners) ? cur.owners.slice() : [];
   }
 
-  out.agenda = str("agenda", 2000);
-  out.outcome = str("outcome", 2000);
+  out.agenda = str("agenda", 2000, true);
+  out.outcome = str("outcome", 2000, true);
 
   const fu = has("followUp")
     ? (body.followUp && typeof body.followUp === "object" ? body.followUp : {})
     : (cur.followUp || {});
   out.followUp = {
-    text: String(fu.text == null ? "" : fu.text).trim().slice(0, 300),
+    text: oneLine(String(fu.text == null ? "" : fu.text)).slice(0, 300),
     dueDate: String(fu.dueDate == null ? "" : fu.dueDate),
   };
-  if (out.followUp.dueDate && !BOARD_DATE_RE.test(out.followUp.dueDate)) errors.push("followUp.dueDate");
+  if (out.followUp.dueDate && !isValidISODate(out.followUp.dueDate)) errors.push("followUp.dueDate");
   if (out.status === "pendencia" && !out.followUp.text) errors.push("followUp.text");
 
   return { value: out, errors: Array.from(new Set(errors)) };
@@ -2937,9 +2956,14 @@ function validateBoardMeeting(body, base) {
 
 // Fechar um encontro que ainda não aconteceu é quase sempre engano de data.
 // Espelha o travel_confirm dos eventos: 409 e o cliente reenvia com confirm.
-function boardNeedsFutureConfirm(value, body) {
-  return (value.status === "realizado" || value.status === "pendencia") &&
-    value.date > todayBR() && body.confirm !== true;
+// Só na ENTRADA no status (ou troca de data já dentro dele): editar o
+// resultado de um encontro já confirmado não pede confirmação de novo.
+function boardNeedsFutureConfirm(value, body, base) {
+  if (value.status !== "realizado" && value.status !== "pendencia") return false;
+  if (!(value.date > todayBR()) || body.confirm === true) return false;
+  const jaFechado = base && (base.status === "realizado" || base.status === "pendencia");
+  const trocouData = body.date !== undefined && base && body.date !== base.date;
+  return !jaFechado || trocouData;
 }
 
 function boardRoster() {
@@ -2978,7 +3002,7 @@ app.post("/api/board/meetings", requireDirectorApi, (req, res) => {
   const body = req.body || {};
   const { value, errors } = validateBoardMeeting(body, null);
   if (errors.length) return boardInvalid(res, errors);
-  if (boardNeedsFutureConfirm(value, body)) return boardFutureConfirm(res);
+  if (boardNeedsFutureConfirm(value, body, null)) return boardFutureConfirm(res);
   const now = new Date().toISOString();
   const meeting = Object.assign(
     { id: "bm" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex") },
@@ -2998,7 +3022,7 @@ app.patch("/api/board/meetings/:id", requireDirectorApi, (req, res) => {
   if (!meeting) return res.status(404).json({ error: "not_found" });
   const { value, errors } = validateBoardMeeting(body, meeting);
   if (errors.length) return boardInvalid(res, errors);
-  if (boardNeedsFutureConfirm(value, body)) return boardFutureConfirm(res);
+  if (boardNeedsFutureConfirm(value, body, meeting)) return boardFutureConfirm(res);
   Object.assign(meeting, value, { updatedAt: new Date().toISOString() });
   writeBoardMeetings(data);
   res.json({ ok: true, meeting: boardMeetingView(meeting) });
@@ -3056,8 +3080,12 @@ function boardFeedRateLimited(ip) {
   rec.count += 1;
   return rec.count > 120;
 }
+// Encontro cuja data o gerador não converte fica fora, em vez de derrubar o
+// feed de todos os assinantes com 500 (dado legado ou gravado fora da API).
 function boardFeedMeetings(data) {
-  return data.meetings.filter((m) => m.status !== "a_marcar" && m.date && m.time).sort(boardMeetingCompare);
+  return data.meetings
+    .filter((m) => m.status !== "a_marcar" && m.date && m.time && !Number.isNaN(ical.brToDate(m.date, m.time).getTime()))
+    .sort(boardMeetingCompare);
 }
 function boardOwnerNames(roster) {
   return (m) => (m.owners || []).map((o) => roster.get(o)).filter(Boolean);

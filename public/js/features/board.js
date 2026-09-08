@@ -69,6 +69,8 @@ function utcStamp(iso, time, plusMin) {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 function googleCalendarUrl(m) {
+  const start = new Date(m.date + "T" + m.time + ":00-03:00");
+  if (Number.isNaN(start.getTime())) return "";
   const q = new URLSearchParams({
     action: "TEMPLATE",
     text: m.title + " · " + m.counterpart.org,
@@ -147,7 +149,7 @@ function menuHtml(m, menu) {
   }
   return (
     '<div class="board-menu" role="group" aria-label="Adicionar ao calendário">' +
-      '<a href="' + escapeAttr(googleCalendarUrl(m)) + '" target="_blank" rel="noopener">Google Calendar</a>' +
+      (googleCalendarUrl(m) ? '<a href="' + escapeAttr(googleCalendarUrl(m)) + '" target="_blank" rel="noopener">Google Calendar</a>' : "") +
       '<a href="/api/board/meetings/' + escapeAttr(encodeURIComponent(m.id)) + '.ics" download>Baixar .ics</a>' +
     "</div>"
   );

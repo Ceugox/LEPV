@@ -1273,6 +1273,29 @@ test("validação do encontro: campos exigidos por status, link e responsáveis"
   assert(pendSemTexto.data.fields.includes("followUp.text"), "aponta followUp.text");
 });
 
+test("sanitização: CR/LF, data inexistente e injeção no feed", async () => {
+  const c = client();
+  await c.login(1, ADMIN_PASS);
+  const injecao = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, link: "https://a.com/x\r\nDESCRIPTION:injetado" });
+  eq(injecao.status, 400, "link com CR/LF");
+  assert(injecao.data.fields.includes("link"), "aponta link");
+
+  const data30 = await c.post("/api/board/meetings", { title: "Reunião", counterpart: { org: "X" }, status: "marcado", date: "2026-02-30", time: "10:00" });
+  eq(data30.status, 400, "30 de fevereiro");
+  assert(data30.data.fields.includes("date"), "aponta date");
+
+  const crlf = await c.post("/api/board/meetings", { title: "Linha um\r\nATTENDEE:mailto:x@y", counterpart: { org: "Org\nquebrada" }, status: "marcado", date: "2030-01-10", time: "09:00", agenda: "linha 1\r\nlinha 2" });
+  eq(crlf.status, 200, "título com CR/LF é aceito saneado: " + JSON.stringify(crlf.data));
+  eq(crlf.data.meeting.title, "Linha um ATTENDEE:mailto:x@y", "título numa linha só");
+  eq(crlf.data.meeting.counterpart.org, "Org quebrada", "org numa linha só");
+  eq(crlf.data.meeting.agenda, "linha 1\nlinha 2", "pauta mantém quebra, sem CR");
+  const tk = await c.get("/api/board/calendar-token");
+  const feed = await client().get("/api/board/calendar/" + tk.data.token + ".ics");
+  eq(feed.status, 200);
+  assert(!/^ATTENDEE:/m.test(feed.data), "nenhuma propriedade injetada no feed");
+  await c.del("/api/board/meetings/" + crlf.data.meeting.id);
+});
+
 test("realizado com data futura pede confirmação", async () => {
   const c = client();
   await c.login(1, ADMIN_PASS);
@@ -1281,6 +1304,12 @@ test("realizado com data futura pede confirmação", async () => {
   eq(r.data.error, "future_meeting");
   const ok = await c.post("/api/board/meetings", { title: "Conselho", counterpart: { org: "Lameiras" }, status: "realizado", date: "2030-05-05", time: "09:00", confirm: true });
   eq(ok.status, 200, "com confirm");
+  // já confirmado: editar outro campo não pede confirmação de novo
+  const soResultado = await c.patch("/api/board/meetings/" + ok.data.meeting.id, { outcome: "Foi ótimo" });
+  eq(soResultado.status, 200, "editar resultado de realizado futuro sem confirm: " + JSON.stringify(soResultado.data));
+  // trocar a data para outra futura pede de novo
+  const outraData = await c.patch("/api/board/meetings/" + ok.data.meeting.id, { date: "2030-06-06" });
+  eq(outraData.status, 409, "troca de data futura pede confirm");
   // passado não pede confirmação
   const passado = await c.patch("/api/board/meetings/" + ok.data.meeting.id, { date: "2020-05-05" });
   eq(passado.status, 200, "data passada sem confirm");

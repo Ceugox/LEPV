@@ -48,9 +48,9 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
     const r = await fetch('/api/board/meetings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Encontro de verificação', counterpart: { org: 'Fixture & Co.', person: 'Alguém' }, front: 'CI',
         status: 'marcado', date: new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10), time: '14:00', owners: [1] }) });
-    return r.status;
+    return { status: r.status, id: r.ok ? (await r.json()).meeting.id : null };
   });
-  check(fixture === 200, 'encontro de fixture criado', fixture);
+  check(fixture.status === 200, 'encontro de fixture criado', fixture.status);
 
   await p.goto(BASE + '/app.html', { waitUntil: 'load' });
   await p.waitForSelector('#tab-diretoria', { timeout: 5000 }).catch(() => {});
@@ -103,6 +103,11 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
   check(await p.$('#bm-form') === null, 'modal fecha em Cancelar');
 
   check(errs.length === 0, 'sem erro de console/JS', errs.slice(0, 3).join(' | '));
+  // apaga o fixture: rodar o verify não pode acumular encontro no volume
+  if (fixture.id) {
+    const del = await p.evaluate(async (id) => (await fetch('/api/board/meetings/' + id, { method: 'DELETE' })).status, fixture.id);
+    check(del === 200, 'fixture apagado', del);
+  }
   await ctx.close();
 
   // ---- membro comum ----
@@ -117,7 +122,8 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
     const forbidden = await p2.evaluate(async () => (await fetch('/api/board/meetings')).status);
     check(forbidden === 403, 'membro comum recebe 403 na API', forbidden);
   } else {
-    console.log('  (membro order 2 não logou: ' + l2 + ', pulando checagem de membro)');
+    // Sem o membro comum não dá para provar o critério "membro não vê a aba".
+    check(false, 'membro comum (order 2) loga no volume de fixture', l2);
   }
   await b.close();
   console.log(bad ? `\n${bad} falha(s)` : '\nverify-board OK');
