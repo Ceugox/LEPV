@@ -2,7 +2,7 @@
 // Nasceu pra agenda/trajetos sobreviverem ao sinal ruim do metrô; hoje serve
 // pro acervo continuar legível offline usando a última resposta vista.
 // Nada de cache-first — deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v9"; // v9: eventos unificados (aviso → inscrição → presença no dia)
+var CACHE = "lepv-sp-v10"; // v10: aba Diretoria como módulo ES (/js/features/board.js)
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();

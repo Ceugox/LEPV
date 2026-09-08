@@ -18,8 +18,9 @@
        $GITHUB_ENV. As datas são calculadas a partir de hoje: data fixa no
        fixture vira CI vermelho no dia em que o evento "passa".
 
-   A senha do admin vem de LEPV_CI_ADMIN_PASS. Os demais logins do verify
-   (order 2) continuam caindo na credencial do seed, como em produção.
+   A senha do admin vem de LEPV_CI_ADMIN_PASS. O membro comum dos verificadores
+   (order 2, senha "2") também ganha credencial no volume: o servidor não lê
+   credencial de fundador comum do seed.
 */
 const fs = require("fs");
 const path = require("path");
@@ -28,6 +29,8 @@ const bcrypt = require("bcryptjs");
 const ROOT = path.join(__dirname, "..");
 const ADMIN_ORDER = 1;
 const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || "ci-admin";
+const MEMBER_ORDER = 2;
+const MEMBER_PASS = "2";
 
 function prepare(dir) {
   if (!dir) throw new Error("uso: ci-fixtures.js prepare <dir>");
@@ -41,7 +44,14 @@ function prepare(dir) {
         pending: [],
         members: [],
         profiles: [],
-        credentials: [{ order: ADMIN_ORDER, passwordHash: bcrypt.hashSync(ADMIN_PASS, 10) }],
+        credentials: [
+          { order: ADMIN_ORDER, passwordHash: bcrypt.hashSync(ADMIN_PASS, 10) },
+          // Membro comum dos verificadores de browser (verify-app/tabs/tags/board
+          // logam como order 2 com senha "2"). Desde 01/09/2026 o servidor não
+          // lê mais credencial de fundador comum do seed, então sem esta linha
+          // o CI ficava vermelho no login.
+          { order: MEMBER_ORDER, passwordHash: bcrypt.hashSync(MEMBER_PASS, 10) },
+        ],
       },
       null,
       2

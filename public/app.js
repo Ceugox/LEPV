@@ -136,6 +136,25 @@
   }
   setInterval(sendPing, 60000);
 
+  // A aba Diretoria (agenda de encontros externos) só existe para diretor. O
+  // painel é um módulo ES (/js/features/board.js): o monólito só põe o botão
+  // no nav e avisa o módulo quando a aba ativa — nada de global em window.
+  meReady.then(function (me) {
+    if (!(me.director || me.superadmin) || document.getElementById("tab-diretoria")) return;
+    var btn = document.createElement("button");
+    btn.dataset.tab = "diretoria";
+    btn.dataset.group = "liga";
+    btn.id = "tab-diretoria";
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-controls", "panel-diretoria");
+    btn.setAttribute("aria-selected", "false");
+    btn.setAttribute("tabindex", "-1");
+    btn.textContent = "Diretoria";
+    var membros = document.getElementById("tab-membros");
+    membros.parentNode.insertBefore(btn, membros.nextSibling);
+    btn.addEventListener("click", function () { activateTab("diretoria"); });
+  });
+
   // A aba Acessos só existe para o super admin — nem chega ao DOM dos demais
   // (e o servidor exige o papel de novo na rota, o botão é só a porta).
   meReady.then(function (me) {
@@ -149,8 +168,9 @@
     btn.setAttribute("aria-selected", "false");
     btn.setAttribute("tabindex", "-1");
     btn.textContent = "Acessos";
-    var membros = document.getElementById("tab-membros");
-    membros.parentNode.insertBefore(btn, membros.nextSibling);
+    // Depois de Diretoria quando ela existir: Membros → Diretoria → Acessos.
+    var anchor = document.getElementById("tab-diretoria") || document.getElementById("tab-membros");
+    anchor.parentNode.insertBefore(btn, anchor.nextSibling);
     btn.addEventListener("click", function () { activateTab("acessos"); });
   });
 
@@ -3377,6 +3397,8 @@
     membros: loadMembers,
     eventos: loadEvents,
     acessos: loadAccess,
+    // O painel da diretoria é módulo ES; o loader só avisa que a aba ativou.
+    diretoria: function () { document.dispatchEvent(new CustomEvent("lepv:board:load")); },
     legado: loadLegacy,
     resumo: loadMission,
     agenda: loadAgenda,

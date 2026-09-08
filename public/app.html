@@ -1167,6 +1167,74 @@
     background: var(--good); margin-right: 7px; vertical-align: middle;
   }
 
+
+  /* ---- Diretoria: agenda de encontros (quadro + calendário). Módulo em
+     /js/features/board.js; tudo por token, sem cor solta. ---- */
+  .board-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+  .board-toolbar .spacer { flex: 1; }
+  .board-toolbar button, .board-actions button, .board-menu button, .board-subscribe button, .board-month-nav button {
+    min-height: 44px; padding: 0 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line-2); border-radius: 3px; background: var(--card); color: var(--ink);
+  }
+  .board-toolbar button.primary { background: var(--ink); color: var(--card); border-color: var(--ink); }
+  .board-view { display: inline-flex; border: 1px solid var(--line-2); border-radius: 3px; overflow: hidden; }
+  .board-view button { border: 0; border-radius: 0; }
+  .board-view button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+  .board-hint { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
+  .board-hint.warn { color: var(--pending); }
+  .board-columns { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 700px) { .board-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; } }
+  .board-col { border-top: 2px solid var(--ink); padding-top: 10px; min-width: 0; }
+  .board-col header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .board-col h3 { font-size: 12px; line-height: 1.2; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); margin: 0; }
+  .board-count { font-size: 12px; color: var(--ink-3); }
+  .board-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .board-card { background: var(--card); border: 1px solid var(--line); border-radius: 3px; padding: 12px; min-width: 0; }
+  .board-card .title { font-size: 14.5px; font-weight: 600; color: var(--ink); margin: 0 0 4px; overflow-wrap: anywhere; }
+  .board-card .front { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--wine); margin-left: 6px; }
+  .board-card p { margin: 0 0 3px; font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .board-card .meta { font-size: 12px; color: var(--ink-3); }
+  .board-card .followup { border-left: 2px solid var(--pending); padding-left: 8px; color: var(--ink-2); margin-top: 6px; }
+  .board-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .board-actions button { flex: 1 1 auto; padding: 0 10px; font-size: 12.5px; }
+  .board-menu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .board-menu .warn { flex: 1 1 100%; font-size: 12.5px; color: var(--pending); margin: 0; }
+  .board-menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: underline; }
+  .board-empty { font-size: 13px; color: var(--ink-3); padding: 10px 0; margin: 0; }
+  .board-month-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .board-month-nav h3 { flex: 1; font-family: var(--fd); font-weight: 400; font-size: 22px; margin: 0; color: var(--ink); }
+  .board-month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
+  .board-month .dow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding: 6px 4px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; }
+  .board-day { min-height: 64px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 0; padding: 4px; background: var(--card); text-align: left; font: inherit; color: inherit; cursor: pointer; min-width: 0; display: block; }
+  .board-day.other { background: var(--paper-2); color: var(--ink-3); }
+  .board-day.today .num { background: var(--ink); color: var(--card); }
+  .board-day.selected { outline: 2px solid var(--wine); outline-offset: -2px; }
+  .board-day .num { display: inline-block; font-size: 12px; font-weight: 600; min-width: 20px; height: 20px; line-height: 20px; text-align: center; border-radius: 10px; }
+  .board-day .ev { display: block; font-size: 10.5px; line-height: 1.3; color: var(--wine); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  @media (min-width: 700px) { .board-day { min-height: 92px; } .board-day .ev { font-size: 12px; } }
+  .board-daylist { margin-top: 14px; }
+  .board-daylabel { font-family: var(--fd); font-size: 20px; color: var(--ink); margin: 0 0 10px; }
+  .board-subscribe .url { display: flex; gap: 8px; flex-wrap: wrap; }
+  .board-subscribe input { flex: 1 1 200px; min-height: 44px; font: inherit; font-size: 12.5px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 3px; color: var(--ink); background: var(--paper); }
+  .board-subscribe ol { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }
+  .board-subscribe ol li { margin-bottom: 4px; }
+  .board-modal { max-width: 560px; max-height: 90vh; overflow-y: auto; }
+  .board-modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .board-modal .owners { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .board-modal .row2 > .field { min-width: 0; }
+  .board-modal .field input:not([type="checkbox"]), .board-modal .field select, .board-modal .field textarea { box-sizing: border-box; width: 100%; max-width: 100%; }
+  @media (max-width: 480px) { .board-modal .row2 { grid-template-columns: 1fr; } }
+  .board-modal .field > .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--graphite-soft); }
+  .board-modal .owners label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink); min-height: 32px; white-space: nowrap; }
+  .board-modal .owners input[type="checkbox"] { width: 18px; height: 18px; margin: 0; flex: none; }
+  .board-modal .confirm-wrap label { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .board-modal .field[hidden], .board-modal #bm-followup-wrap[hidden] { display: none; }
+  .board-modal .field.invalid input, .board-modal .field.invalid textarea, .board-modal .field.invalid select { border-color: var(--danger); }
+  .board-modal textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 3px; min-height: 72px; resize: vertical; }
+  .board-modal .confirm-wrap label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--pending); }
+  .board-modal .danger-zone { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .board-modal .danger-zone button { min-height: 44px; font: inherit; font-size: 13px; padding: 0 12px; border: 1px solid var(--danger-line); background: var(--danger-soft); color: var(--danger); border-radius: 3px; cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) { .board-menu, .board-day { transition: none; } }
 </style>
 </head>
 <body>
@@ -1292,6 +1360,14 @@
       </div>
     </section>
 
+    <!-- Diretoria: agenda de encontros externos. A aba só é injetada no nav
+         para diretor; o conteúdo é o módulo ES /js/features/board.js. -->
+    <section class="panel" id="panel-diretoria" role="tabpanel" aria-labelledby="tab-diretoria" tabindex="0">
+      <div id="board-root">
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
+      </div>
+    </section>
+
     <section class="panel" id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" tabindex="0">
       <div class="card rv hotel-card" id="hotel-card"></div>
       <div class="daypicker" id="daypicker" role="tablist" aria-label="Dias da agenda"></div>
@@ -1350,6 +1426,7 @@
 </div>
 
 <script src="/app.js"></script>
+<script type="module" src="/js/features/board.js"></script>
 <script src="/art.js"></script>
 <script>
   LEPVArt.reveal();
