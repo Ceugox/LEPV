@@ -44,6 +44,11 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
   }, ADMIN_PASS);
   if (login !== 200) { console.log('login do diretor falhou:', login); await b.close(); process.exit(2); }
 
+  // Responde a enquete do bóton antes de abrir o app: ela nasce depois do load
+  // e reaparece a cada troca de aba, e no runner do CI chegava entre o
+  // clearPin e o clique, deixando o editor sem abrir.
+  await p.evaluate(async () => { try { await fetch('/api/pin-poll', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ want: false }) }); } catch (e) {} });
+
   const fixture = await p.evaluate(async () => {
     const r = await fetch('/api/board/meetings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title: 'Encontro de verificação', counterpart: { org: 'Fixture & Co.', person: 'Alguém' }, front: 'CI',

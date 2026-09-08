@@ -377,7 +377,7 @@ function editorHtml(m) {
 }
 function openEditor(meeting, invalidFields) {
   const m = Object.assign({ counterpart: {}, followUp: {}, owners: [], status: "a_marcar" }, meeting || {});
-  if (document.querySelector(".pin-backdrop")) return; // um modal por vez
+  if (document.getElementById("bm-form")) return; // um editor por vez
   const backdrop = document.createElement("div");
   backdrop.className = "pin-backdrop";
   const modal = document.createElement("div");
