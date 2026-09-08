@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "seed": "node scripts/seed-credentials.js",
-    "test": "node tests/e2e.js",
+    "test": "node tests/ical.js && node tests/e2e.js",
     "verify:art": "node scripts/verify-art.js",
     "verify:contrast": "python scripts/check-contrast.py",
     "verify:ui": "node scripts/verify-ui.js",
