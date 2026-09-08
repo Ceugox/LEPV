@@ -42,7 +42,7 @@ const TARGETS = [
       await page.evaluate(y => window.scrollTo(0, y), scrollY);
       await page.waitForTimeout(320);
 
-      const boxes = await page.evaluate(sels => {
+      const boxesInfo = await page.evaluate(sels => {
         const out = [];
         for (const [name, sel] of sels) {
           const el = document.querySelector(sel);
@@ -60,8 +60,17 @@ const TARGETS = [
            falso. opacity no ancestral zera a subarvore inteira e nao muda o
            layout, entao as coordenadas medidas antes seguem valendo. */
         document.querySelectorAll('.hero-in').forEach(e => e.style.opacity = '0');
-        return out;
+        /* A nav e sticky e translucida, com o botao Entrar escuro. Texto que
+           rolou para baixo dela esta COBERTO pela nav, nao sobre ela: medir
+           contraste ali le o botao como fundo e acusa 1.00 falso (foi o
+           vermelho do CI de 01/09/2026, mobile, y=520). Pontos sob a nav
+           saem da amostragem. */
+        const nav = document.querySelector('nav.top');
+        const navBottom = nav ? Math.round(nav.getBoundingClientRect().bottom) : 0;
+        return { out, navBottom };
       }, TARGETS.map(t => [t[0], t[1]]));
+      const boxes = boxesInfo.out;
+      const navBottom = boxesInfo.navBottom;
 
       if (!boxes.length) { await page.close(); continue; }
       await page.waitForTimeout(120);
@@ -71,7 +80,7 @@ const TARGETS = [
 
       const b64 = fs.readFileSync(tmp).toString('base64');
       const reader = await browser.newPage();
-      const samples = await reader.evaluate(async ({ b64, boxes }) => {
+      const samples = await reader.evaluate(async ({ b64, boxes, navBottom }) => {
         const img = new Image();
         await new Promise(r => { img.onload = r; img.src = 'data:image/png;base64,' + b64; });
         const c = document.createElement('canvas');
@@ -83,14 +92,14 @@ const TARGETS = [
           for (let i = 1; i <= 6; i++) for (let j = 1; j <= 4; j++) {
             const x = Math.round(bx.x + (bx.w * i) / 7);
             const y = Math.round(bx.y + (bx.h * j) / 5);
-            if (x < 0 || y < 0 || x >= c.width || y >= c.height) continue;
+            if (x < 0 || y < navBottom || x >= c.width || y >= c.height) continue;
             const d = ctx.getImageData(x, y, 1, 1).data;
             const L = (0.2126 * d[0] + 0.7152 * d[1] + 0.0722 * d[2]) / 255;
             if (L < worstL) { worstL = L; worst = [d[0], d[1], d[2]]; }
           }
           return { name: bx.name, color: bx.color, bg: worst };
         });
-      }, { b64, boxes });
+      }, { b64, boxes, navBottom });
       await reader.close();
       fs.unlinkSync(tmp);
 
