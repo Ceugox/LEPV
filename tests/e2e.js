@@ -1370,6 +1370,100 @@ test("feed .ics por token: conteúdo, fuso, sigilo e rotação", async () => {
   await c.del("/api/board/meetings/" + semData.data.meeting.id);
 });
 
+// ---- Segurança de borda: security.txt, IP atrás da Cloudflare e Turnstile ----
+
+test("security.txt é servido em /.well-known com os campos obrigatórios da RFC 9116", async () => {
+  const c = client();
+  const r = await c.get("/.well-known/security.txt");
+  eq(r.status, 200, "status");
+  assert((r.headers.get("content-type") || "").startsWith("text/plain"), "content-type deve ser text/plain");
+  assert(/^Contact: \S+/m.test(r.data), "precisa de Contact");
+  const exp = /^Expires: (\S+)/m.exec(r.data);
+  assert(exp, "precisa de Expires");
+  const when = new Date(exp[1]).getTime();
+  assert(when > Date.now() && when < Date.now() + 366 * 24 * 3600 * 1000, "Expires no futuro e dentro de um ano");
+  assert(/^Canonical: https:\/\/lepv\.org\/\.well-known\/security\.txt$/m.test(r.data), "Canonical aponta para o próprio arquivo");
+  const alias = await c.get("/security.txt");
+  eq(alias.status, 301, "/security.txt redireciona");
+  eq(alias.headers.get("location"), "/.well-known/security.txt", "para o caminho canônico");
+});
+
+test("rate limit por IP enxerga o visitante atrás da Cloudflare, não o IP dela", async () => {
+  // 15 falhas de login do mesmo visitante (203.0.113.10) chegando por um IP da
+  // Cloudflare (172.64.0.1) travam o IP dele. Orders distintas para não bater
+  // no lockout por conta, que é de 5.
+  const viaCf = (ip) => ({ "X-Forwarded-For": ip + ", 172.64.0.1" });
+  const c = client();
+  for (let i = 0; i < 15; i++) {
+    const r = await c.post("/api/login", { order: 900 + i, password: "x" }, viaCf("203.0.113.10"));
+    eq(r.status, 401, "tentativa " + i + " deveria ser 401");
+  }
+  eq((await c.post("/api/login", { order: 950, password: "x" }, viaCf("203.0.113.10"))).status, 429, "o visitante travou");
+  eq((await c.post("/api/login", { order: 951, password: "x" }, viaCf("203.0.113.99"))).status, 401, "outro visitante pela mesma Cloudflare segue livre");
+  // Sem a Cloudflare no meio, o último salto é o próprio cliente: o que ele
+  // escreveu no X-Forwarded-For não pode ser aproveitado para escapar.
+  eq((await c.post("/api/login", { order: 952, password: "x" }, { "X-Forwarded-For": "203.0.113.10, 198.51.100.7" })).status, 401, "198.51.100.7 não é Cloudflare, então o IP é ele mesmo");
+  eq((await c.post("/api/login", { order: 953, password: "x" }, { "X-Forwarded-For": "198.51.100.7" })).status, 401, "cliente direto não herda o bloqueio");
+  eq((await c.post("/api/login", { order: 954, password: "x" }, { "X-Forwarded-For": "198.51.100.7" })).status, 401, "…e continua livre");
+});
+
+test("Turnstile: sem chave configurada o site não exige nada", async () => {
+  const c = client();
+  const cfg = await c.get("/api/public-config");
+  eq(cfg.status, 200, "config pública");
+  eq(cfg.data.turnstile, null, "sem sitekey");
+});
+
+test("Turnstile: com chave configurada, formulário público sem token é recusado e o token é validado no siteverify", async () => {
+  // Stub do siteverify da Cloudflare: só "token-bom" passa. Guarda o que
+  // recebeu para provar que o secret e o token chegaram lá.
+  const http = require("http");
+  const recebidos = [];
+  const stub = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (ch) => (body += ch));
+    req.on("end", () => {
+      const params = new URLSearchParams(body);
+      recebidos.push({ path: req.url, secret: params.get("secret"), response: params.get("response") });
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ success: params.get("response") === "token-bom", "error-codes": params.get("response") === "token-bom" ? [] : ["invalid-input-response"] }));
+    });
+  });
+  await new Promise((r) => stub.listen(0, "127.0.0.1", r));
+  const verifyUrl = "http://127.0.0.1:" + stub.address().port + "/siteverify";
+
+  server.kill("SIGKILL");
+  await new Promise((r) => setTimeout(r, 500));
+  await startServer({ TURNSTILE_SITE_KEY: "site-de-teste", TURNSTILE_SECRET_KEY: "segredo-de-teste", TURNSTILE_VERIFY_URL: verifyUrl });
+
+  try {
+    const c = client();
+    eq((await c.get("/api/public-config")).data.turnstile, "site-de-teste", "sitekey exposta ao front");
+
+    const cadastro = { name: "Visitante Turnstile", password: "senha-forte-123", course: "Computação", year: "2º ano", phone: "21999990000" };
+    const sem = await c.post("/api/register", cadastro);
+    eq(sem.status, 400, "sem token é 400");
+    eq(sem.data.error, "turnstile_required", "erro nomeado");
+
+    const ruim = await c.post("/api/register", { ...cadastro, turnstileToken: "token-ruim" });
+    eq(ruim.status, 403, "token recusado é 403");
+    eq(ruim.data.error, "turnstile_failed", "erro nomeado");
+
+    const bom = await c.post("/api/register", { ...cadastro, turnstileToken: "token-bom" });
+    eq(bom.status, 200, "token válido passa: " + JSON.stringify(bom.data));
+    eq(recebidos.length, 2, "siteverify chamado uma vez por token presente");
+    eq(recebidos[1].secret, "segredo-de-teste", "secret enviado");
+    eq(recebidos[1].response, "token-bom", "token enviado");
+
+    // Os outros dois formulários públicos ficam atrás do mesmo portão, antes
+    // mesmo de procurar o evento.
+    eq((await c.post("/api/event-signup/qualquer", { name: "x" })).data.error, "turnstile_required", "inscrição");
+    eq((await c.post("/api/presence/qualquer", { name: "x" })).data.error, "turnstile_required", "presença");
+  } finally {
+    stub.close();
+  }
+});
+
 async function main() {
   setupVolume();
   await startServer();

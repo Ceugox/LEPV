@@ -337,6 +337,7 @@
     </div>
   </div>
 
+<script src="/js/turnstile.js"></script>
 <script>
 (function () {
   // Nome/curso/interesses agora podem vir de cadastro público — escapa tudo
@@ -439,6 +440,7 @@
   // ---- Cadastro de novo membro ----
   var registerStage = document.getElementById("register-stage");
   var registerForm = document.getElementById("register-form");
+  LEPVTurnstile.attach(registerForm);
   var registerDone = document.getElementById("register-done");
   var regError = document.getElementById("reg-error");
   var regSubmit = document.getElementById("reg-submit");
@@ -488,6 +490,7 @@
         phone: document.getElementById("reg-phone").value,
         interests: interests,
         password: password,
+        turnstileToken: LEPVTurnstile.token(),
       }),
     })
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
@@ -497,6 +500,7 @@
           registerDone.classList.add("show");
         } else {
           regError.textContent = res.data.message || "Não foi possível enviar o pedido.";
+          LEPVTurnstile.reset();
           regError.classList.add("show");
           regSubmit.disabled = false;
           regSubmit.textContent = "Enviar pedido";

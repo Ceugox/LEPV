@@ -292,11 +292,13 @@
     </section>
   </main>
 
+<script src="/js/turnstile.js"></script>
 <script>
 (function () {
   var token = new URLSearchParams(window.location.search).get("t") || "";
   var form = document.getElementById("signup-form");
   var errorEl = document.getElementById("s-error");
+  LEPVTurnstile.attach(form);
   var submitBtn = document.getElementById("s-submit");
   var isHackathon = false;
 
@@ -413,6 +415,7 @@
       phone: document.getElementById("s-phone").value,
       awareLocation: document.getElementById("s-aware-local").checked,
       awareTime: document.getElementById("s-aware-time").checked,
+      turnstileToken: LEPVTurnstile.token(),
     };
     if (isHackathon) {
       body.vinculo = document.getElementById("s-vinculo").value;
@@ -447,6 +450,7 @@
           document.getElementById("done-msg").textContent = res.data.message || "Te esperamos lá!";
         } else {
           errorEl.textContent = res.data.message || "Não foi possível se inscrever. Tente de novo.";
+          LEPVTurnstile.reset();
           errorEl.classList.add("show");
           submitBtn.disabled = false;
           submitBtn.textContent = "Confirmar inscrição";

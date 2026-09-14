@@ -137,11 +137,13 @@
     </section>
   </main>
 
+<script src="/js/turnstile.js"></script>
 <script>
 (function () {
   var token = new URLSearchParams(window.location.search).get("t") || "";
   var form = document.getElementById("presence-form");
   var errorEl = document.getElementById("v-error");
+  LEPVTurnstile.attach(form);
   var submitBtn = document.getElementById("v-submit");
 
   function fail(msg) {
@@ -192,6 +194,7 @@
         name: document.getElementById("v-name").value,
         email: document.getElementById("v-email").value,
         phone: document.getElementById("v-phone").value,
+        turnstileToken: LEPVTurnstile.token(),
       }),
     })
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
@@ -206,6 +209,7 @@
           }
         } else {
           errorEl.textContent = res.data.message || "Não foi possível registrar. Tente de novo.";
+          LEPVTurnstile.reset();
           errorEl.classList.add("show");
           submitBtn.disabled = false;
           submitBtn.textContent = "Registrar presença";

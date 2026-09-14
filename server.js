@@ -5,6 +5,7 @@ const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const ical = require("./lib/ical.js");
+const { trustProxy } = require("./lib/client-ip.js");
 const QRCode = require("qrcode");
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -571,9 +572,11 @@ for (const sig of ["SIGTERM", "SIGINT"]) {
 }
 
 const app = express();
-// Atrás do proxy do Railway: sem isso req.ip é o IP do proxy e o rate limit
-// do cadastro valeria para todo mundo junto.
-app.set("trust proxy", 1);
+// Atrás do proxy do Railway e, com a nuvem laranja da Cloudflare ligada, de
+// mais um salto. Quem decide qual salto é confiável é lib/client-ip.js: sem
+// isso req.ip seria o IP do proxy e todo rate limit por IP (login, cadastro,
+// inscrição, presença) valeria para todo mundo junto.
+app.set("trust proxy", trustProxy);
 app.disable("x-powered-by");
 app.use(express.json());
 // Headers de segurança básicos. Sem CSP com nonce (o front tem script inline
@@ -734,6 +737,66 @@ function requireImmersionApi(req, res, next) {
   }
   req.session.user = role;
   return next();
+}
+
+// ---- security.txt (RFC 9116): como reportar uma falha de segurança ----
+//
+// O contato padrão é um endereço do próprio domínio (precisa existir: Email
+// Routing da Cloudflare resolve de graça); SECURITY_CONTACT troca por outro
+// (mailto: ou https:). Expires é recalculado a cada resposta para o arquivo
+// nunca vencer — a RFC exige o campo e pede menos de um ano.
+const SECURITY_CONTACT = process.env.SECURITY_CONTACT || "mailto:seguranca@lepv.org";
+app.get("/.well-known/security.txt", (req, res) => {
+  const expires = new Date(Date.now() + 180 * 24 * 3600 * 1000);
+  expires.setUTCHours(0, 0, 0, 0);
+  res.set({ "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" });
+  res.send(
+    [
+      "Contact: " + SECURITY_CONTACT,
+      "Expires: " + expires.toISOString(),
+      "Preferred-Languages: pt-BR, en",
+      "Canonical: https://lepv.org/.well-known/security.txt",
+      "",
+    ].join("\n")
+  );
+});
+app.get("/security.txt", (req, res) => res.redirect(301, "/.well-known/security.txt"));
+
+// ---- Turnstile (Cloudflare): desafio anti-robô nos formulários públicos ----
+//
+// Só entra em jogo com as duas chaves no ambiente; sem elas o site segue como
+// antes (dev local e e2e). A sitekey vai ao front por /api/public-config, o
+// widget devolve um token que o front manda em `turnstileToken`, e o server
+// confirma esse token no siteverify ANTES de olhar o resto do corpo.
+// TURNSTILE_VERIFY_URL existe para o e2e apontar a um stub, sem rede.
+const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || "";
+const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || "";
+const TURNSTILE_VERIFY_URL = process.env.TURNSTILE_VERIFY_URL || "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+app.get("/api/public-config", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({ turnstile: TURNSTILE_SITE_KEY || null });
+});
+
+function turnstileGate(req, res, next) {
+  if (!TURNSTILE_SECRET_KEY) return next();
+  const token = typeof req.body.turnstileToken === "string" ? req.body.turnstileToken.trim() : "";
+  if (!token || token.length > 2048) {
+    return res.status(400).json({ error: "turnstile_required", message: "Confirme que você não é um robô e tente de novo." });
+  }
+  const form = new URLSearchParams({ secret: TURNSTILE_SECRET_KEY, response: token });
+  fetch(TURNSTILE_VERIFY_URL, { method: "POST", body: form, signal: AbortSignal.timeout(8000) })
+    .then((r) => r.json())
+    .then((out) => {
+      if (out && out.success === true) return next();
+      res.status(403).json({ error: "turnstile_failed", message: "A verificação anti-robô falhou. Recarregue a página e tente de novo." });
+    })
+    .catch((err) => {
+      // Fecha em vez de abrir: sem o siteverify o formulário espera, não vira
+      // porta aberta. O registro em failures.json mostra se isso virou rotina.
+      recordFailure("turnstile", err);
+      res.status(503).json({ error: "turnstile_unavailable", message: "Não foi possível verificar agora. Tente de novo em instantes." });
+    });
 }
 
 app.get("/", (req, res) => {
@@ -1129,7 +1192,7 @@ function stripHash(p) {
   return rest;
 }
 
-app.post("/api/register", (req, res) => {
+app.post("/api/register", turnstileGate, (req, res) => {
   if (registerRateLimited(req.ip)) {
     return res.status(429).json({ error: "too_many_requests", message: "Muitos pedidos deste dispositivo. Tente de novo em uma hora." });
   }
@@ -2592,7 +2655,7 @@ app.get("/api/public-events", (req, res) => {
   res.json({ events });
 });
 
-app.post("/api/event-signup/:token", (req, res) => {
+app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
   if (publicFormRateLimited(req.ip)) {
     return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
   }
@@ -2716,7 +2779,7 @@ app.get("/api/presence/:token", (req, res) => {
   });
 });
 
-app.post("/api/presence/:token", (req, res) => {
+app.post("/api/presence/:token", turnstileGate, (req, res) => {
   if (publicFormRateLimited(req.ip)) {
     return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde um pouco." });
   }
