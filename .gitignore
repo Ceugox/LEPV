@@ -21,3 +21,5 @@ data/access-log.json
 *.json.tmp
 # saída do Playwright durante inspeção visual
 .playwright-mcp/
+# contratos e dados de parceiros (CNPJ, valores) ficam fora do repo
+Parcerias/
