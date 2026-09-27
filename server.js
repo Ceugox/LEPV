@@ -2720,6 +2720,9 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
       datasAlternativasOutro: datasAlternativas.includes("Outro") ? datasAlternativasOutro : "",
       temGrupo,
       temTema,
+      // Opt-in real (manual do participante, item 12): default false,
+      // nunca bloqueia a inscrição — só reflete o que a pessoa marcou.
+      consentPatrocinadores: req.body.consentPatrocinadores === true,
     };
   } else {
     const turma = String(req.body.turma || "").trim();

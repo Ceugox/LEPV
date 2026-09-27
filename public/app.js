@@ -1272,6 +1272,7 @@
             datasAlt ? "Datas alt.: " + datasAlt : "",
             s.temGrupo ? "Grupo: " + s.temGrupo : "",
             s.temTema ? "Tema: " + s.temTema : "",
+            s.consentPatrocinadores ? "Autoriza dados p/ patrocinadores" : "",
             s.email,
             s.phone,
           ].filter(Boolean).join(" · ");

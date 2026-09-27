@@ -268,12 +268,20 @@
               </select>
             </div>
           </div>
+          <!-- Consentimento LGPD para compartilhar dados com patrocinadores
+               (manual do participante, item 12): opt-in de verdade — vem
+               desmarcado e não é required, porque consentimento "livre" não
+               pode ser condição para se inscrever no evento. -->
+          <label class="ack">
+            <input type="checkbox" id="s-consent-patrocinadores">
+            <span>Autorizo o compartilhamento dos meus dados de contato (nome, e-mail e telefone) com os patrocinadores do evento, exclusivamente para divulgação de vagas e oportunidades profissionais, conforme o manual do participante.</span>
+          </label>
         </div>
-        <label class="ack">
+        <label class="ack" id="s-aware-local-row">
           <input type="checkbox" id="s-aware-local" required>
           <span>Estou ciente do local<span id="ack-local"></span></span>
         </label>
-        <label class="ack">
+        <label class="ack" id="s-aware-time-row">
           <input type="checkbox" id="s-aware-time" required>
           <span><span id="ack-time-label">Estou ciente do horário</span><span id="ack-time"></span></span>
         </label>
@@ -362,11 +370,14 @@
           document.getElementById("s-esp").required = false;
           document.getElementById("hackathon-fields").style.display = "flex";
           document.getElementById("s-vinculo").required = true;
-          // As datas ainda não são fixas para o Hackathon (ver "topaDias16e17" e
-          // "datasAlternativas"), então o texto de ciência não pode afirmar um
-          // horário como certo.
-          document.getElementById("ack-time-label").textContent =
-            "Estou ciente que as datas e horários ainda não estão confirmados!";
+          // Data, horário e local do Hackathon ainda não são fixos (ver
+          // "date-pending" acima) — não faz sentido pedir "estou ciente do
+          // local/horário" de algo que a própria página avisa que ainda vai
+          // ser confirmado. Só o consentimento de dados fica.
+          document.getElementById("s-aware-local-row").style.display = "none";
+          document.getElementById("s-aware-time-row").style.display = "none";
+          document.getElementById("s-aware-local").required = false;
+          document.getElementById("s-aware-time").required = false;
         } else {
           // As listas fechadas vêm do servidor: turma nova entra só no server.js.
           (ev.turmas || []).forEach(function (t) {
@@ -413,8 +424,10 @@
       name: document.getElementById("s-name").value,
       email: document.getElementById("s-email").value,
       phone: document.getElementById("s-phone").value,
-      awareLocation: document.getElementById("s-aware-local").checked,
-      awareTime: document.getElementById("s-aware-time").checked,
+      // Local/horário do Hackathon ainda não são fixos — não há o que "estar
+      // ciente" ainda, então esses dois campos não existem nesse formulário.
+      awareLocation: isHackathon || document.getElementById("s-aware-local").checked,
+      awareTime: isHackathon || document.getElementById("s-aware-time").checked,
       turnstileToken: LEPVTurnstile.token(),
     };
     if (isHackathon) {
@@ -427,6 +440,7 @@
       body.datasAlternativasOutro = document.getElementById("s-datas-outro").value;
       body.temGrupo = document.getElementById("s-grupo").value;
       body.temTema = document.getElementById("s-tema").value;
+      body.consentPatrocinadores = document.getElementById("s-consent-patrocinadores").checked;
     } else {
       body.turma = document.getElementById("s-turma").value;
       body.especialidade = document.getElementById("s-esp").value;
