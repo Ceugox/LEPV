@@ -194,7 +194,12 @@
         if (ev.time) quando.push(ev.time);
         if (ev.location) quando.push(ev.location + trajeto);
         document.getElementById("ev-date").textContent = quando.filter(Boolean).join(" · ");
-        if (ev.type === "hackathon") document.getElementById("date-pending").classList.add("show");
+        // Mesma regra do formulário de inscrição: o aviso de "data a
+        // confirmar" só vale na pré-inscrição — depois que a etapa avança,
+        // data e horário já são reais.
+        if (ev.type === "hackathon" && (ev.phase || "pre-inscricao") === "pre-inscricao") {
+          document.getElementById("date-pending").classList.add("show");
+        }
 
         // Descrição completa é o texto principal desta página; sem ela, cai
         // para o mesmo aviso curto usado no mural/formulário.

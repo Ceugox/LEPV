@@ -491,20 +491,24 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
     if (ev.time) fatos.push("<b>" + escHtml(ev.time) + "</b>");
     if (ev.location) fatos.push(escHtml(ev.location));
     if (ev.travelMinutes > 0) fatos.push("~" + ev.travelMinutes + " min do IME");
+    // Evento com imagem própria (upload no painel) usa essa arte; sem ela,
+    // cai no banner padrão do primeiro Hackathon — só esse tem os dois
+    // tamanhos prontos, então só ele ganha srcset responsivo.
+    var img = ev.titleImage
+      ? '<img src="' + escHtml(ev.titleImage) + '" alt="' + escHtml(ev.title) + '" loading="lazy">'
+      : '<img src="/img/hackathon-banner-1200.jpg"' +
+             ' srcset="/img/hackathon-banner-800.jpg 800w, /img/hackathon-banner-1200.jpg 1200w"' +
+             ' sizes="(min-width:900px) 42vw, 100vw"' +
+             ' alt="' + escHtml(ev.title) + '" loading="lazy">';
     return (
       '<div class="poster rv">' +
-        '<div class="ph">' +
-          '<img src="/img/hackathon-banner-1200.jpg"' +
-               ' srcset="/img/hackathon-banner-800.jpg 800w, /img/hackathon-banner-1200.jpg 1200w"' +
-               ' sizes="(min-width:900px) 42vw, 100vw"' +
-               ' alt="' + escHtml(ev.title) + '" loading="lazy">' +
-        "</div>" +
+        '<div class="ph">' + img + "</div>" +
         '<div class="body">' +
           '<p class="k"><i></i>' + escHtml(kindDe(ev) + " · " + diaMes(ev)) + "</p>" +
           "<h3>" + escHtml(ev.title) + "</h3>" +
           (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
           (fatos.length ? '<p class="facts">' + fatos.join(" · ") + "</p>" : "") +
-          '<p class="note">Datas e horários ainda serão confirmados.</p>' +
+          (ev.phase === "pre-inscricao" ? '<p class="note">Datas e horários ainda serão confirmados.</p>' : "") +
           '<div class="acts">' +
             '<a class="btn btn-p" href="' + escHtml(ev.detailsUrl) + '">' +
               '<span class="ar">→</span>Confira todos os detalhes</a>' +

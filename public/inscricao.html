@@ -309,6 +309,7 @@
   LEPVTurnstile.attach(form);
   var submitBtn = document.getElementById("s-submit");
   var isHackathon = false;
+  var datesPending = false;
 
   function escHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -348,7 +349,12 @@
         if (ev.location) quando.push(ev.location + trajeto);
         document.getElementById("lesson-date").textContent =
           quando.filter(Boolean).join(" · ") + (ev.open ? "" : " · inscrições encerradas");
-        if (ev.type === "hackathon") document.getElementById("date-pending").classList.add("show");
+        // "Datas a confirmar" só faz sentido na pré-inscrição: uma vez que a
+        // etapa avança para inscrição oficial (ou além), a diretoria já
+        // fechou data e horário reais — manter o aviso ali confundiria quem
+        // já tem hora marcada.
+        datesPending = ev.type === "hackathon" && (ev.phase || "pre-inscricao") === "pre-inscricao";
+        if (datesPending) document.getElementById("date-pending").classList.add("show");
         if (ev.text) document.getElementById("lesson-desc").textContent = ev.text;
         if (ev.materials && ev.materials.length) {
           document.getElementById("materials-box").innerHTML = ev.materials.map(function (m) {
@@ -370,14 +376,17 @@
           document.getElementById("s-esp").required = false;
           document.getElementById("hackathon-fields").style.display = "flex";
           document.getElementById("s-vinculo").required = true;
-          // Data, horário e local do Hackathon ainda não são fixos (ver
-          // "date-pending" acima) — não faz sentido pedir "estou ciente do
-          // local/horário" de algo que a própria página avisa que ainda vai
-          // ser confirmado. Só o consentimento de dados fica.
-          document.getElementById("s-aware-local-row").style.display = "none";
-          document.getElementById("s-aware-time-row").style.display = "none";
-          document.getElementById("s-aware-local").required = false;
-          document.getElementById("s-aware-time").required = false;
+          // Enquanto a data não é fixa (pré-inscrição), não faz sentido pedir
+          // "estou ciente do local/horário" de algo que a própria página avisa
+          // que ainda vai ser confirmado — some com os dois. Depois que a
+          // etapa vira inscrição oficial (data e local já confirmados), os
+          // checks voltam a valer, igual num evento comum.
+          if (datesPending) {
+            document.getElementById("s-aware-local-row").style.display = "none";
+            document.getElementById("s-aware-time-row").style.display = "none";
+            document.getElementById("s-aware-local").required = false;
+            document.getElementById("s-aware-time").required = false;
+          }
         } else {
           // As listas fechadas vêm do servidor: turma nova entra só no server.js.
           (ev.turmas || []).forEach(function (t) {
@@ -424,10 +433,10 @@
       name: document.getElementById("s-name").value,
       email: document.getElementById("s-email").value,
       phone: document.getElementById("s-phone").value,
-      // Local/horário do Hackathon ainda não são fixos — não há o que "estar
-      // ciente" ainda, então esses dois campos não existem nesse formulário.
-      awareLocation: isHackathon || document.getElementById("s-aware-local").checked,
-      awareTime: isHackathon || document.getElementById("s-aware-time").checked,
+      // Enquanto a data do Hackathon não é fixa (pré-inscrição), não há o que
+      // "estar ciente" ainda, e os checkboxes nem aparecem nesse caso.
+      awareLocation: datesPending || document.getElementById("s-aware-local").checked,
+      awareTime: datesPending || document.getElementById("s-aware-time").checked,
       turnstileToken: LEPVTurnstile.token(),
     };
     if (isHackathon) {

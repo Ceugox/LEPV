@@ -1790,6 +1790,10 @@ function coverPath(value) {
 function normalizeEvent(ev) {
   if (!Array.isArray(ev.photos)) ev.photos = [];
   if (typeof ev.cover !== "string") ev.cover = "";
+  // Imagem de título própria do evento (hoje só usada no cartaz do hackathon
+  // na home) — diferente de `cover`, que é um caminho digitado à mão para um
+  // asset já no repo; esta é upload de verdade, um arquivo por evento.
+  if (typeof ev.titleImageFile !== "string") ev.titleImageFile = "";
   if (typeof ev.location !== "string") ev.location = "";
   if (typeof ev.time !== "string") ev.time = "";
   if (typeof ev.travelMinutes !== "number") ev.travelMinutes = null;
@@ -1971,6 +1975,7 @@ function eventView(ev, user) {
     time: ev.time || "",
     travelMinutes: ev.travelMinutes,
     cover: ev.cover || "",
+    titleImage: ev.titleImageFile ? "/api/events/" + ev.id + "/title-image" : "",
     photos: ev.photos.map((p) => ({ id: p.id, url: "/api/events/" + ev.id + "/photos/" + p.id })),
     materials: ev.materials.map((m) => ({
       id: m.id,
@@ -2166,6 +2171,7 @@ app.delete("/api/events/:id", requireDirectorApi, (req, res) => {
   const ev = findEvent(data, req.params.id);
   if (!ev) return res.status(404).json({ error: "not_found" });
   for (const p of ev.photos) fs.unlink(path.join(EVENT_PHOTOS_DIR, p.file), () => {});
+  if (ev.titleImageFile) fs.unlink(path.join(EVENT_PHOTOS_DIR, ev.titleImageFile), () => {});
   for (const m of ev.materials) {
     if (m.file) fs.unlink(path.join(EVENT_FILES_DIR, m.file), () => {});
   }
@@ -2216,6 +2222,54 @@ app.delete("/api/events/:id/photos/:photoId", requireDirectorApi, (req, res) => 
   ev.photos = ev.photos.filter((p) => p.id !== req.params.photoId);
   writeEvents(data);
   fs.unlink(path.join(EVENT_PHOTOS_DIR, photo.file), () => {});
+  res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+});
+
+// ---- Imagem de título (banner do cartaz na home — hoje só hackathon) ----
+// Diferente da galeria acima (ev.photos, várias fotos, visível só à
+// diretoria): aqui é UMA imagem por evento, pública, usada no lugar do
+// banner estático /img/hackathon-banner-*.jpg no cartaz da home.
+
+app.post(
+  "/api/events/:id/title-image",
+  requireDirectorApi,
+  express.raw({ type: ["image/*", "application/octet-stream"], limit: "6mb" }),
+  (req, res) => {
+    const data = readEventsStore();
+    const ev = findEvent(data, req.params.id);
+    if (!ev) return res.status(404).json({ error: "not_found" });
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: "empty_file" });
+    const ext = sniffImage(req.body);
+    if (!ext) return res.status(400).json({ error: "invalid_image", message: "Envie uma imagem JPG, PNG ou WebP." });
+    const oldFile = ev.titleImageFile;
+    const file = ev.id + "-title." + ext;
+    fs.writeFileSync(path.join(EVENT_PHOTOS_DIR, file), req.body);
+    ev.titleImageFile = file;
+    writeEvents(data);
+    // Extensão pode mudar entre uploads (era .jpg, virou .png) — o arquivo
+    // velho fica órfão se não for removido depois de gravar o novo.
+    if (oldFile && oldFile !== file) fs.unlink(path.join(EVENT_PHOTOS_DIR, oldFile), () => {});
+    res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
+  }
+);
+
+// Sem sessão de propósito: é a imagem do cartaz na home, página pública que
+// qualquer visitante vê antes de existir login ou formulário.
+app.get("/api/events/:id/title-image", (req, res) => {
+  const ev = findEvent(readEventsStore(), req.params.id);
+  if (!ev || !ev.titleImageFile) return res.status(404).end();
+  res.set("Cache-Control", "public, max-age=3600");
+  res.sendFile(path.join(EVENT_PHOTOS_DIR, ev.titleImageFile));
+});
+
+app.delete("/api/events/:id/title-image", requireDirectorApi, (req, res) => {
+  const data = readEventsStore();
+  const ev = findEvent(data, req.params.id);
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  const file = ev.titleImageFile;
+  ev.titleImageFile = "";
+  writeEvents(data);
+  if (file) fs.unlink(path.join(EVENT_PHOTOS_DIR, file), () => {});
   res.json({ ok: true, event: Object.assign(eventView(ev, req.session.user), directorView(ev, data)) });
 });
 
@@ -2645,7 +2699,9 @@ app.get("/api/public-events", (req, res) => {
         location: ev.location || "",
         travelMinutes: ev.travelMinutes,
         text: ev.text || "",
+        phase: ev.phase || "pre-inscricao",
         cover: ev.cover || "",
+        titleImage: ev.titleImageFile ? "/api/events/" + ev.id + "/title-image" : "",
         capacity: ev.signups.capacity,
         seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
         signupUrl: "/inscricao.html?t=" + ev.signups.token,

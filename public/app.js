@@ -1329,6 +1329,22 @@
           '<input type="file" class="ev-photo" accept="image/*" aria-label="Foto do aviso">' +
           '<button class="btn-primary ev-photo-btn">Adicionar foto ao aviso</button>' +
         "</div>" +
+      "</div>" +
+      // Imagem de título: hoje só usada no cartaz do hackathon na home
+      // (public-events → posterHtml), mas o campo existe pra qualquer tipo de
+      // evento — sem trava aqui, só o home.html decide onde exibir.
+      '<div class="material-admin" style="margin-top:10px;">' +
+        '<p class="section-label">Imagem de título (banner do cartaz na home)</p>' +
+        (ev.titleImage
+          ? '<div class="row2" style="align-items:center;">' +
+              '<img src="' + esc(ev.titleImage) + '" alt="" style="max-width:160px; border-radius:var(--radius-sm); border:1px solid var(--line);">' +
+              '<button class="btn-reject title-image-remove">Remover imagem</button>' +
+            "</div>"
+          : "") +
+        '<div class="row2">' +
+          '<input type="file" class="ev-title-image" accept="image/*" aria-label="Imagem de título">' +
+          '<button class="btn-primary title-image-btn">' + (ev.titleImage ? "Trocar imagem" : "Enviar imagem") + "</button>" +
+        "</div>" +
       "</div>";
 
     return '<div class="event-manage">' + editar + codes + acoes + inscricoes + listaInscritos + grid + visitantes + anexos + "</div>";
@@ -1765,6 +1781,38 @@
           photoBtn.textContent = "Adicionar foto ao aviso";
         });
     });
+
+    var titleImageBtn = box.querySelector(".title-image-btn");
+    titleImageBtn.addEventListener("click", function () {
+      var file = box.querySelector(".ev-title-image").files[0];
+      if (!file) return window.alert("Escolha uma imagem.");
+      var textoOriginal = titleImageBtn.textContent;
+      titleImageBtn.disabled = true;
+      titleImageBtn.textContent = "Enviando...";
+      normalizePhoto(file, 1600)
+        .then(function (blob) {
+          return fetch("/api/events/" + id + "/title-image", {
+            method: "POST",
+            headers: { "Content-Type": blob.type || "application/octet-stream" },
+            body: blob,
+          });
+        })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.message || "falhou"); }); })
+        .then(loadEvents)
+        .catch(function (err) {
+          window.alert(err.message || "Não deu pra enviar a imagem.");
+          titleImageBtn.disabled = false;
+          titleImageBtn.textContent = textoOriginal;
+        });
+    });
+    var titleImageRemove = box.querySelector(".title-image-remove");
+    if (titleImageRemove) {
+      titleImageRemove.addEventListener("click", function () {
+        if (!window.confirm("Remover a imagem de título deste evento?")) return;
+        titleImageRemove.disabled = true;
+        api("/api/events/" + id + "/title-image", { method: "DELETE" }).then(loadEvents);
+      });
+    }
   }
 
   function eventQrToken(id) {
