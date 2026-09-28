@@ -1162,6 +1162,66 @@
   .access-table td { padding: 8px; border-top: 1px solid var(--line); color: var(--graphite); vertical-align: top; }
   .access-table td .meta { font-size: 11.5px; color: var(--graphite-soft); }
   .access-table .num { text-align: right; white-space: nowrap; }
+
+  /* Inscritos na gestão do evento: tabela legível (14.5px, tinta cheia),
+     não a linha cinza de 12.5px com quinze campos colados. No celular cada
+     linha vira uma ficha com o rótulo ao lado do valor. */
+  .participants-summary {
+    font-size: 13.5px; color: var(--graphite); margin: 10px 0 6px;
+    padding: 9px 12px; background: var(--offwhite); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  }
+  .participants { width: 100%; border-collapse: collapse; font-size: 14.5px; line-height: 1.45; }
+  .participants th {
+    text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--graphite-soft); padding: 8px 10px;
+    border-bottom: 1px solid var(--line-2, var(--line)); white-space: nowrap;
+  }
+  .participants td { padding: 12px 10px; border-top: 1px solid var(--line); color: var(--graphite); vertical-align: top; }
+  .participants tbody tr:first-child td { border-top: 0; }
+  .participants tbody tr:hover td { background: var(--offwhite); }
+  .participants strong { color: var(--navy); font-weight: 600; font-size: 15px; }
+  .participants .sub { font-size: 13px; color: var(--graphite-soft); margin-top: 2px; }
+  .participants a { color: var(--graphite); text-decoration: underline; text-decoration-color: var(--line-2, var(--line)); text-underline-offset: 3px; overflow-wrap: anywhere; }
+  .participants a:hover { color: var(--red); text-decoration-color: currentColor; }
+  .participants .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .participants .p-who { min-width: 170px; }
+  .participants .p-contact { min-width: 200px; }
+  .participants .p-contact a { overflow-wrap: normal; word-break: normal; }
+  .participants .answers { display: grid; grid-template-columns: 112px auto; gap: 3px 10px; margin: 0; min-width: 170px; }
+  .participants .answers dd.alt { grid-column: 1 / -1; margin-top: 3px; max-width: 30ch; }
+  .participants .p-badges { margin-top: 7px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .participants .answers dt { font-size: 12.5px; color: var(--graphite-soft); white-space: nowrap; }
+  .participants .answers dd { margin: 0; }
+  .participants .answers dd.sub:not(.alt) { margin-top: 0; }
+  .participants .muted { color: var(--graphite-soft); }
+  .participants .yn { font-weight: 600; white-space: nowrap; }
+  .participants .yn.yes { color: var(--good); }
+  .participants .yn.no { color: var(--graphite-soft); font-weight: 500; }
+  .participants .p-status { width: 1%; white-space: nowrap; text-align: right; padding-left: 0; }
+  .participants .p-status .del-btn {
+    border: none; background: none; color: var(--graphite-soft); cursor: pointer;
+    font-size: 18px; line-height: 1; min-width: 36px; min-height: 36px; padding: 0; vertical-align: middle;
+  }
+  .participants .p-status .del-btn:hover { color: var(--red-2); }
+  @media (max-width: 860px) {
+    .participants thead { display: none; }
+    .participants, .participants tbody, .participants tr, .participants td { display: block; width: 100%; }
+    .participants tr { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 12px; margin-bottom: 10px; background: var(--white); }
+    .participants tbody tr:hover td { background: none; }
+    .participants td { border: 0; padding: 6px 0; display: grid; grid-template-columns: 118px 1fr; gap: 10px; text-align: left; white-space: normal; }
+    .participants td::before {
+      content: attr(data-label); font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--graphite-soft); padding-top: 2px;
+    }
+    .participants td.p-who { display: block; padding: 8px 0 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+    .participants td.p-who::before { content: none; }
+    .participants .p-status { position: absolute; top: 6px; right: 4px; width: auto; padding: 0; display: block; }
+    .participants .p-status::before { content: none; }
+    .participants tr { position: relative; }
+    .participants td.p-who { padding-right: 36px; }
+    .participants .p-who, .participants .p-contact { min-width: 0; }
+    .participants .p-contact a { overflow-wrap: anywhere; }
+  }
   .online-dot {
     display: inline-block; width: 8px; height: 8px; border-radius: 50%;
     background: var(--good); margin-right: 7px; vertical-align: middle;
