@@ -214,6 +214,16 @@
           </div>
           <div class="row2">
             <div class="field">
+              <label for="s-curso">Curso</label>
+              <input type="text" id="s-curso" maxlength="80" placeholder="Ex.: Engenharia da Computação">
+            </div>
+            <div class="field">
+              <label for="s-linkedin">LinkedIn</label>
+              <input type="text" id="s-linkedin" maxlength="200" placeholder="linkedin.com/in/seu-perfil">
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field">
               <label for="s-ano">Ano da faculdade</label>
               <select id="s-ano">
                 <option value="">Selecione</option>
@@ -224,7 +234,7 @@
                 <option value="5">5º</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field" id="s-topa-field">
               <label for="s-topa">Pode nos dias 16 e 17/10?</label>
               <select id="s-topa">
                 <option value="">Selecione</option>
@@ -232,12 +242,19 @@
                 <option value="Não">Não</option>
               </select>
             </div>
+            <!-- Só existe uma vez que a etapa vira inscrição oficial, no
+                 mesmo lugar de "Pode nos dias 16 e 17?" (que já perdeu
+                 sentido nessa etapa, com data confirmada). -->
+            <div class="field" id="s-cpf-field" style="display:none;">
+              <label for="s-cpf">CPF</label>
+              <input type="text" id="s-cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14">
+            </div>
           </div>
           <!-- Datas alternativas: as caixas usam .ack como os outros
                checkboxes da folha. Antes vinham com style inline (13px e
                checkbox de 16px), o que dava alvo de toque abaixo do mínimo e
                fugia da tipografia do formulário. -->
-          <div class="ack-group">
+          <div class="ack-group" id="s-datas-group">
             <span class="group-label">Datas alternativas que também funcionariam</span>
             <label class="ack">
               <input type="checkbox" class="s-datas" value="2 e 3 de outubro"> 2 e 3 de outubro
@@ -259,7 +276,7 @@
                 <option value="Não">Não</option>
               </select>
             </div>
-            <div class="field">
+            <div class="field" id="s-tema-field">
               <label for="s-tema">Já tem tema em mente?</label>
               <select id="s-tema">
                 <option value="">Selecione</option>
@@ -274,7 +291,7 @@
                pode ser condição para se inscrever no evento. -->
           <label class="ack">
             <input type="checkbox" id="s-consent-patrocinadores">
-            <span>Autorizo o compartilhamento dos meus dados de contato (nome, e-mail e telefone) com os patrocinadores do evento, exclusivamente para divulgação de vagas e oportunidades profissionais, conforme o manual do participante.</span>
+            <span>Autorizo o compartilhamento dos meus dados de contato (nome, e-mail, telefone e perfil do LinkedIn) com os patrocinadores do evento, exclusivamente para divulgação de vagas e oportunidades profissionais, conforme o manual do participante.</span>
           </label>
         </div>
         <label class="ack" id="s-aware-local-row">
@@ -316,6 +333,16 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
+
+  // Formata enquanto digita (000.000.000-00) — só cosmético, a validação de
+  // verdade (dígito verificador) é feita no servidor.
+  document.getElementById("s-cpf").addEventListener("input", function () {
+    var d = this.value.replace(/\D/g, "").slice(0, 11);
+    this.value = d
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  });
 
   document.getElementById("s-datas-outro-check").addEventListener("change", function () {
     var outro = document.getElementById("s-datas-outro");
@@ -386,6 +413,16 @@
             document.getElementById("s-aware-time-row").style.display = "none";
             document.getElementById("s-aware-local").required = false;
             document.getElementById("s-aware-time").required = false;
+          } else {
+            // Na inscrição oficial as datas já estão fechadas: as perguntas
+            // sobre topar 16/17, alternativas e tema em mente perdem sentido
+            // (quem chega aqui já passou pela pré-inscrição) — saem do lugar
+            // do CPF, pedido só nesta etapa (dado oficial, para o prêmio).
+            document.getElementById("s-topa-field").style.display = "none";
+            document.getElementById("s-datas-group").style.display = "none";
+            document.getElementById("s-tema-field").style.display = "none";
+            document.getElementById("s-cpf-field").style.display = "flex";
+            document.getElementById("s-cpf").required = true;
           }
         } else {
           // As listas fechadas vêm do servidor: turma nova entra só no server.js.
@@ -441,6 +478,8 @@
     };
     if (isHackathon) {
       body.vinculo = document.getElementById("s-vinculo").value;
+      body.curso = document.getElementById("s-curso").value;
+      body.linkedin = document.getElementById("s-linkedin").value;
       body.anoFaculdade = document.getElementById("s-ano").value;
       body.topaDias16e17 = document.getElementById("s-topa").value;
       body.datasAlternativas = Array.prototype.slice
@@ -449,6 +488,7 @@
       body.datasAlternativasOutro = document.getElementById("s-datas-outro").value;
       body.temGrupo = document.getElementById("s-grupo").value;
       body.temTema = document.getElementById("s-tema").value;
+      body.cpf = document.getElementById("s-cpf").value;
       body.consentPatrocinadores = document.getElementById("s-consent-patrocinadores").checked;
     } else {
       body.turma = document.getElementById("s-turma").value;

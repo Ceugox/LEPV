@@ -1659,6 +1659,21 @@ const HACKATHON_VINCULOS = ["Ativa do IME", "Reserva do IME", "FGV"];
 const HACKATHON_ANOS_FACULDADE = ["1", "2", "3", "4", "5"];
 const HACKATHON_SIMNAO = ["Sim", "Não"];
 const HACKATHON_DATAS_ALT = ["2 e 3 de outubro", "9 e 10 de outubro", "Outro"];
+
+// Dígitos verificadores do CPF (algoritmo padrão da Receita) — pedido só na
+// inscrição oficial do Hackathon, quando o dado vira oficial de verdade (uso:
+// pagamento do prêmio). Sequências como "000...000" batem os dígitos mas não
+// são CPF real, por isso a checagem extra.
+function cpfValido(cpf) {
+  if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+  const digito = (len) => {
+    let soma = 0;
+    for (let i = 0; i < len; i++) soma += parseInt(cpf[i], 10) * (len + 1 - i);
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digito(9) === parseInt(cpf[9], 10) && digito(10) === parseInt(cpf[10], 10);
+}
 // Com 2+ presenças o visitante deve ser convidado a virar membro.
 const VISITOR_INVITE_THRESHOLD = 2;
 
@@ -2738,6 +2753,8 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
   let extraFields;
   if (isHackathon) {
     const vinculo = String(req.body.vinculo || "").trim();
+    const curso = String(req.body.curso || "").trim().slice(0, 80);
+    const linkedin = String(req.body.linkedin || "").trim().slice(0, 200);
     const anoFaculdade = String(req.body.anoFaculdade || "").trim();
     const topaDias16e17 = String(req.body.topaDias16e17 || "").trim();
     const temGrupo = String(req.body.temGrupo || "").trim();
@@ -2746,6 +2763,10 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
       ? req.body.datasAlternativas.map((d) => String(d))
       : [];
     const datasAlternativasOutro = String(req.body.datasAlternativasOutro || "").trim().slice(0, 200);
+    const cpf = String(req.body.cpf || "").replace(/\D/g, "");
+    // CPF só é exigido a partir da inscrição oficial — na pré-inscrição a
+    // pergunta nem aparece no formulário (ver inscricao.html).
+    const cpfObrigatorio = (ev.phase || "pre-inscricao") !== "pre-inscricao";
 
     if (HACKATHON_VINCULOS.indexOf(vinculo) === -1) {
       return res.status(400).json({ error: "invalid_vinculo", message: "Escolha seu vínculo." });
@@ -2768,14 +2789,20 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
     if (datasAlternativas.includes("Outro") && !datasAlternativasOutro) {
       return res.status(400).json({ error: "invalid_datas_outro", message: "Descreva a data alternativa." });
     }
+    if (cpfObrigatorio ? !cpfValido(cpf) : cpf && !cpfValido(cpf)) {
+      return res.status(400).json({ error: "invalid_cpf", message: "Informe um CPF válido." });
+    }
     extraFields = {
       vinculo,
+      curso,
+      linkedin,
       anoFaculdade,
       topaDias16e17,
       datasAlternativas,
       datasAlternativasOutro: datasAlternativas.includes("Outro") ? datasAlternativasOutro : "",
       temGrupo,
       temTema,
+      cpf,
       // Opt-in real (manual do participante, item 12): default false,
       // nunca bloqueia a inscrição — só reflete o que a pessoa marcou.
       consentPatrocinadores: req.body.consentPatrocinadores === true,
