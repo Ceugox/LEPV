@@ -3101,6 +3101,82 @@ app.post("/api/reimbursements/:id/status", requireDirectorApi, (req, res) => {
   res.json({ expense: exp });
 });
 
+// Anexos do lançamento: nota fiscal ou comprovante, foto (JPG/PNG/WebP) ou
+// PDF (NF-e). Corpo cru com sniffing — o Content-Type do cliente não prova
+// nada, como no upload de avatar e de materiais.
+app.post(
+  "/api/reimbursements/:id/attachments",
+  requireAuthApi,
+  express.raw({ type: ["image/*", "application/pdf", "application/octet-stream"], limit: "25mb" }),
+  (req, res) => {
+    const data = readReimbursements();
+    const exp = findReimbursement(data, req.params.id);
+    if (!exp || !canSeeReimbursement(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
+    if (!reimbursementEditableBy(exp, req.session.user)) {
+      return res.status(409).json({ error: "locked", message: "Esse lançamento já foi decidido pela diretoria." });
+    }
+    if (exp.attachments.length >= REIMBURSEMENT_MAX_ATTACHMENTS) {
+      return res.status(400).json({ error: "too_many_attachments", message: "Máximo de " + REIMBURSEMENT_MAX_ATTACHMENTS + " anexos por gasto." });
+    }
+    if (!Buffer.isBuffer(req.body) || !req.body.length) {
+      return res.status(400).json({ error: "empty_file" });
+    }
+    const isPdf = req.body.subarray(0, 5).toString("latin1") === "%PDF-";
+    const imgExt = isPdf ? null : sniffImage(req.body);
+    if (!isPdf && !imgExt) {
+      return res.status(400).json({ error: "invalid_file", message: "Envie uma foto (JPG, PNG, WebP) ou um PDF." });
+    }
+    // O raw aceita até 25 MB porque NF-e vem em PDF; foto segue o teto de 6 MB
+    // dos demais uploads de imagem do app.
+    if (!isPdf && req.body.length > 6 * 1024 * 1024) {
+      return res.status(413).json({ error: "image_too_large", message: "Foto acima de 6 MB — tire outra ou comprima." });
+    }
+    const attId = "ga" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
+    const ext = isPdf ? "pdf" : imgExt;
+    const file = exp.id + "-" + attId + "." + ext;
+    fs.writeFileSync(path.join(REIMBURSEMENT_FILES_DIR, file), req.body);
+    exp.attachments.push({
+      id: attId,
+      type: isPdf ? "pdf" : "image",
+      file,
+      name: String(req.query.name || "anexo").replace(/[^\w.\- ]/g, "").trim().slice(0, 80) || "anexo",
+      size: req.body.length,
+    });
+    exp.updatedAt = new Date().toISOString();
+    writeReimbursements(data);
+    res.json({ expense: exp });
+  }
+);
+
+// Anexo não é público: só o dono e a diretoria abrem.
+app.get("/api/reimbursements/:id/attachments/:att", requireAuthApi, (req, res) => {
+  const exp = findReimbursement(readReimbursements(), req.params.id);
+  const att = exp && exp.attachments.find((a) => a.id === req.params.att);
+  if (!exp || !att || !canSeeReimbursement(exp, req.session.user)) return res.status(404).end();
+  const file = path.join(REIMBURSEMENT_FILES_DIR, att.file);
+  if (!fs.existsSync(file)) return res.status(404).end();
+  res.set("Cache-Control", "private, no-store");
+  // res.type resolve a extensão para o MIME correto (jpg → image/jpeg).
+  res.type(att.type === "pdf" ? "application/pdf" : path.extname(att.file).slice(1));
+  res.sendFile(file);
+});
+
+app.delete("/api/reimbursements/:id/attachments/:att", requireAuthApi, (req, res) => {
+  const data = readReimbursements();
+  const exp = findReimbursement(data, req.params.id);
+  if (!exp || !canSeeReimbursement(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
+  if (!reimbursementEditableBy(exp, req.session.user)) {
+    return res.status(409).json({ error: "locked" });
+  }
+  const i = exp.attachments.findIndex((a) => a.id === req.params.att);
+  if (i < 0) return res.status(404).json({ error: "not_found" });
+  fs.rmSync(path.join(REIMBURSEMENT_FILES_DIR, exp.attachments[i].file), { force: true });
+  exp.attachments.splice(i, 1);
+  exp.updatedAt = new Date().toISOString();
+  writeReimbursements(data);
+  res.json({ expense: exp });
+});
+
 // ---- Selos (presença por empresa → gamificação individualizada) ----
 
 // Visão de cada membro: quais empresas ele já tem selo, mais o progresso

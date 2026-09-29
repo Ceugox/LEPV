@@ -209,6 +209,8 @@ const PNG_1PX = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
   "base64"
 );
+// PDF mínimo válido — o servidor confere a assinatura %PDF-, não a extensão.
+const PDF_1PG = Buffer.from("%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
 
 // ---- Infra ----
 
@@ -1590,6 +1592,58 @@ test("membro não decide nem enxerga gasto de outro", async () => {
   eq((await b.patch("/api/reimbursements/" + id, { description: "invasão" })).status, 404, "editar alheio → 404");
   eq((await b.del("/api/reimbursements/" + id)).status, 404, "excluir alheio → 404");
   eq((await b.post("/api/reimbursements/" + id + "/status", { status: "aprovado" })).status, 403, "decidir não é de membro");
+});
+
+test("anexos: imagem e PDF entram, download só para dono e diretor", async () => {
+  const m = client();
+  eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
+  const c = await m.post("/api/reimbursements", { description: "Fotocópias do edital", amountCents: 4000, spentAt: "2026-09-27" });
+  const id = c.data.expense.id;
+
+  const up = await m.post("/api/reimbursements/" + id + "/attachments?name=nota.png", PNG_1PX, { "Content-Type": "image/png" });
+  eq(up.status, 200, "upload imagem");
+  eq(up.data.expense.attachments[0].type, "image");
+  const upPdf = await m.post("/api/reimbursements/" + id + "/attachments?name=nfe.pdf", PDF_1PG, { "Content-Type": "application/pdf" });
+  eq(upPdf.status, 200, "upload pdf");
+  eq(upPdf.data.expense.attachments.length, 2);
+
+  const att = up.data.expense.attachments[0];
+  const img = await m.get("/api/reimbursements/" + id + "/attachments/" + att.id);
+  eq(img.status, 200, "dono baixa o próprio anexo");
+  assert((img.headers.get("content-type") || "").startsWith("image/"), "content-type de imagem");
+
+  const b = client();
+  eq((await b.login(6, MEMBER2_PASS)).status, 200, "login membro B");
+  eq((await b.get("/api/reimbursements/" + id + "/attachments/" + att.id)).status, 404, "membro B não baixa anexo alheio");
+
+  const d = client();
+  eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
+  eq((await d.get("/api/reimbursements/" + id + "/attachments/" + att.id)).status, 200, "diretor baixa");
+});
+
+test("anexos: limite de 5, lixo recusado e trava após decisão", async () => {
+  const m = client();
+  eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
+  const c = await m.post("/api/reimbursements", { description: "Material do estande", amountCents: 900, spentAt: "2026-09-27" });
+  const id = c.data.expense.id;
+
+  const lixo = await m.post("/api/reimbursements/" + id + "/attachments", Buffer.from("isso não é imagem"), { "Content-Type": "image/png" });
+  eq(lixo.status, 400, "magic bytes errados → 400");
+
+  for (let i = 0; i < 5; i++) {
+    eq((await m.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 200, "anexo " + (i + 1));
+  }
+  eq((await m.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 400, "6º anexo → 400");
+  // Libera um espaço: o dono pode remover anexo enquanto o gasto está pendente.
+  const attId = (await m.get("/api/reimbursements")).data.expenses.find((x) => x.id === id).attachments[0].id;
+  eq((await m.del("/api/reimbursements/" + id + "/attachments/" + attId)).status, 200, "dono remove anexo");
+
+  const d = client();
+  eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
+  await d.post("/api/reimbursements/" + id + "/status", { status: "aprovado" });
+  eq((await m.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 409, "dono travado após decisão");
+  eq((await d.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 200, "diretor ainda anexa");
+  eq((await m.del("/api/reimbursements/" + id + "/attachments/" + attId)).status, 409, "dono não remove anexo travado");
 });
 
 async function main() {
