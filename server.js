@@ -3022,6 +3022,85 @@ app.post("/api/reimbursements", requireAuthApi, (req, res) => {
   res.json({ expense });
 });
 
+// Transições do ciclo de vida; o cliente usa o mesmo mapa para esconder ações.
+const REIMBURSEMENT_TRANSITIONS = {
+  pendente: ["aprovado", "recusado"],
+  aprovado: ["pago", "pendente"],
+};
+
+function reimbursementEditableBy(exp, user) {
+  // Dono mexe só enquanto pendente; depois da decisão, só a diretoria.
+  return isDirectorRole(user) || (exp.memberOrder === user.order && exp.status === "pendente");
+}
+
+app.patch("/api/reimbursements/:id", requireAuthApi, (req, res) => {
+  const data = readReimbursements();
+  const exp = findReimbursement(data, req.params.id);
+  if (!exp || !canSeeReimbursement(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
+  if (!reimbursementEditableBy(exp, req.session.user)) {
+    return res.status(409).json({ error: "locked", message: "Esse lançamento já foi decidido pela diretoria." });
+  }
+  const b = req.body || {};
+  if (b.description !== undefined) {
+    const v = String(b.description).trim();
+    if (v.length < 3 || v.length > 160) return res.status(400).json({ error: "invalid_description" });
+    exp.description = v;
+  }
+  if (b.amountCents !== undefined) {
+    const v = Number(b.amountCents);
+    if (!Number.isInteger(v) || v <= 0 || v > 9999999) return res.status(400).json({ error: "invalid_amount" });
+    exp.amountCents = v;
+  }
+  if (b.spentAt !== undefined) {
+    if (!validSpentAt(b.spentAt)) return res.status(400).json({ error: "invalid_date" });
+    exp.spentAt = String(b.spentAt);
+  }
+  exp.updatedAt = new Date().toISOString();
+  writeReimbursements(data);
+  res.json({ expense: exp });
+});
+
+app.delete("/api/reimbursements/:id", requireAuthApi, (req, res) => {
+  const data = readReimbursements();
+  const i = data.expenses.findIndex((e) => e.id === req.params.id);
+  if (i < 0 || !canSeeReimbursement(data.expenses[i], req.session.user)) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const exp = data.expenses[i];
+  if (!reimbursementEditableBy(exp, req.session.user)) {
+    return res.status(409).json({ error: "locked", message: "Esse lançamento já foi decidido pela diretoria." });
+  }
+  for (const att of exp.attachments) {
+    fs.rmSync(path.join(REIMBURSEMENT_FILES_DIR, att.file), { force: true });
+  }
+  data.expenses.splice(i, 1);
+  writeReimbursements(data);
+  res.json({ ok: true });
+});
+
+// Decisão da diretoria: aprova, recusa (motivo obrigatório) ou marca pago.
+// decidedBy/decidedAt registram quem e quando, a cada decisão.
+app.post("/api/reimbursements/:id/status", requireDirectorApi, (req, res) => {
+  const data = readReimbursements();
+  const exp = findReimbursement(data, req.params.id);
+  if (!exp) return res.status(404).json({ error: "not_found" });
+  const next = String(req.body?.status || "");
+  if (!(REIMBURSEMENT_TRANSITIONS[exp.status] || []).includes(next)) {
+    return res.status(409).json({ error: "invalid_transition", message: "Transição não permitida." });
+  }
+  const note = String(req.body?.note || "").trim().slice(0, 280) || null;
+  if (next === "recusado" && !note) {
+    return res.status(400).json({ error: "note_required", message: "Recusa precisa de motivo." });
+  }
+  exp.status = next;
+  exp.note = note;
+  exp.decidedBy = req.session.user.order;
+  exp.decidedAt = new Date().toISOString();
+  exp.updatedAt = exp.decidedAt;
+  writeReimbursements(data);
+  res.json({ expense: exp });
+});
+
 // ---- Selos (presença por empresa → gamificação individualizada) ----
 
 // Visão de cada membro: quais empresas ele já tem selo, mais o progresso

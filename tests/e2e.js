@@ -1540,6 +1540,58 @@ test("gastos exigem sessão", async () => {
   eq(r.status, 401, "anônimo recebe 401");
 });
 
+test("ciclo: pendente → aprovado → pago; dono não edita depois da decisão", async () => {
+  const m = client();
+  eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
+  const c = await m.post("/api/reimbursements", { description: "Impressão de crachás", amountCents: 22000, spentAt: "2026-09-27" });
+  const id = c.data.expense.id;
+
+  // enquanto pendente, o dono edita
+  const ed = await m.patch("/api/reimbursements/" + id, { description: "Impressão de crachás e cordões" });
+  eq(ed.status, 200, "dono edita pendente");
+  eq(ed.data.expense.description, "Impressão de crachás e cordões");
+
+  const d = client();
+  eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "aprovado" })).status, 200, "aprova");
+
+  // decidido: o dono não edita nem exclui mais
+  eq((await m.patch("/api/reimbursements/" + id, { description: "tenta mudar" })).status, 409, "edição travada");
+  eq((await m.del("/api/reimbursements/" + id)).status, 409, "exclusão travada");
+
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "pago" })).status, 200, "marca pago");
+  const fim = await d.get("/api/reimbursements?status=pago");
+  assert(fim.data.expenses.some((e) => e.id === id && e.decidedBy === 4), "pago com decidedBy do diretor");
+});
+
+test("recusa exige motivo e pendente pode ser excluído pelo dono", async () => {
+  const m = client();
+  eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
+  const c = await m.post("/api/reimbursements", { description: "Táxi ao aeroporto", amountCents: 9000, spentAt: "2026-09-27" });
+  const id = c.data.expense.id;
+
+  const d = client();
+  eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "recusado" })).status, 400, "recusa sem motivo");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "recusado", note: "Sem nota fiscal" })).status, 200, "recusa com motivo");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "pago" })).status, 409, "recusado não vira pago direto");
+
+  const c2 = await m.post("/api/reimbursements", { description: "Lanche da visita", amountCents: 1500, spentAt: "2026-09-27" });
+  eq((await m.del("/api/reimbursements/" + c2.data.expense.id)).status, 200, "dono exclui pendente");
+});
+
+test("membro não decide nem enxerga gasto de outro", async () => {
+  const a = client();
+  const b = client();
+  eq((await a.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login A");
+  eq((await b.login(6, MEMBER2_PASS)).status, 200, "login B");
+  const c = await a.post("/api/reimbursements", { description: "Gasto do A", amountCents: 500, spentAt: "2026-09-27" });
+  const id = c.data.expense.id;
+  eq((await b.patch("/api/reimbursements/" + id, { description: "invasão" })).status, 404, "editar alheio → 404");
+  eq((await b.del("/api/reimbursements/" + id)).status, 404, "excluir alheio → 404");
+  eq((await b.post("/api/reimbursements/" + id + "/status", { status: "aprovado" })).status, 403, "decidir não é de membro");
+});
+
 async function main() {
   setupVolume();
   await startServer();
