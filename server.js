@@ -279,6 +279,36 @@ if (!fs.existsSync(EVENTS_PATH)) {
 }
 fs.mkdirSync(EVENT_PHOTOS_DIR, { recursive: true });
 
+// Centro de gastos — lançamentos de ressarcimento dos membros e registro do
+// que a diretoria já pagou. Metadado no volume, anexos (nota e comprovante)
+// em diretório próprio, como materials/ e event-photos/.
+const REIMBURSEMENTS_PATH = path.join(STORAGE_DIR, "reimbursements.json");
+const REIMBURSEMENT_FILES_DIR = path.join(STORAGE_DIR, "reimbursements");
+fs.mkdirSync(REIMBURSEMENT_FILES_DIR, { recursive: true });
+const REIMBURSEMENT_MAX_ATTACHMENTS = 5;
+const REIMBURSEMENT_KINDS = ["reimbursement", "paid_by_board"];
+if (!fs.existsSync(REIMBURSEMENTS_PATH)) writeStore(REIMBURSEMENTS_PATH, { expenses: [] });
+function readReimbursements() {
+  return readStore(REIMBURSEMENTS_PATH);
+}
+function writeReimbursements(data) {
+  writeStore(REIMBURSEMENTS_PATH, data);
+}
+// "Hoje" no fuso do Brasil — um gasto de amanhã não é válido nem quando o
+// servidor roda em UTC.
+function todayBR() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+function validSpentAt(v) {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(v + "T12:00:00Z");
+  if (isNaN(d) || d.toISOString().slice(0, 10) !== v) return false; // 2026-02-31
+  return v <= todayBR();
+}
+function isDirectorRole(user) {
+  return user.director === true || user.superadmin === true;
+}
+
 // Códigos de presença sem caracteres ambíguos (sem 0/O, 1/I/L).
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function generateCode(len) {
@@ -2929,6 +2959,67 @@ app.post("/api/presence/:token", turnstileGate, (req, res) => {
         ? "Presença registrada! Você já participou de " + visits + " atividades — que tal virar membro? Peça acesso na página inicial ou fale com a diretoria."
         : "Presença registrada! Bem-vindo(a) à LEPV.",
   });
+});
+
+// ---- Centro de gastos ----
+// Membro vê e mexe só nos próprios lançamentos; a diretoria vê e age em todos.
+// Para quem não é dono nem diretor a resposta é 404 — nem a existência do
+// lançamento vaza.
+function findReimbursement(data, id) {
+  return data.expenses.find((e) => e.id === id);
+}
+function canSeeReimbursement(exp, user) {
+  return exp.memberOrder === user.order || isDirectorRole(user);
+}
+
+app.get("/api/reimbursements", requireAuthApi, (req, res) => {
+  const all = readReimbursements().expenses;
+  const dir = isDirectorRole(req.session.user);
+  let list = dir ? all : all.filter((e) => e.memberOrder === req.session.user.order);
+  if (dir) {
+    if (req.query.status) list = list.filter((e) => e.status === String(req.query.status));
+    if (req.query.member) list = list.filter((e) => e.memberOrder === parseInt(req.query.member, 10));
+  }
+  list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  res.json({ expenses: list });
+});
+
+app.post("/api/reimbursements", requireAuthApi, (req, res) => {
+  const b = req.body || {};
+  const description = String(b.description || "").trim();
+  const amountCents = Number(b.amountCents);
+  const spentAt = String(b.spentAt || "");
+  const kind = b.kind === "paid_by_board" ? "paid_by_board" : "reimbursement";
+  if (description.length < 3 || description.length > 160) {
+    return res.status(400).json({ error: "invalid_description", message: "Descreva o gasto em 3 a 160 caracteres." });
+  }
+  if (!Number.isInteger(amountCents) || amountCents <= 0 || amountCents > 9999999) {
+    return res.status(400).json({ error: "invalid_amount", message: "Valor inválido." });
+  }
+  if (!validSpentAt(spentAt)) {
+    return res.status(400).json({ error: "invalid_date", message: "Data inválida ou futura." });
+  }
+  const data = readReimbursements();
+  const now = new Date().toISOString();
+  const expense = {
+    id: "gx" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
+    memberOrder: req.session.user.order,
+    description,
+    amountCents,
+    spentAt,
+    kind,
+    // Registro do que a diretoria já pagou nasce pago — é fato, não pedido.
+    status: kind === "paid_by_board" ? "pago" : "pendente",
+    attachments: [],
+    decidedBy: null,
+    decidedAt: null,
+    note: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  data.expenses.push(expense);
+  writeReimbursements(data);
+  res.json({ expense });
 });
 
 // ---- Selos (presença por empresa → gamificação individualizada) ----

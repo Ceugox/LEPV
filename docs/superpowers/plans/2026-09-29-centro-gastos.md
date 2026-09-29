@@ -4,7 +4,7 @@
 
 **Goal:** Membros lançam gastos para ressarcimento (ou registro do que a diretoria já pagou) com nota/comprovante anexados por foto ou PDF; a diretoria aprova, recusa e marca pagamento num extrato consolidado.
 
-**Architecture:** Store novo `expenses.json` no volume + arquivos em `STORAGE_DIR/expenses/`; rotas `/api/expenses*` atrás de `requireAuthApi`/`requireDirectorApi`; uploads em corpo cru com sniffing (padrão avatar/materiais). No cliente, aba "Gastos" no grupo `liga`, módulo ES `public/js/features/expenses.js` acionado por `CustomEvent`, seguindo `board.js`.
+**Architecture:** Store novo `reimbursements.json` no volume + arquivos em `STORAGE_DIR/reimbursements/`; rotas `/api/reimbursements*` atrás de `requireAuthApi`/`requireDirectorApi`; uploads em corpo cru com sniffing (padrão avatar/materiais). No cliente, aba "Gastos" no grupo `liga`, módulo ES `public/js/features/expenses.js` acionado por `CustomEvent`, seguindo `board.js`.
 
 **Tech Stack:** Node.js 24, Express 4, JS ES modules nativos no browser, Playwright para verificação, CSS puro com tokens do tema.
 
@@ -49,9 +49,9 @@
 - Modify: `tests/e2e.js` — credencial de diretor e de segundo membro em `setupVolume`; testes novos antes de `async function main()`.
 
 **Interfaces:**
-- Produces: `readExpenses() -> { expenses: Expense[] }`, `writeExpenses(data)`, `todayBR() -> "YYYY-MM-DD"`, `validSpentAt(v) -> bool`, `EXPENSE_KINDS`, `EXPENSE_MAX_ATTACHMENTS = 5`.
-- `Expense = { id, memberOrder, description, amountCents, spentAt, kind, status, attachments, decidedBy, decidedAt, note, createdAt, updatedAt }`.
-- API: `GET /api/expenses` e `POST /api/expenses`. Tasks 2–4 consomem o mesmo objeto.
+- Produces: `readReimbursements() -> { expenses: Reimbursement[] }`, `writeReimbursements(data)`, `todayBR() -> "YYYY-MM-DD"`, `validSpentAt(v) -> bool`, `REIMBURSEMENT_KINDS`, `REIMBURSEMENT_MAX_ATTACHMENTS = 5`.
+- `Reimbursement = { id, memberOrder, description, amountCents, spentAt, kind, status, attachments, decidedBy, decidedAt, note, createdAt, updatedAt }`.
+- API: `GET /api/reimbursements` e `POST /api/reimbursements`. Tasks 2–4 consomem o mesmo objeto.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -81,7 +81,7 @@ Testes novos (antes de `async function main()`):
 test("membro cria gasto de ressarcimento e lista só os seus", async () => {
   const a = client();
   eq((await a.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro A");
-  const c = await a.post("/api/expenses", {
+  const c = await a.post("/api/reimbursements", {
     description: "Uber até a gráfica — banner",
     amountCents: 3450,
     spentAt: "2026-09-27",
@@ -93,12 +93,12 @@ test("membro cria gasto de ressarcimento e lista só os seus", async () => {
 
   const b = client();
   eq((await b.login(6, MEMBER2_PASS)).status, 200, "login membro B");
-  await b.post("/api/expenses", { description: "Café da reunião", amountCents: 1200, spentAt: "2026-09-27" });
+  await b.post("/api/reimbursements", { description: "Café da reunião", amountCents: 1200, spentAt: "2026-09-27" });
 
-  const la = await a.get("/api/expenses");
+  const la = await a.get("/api/reimbursements");
   eq(la.data.expenses.length, 1, "membro A vê só o próprio");
   eq(la.data.expenses[0].description, "Uber até a gráfica — banner");
-  const lb = await b.get("/api/expenses");
+  const lb = await b.get("/api/reimbursements");
   eq(lb.data.expenses.length, 1, "membro B vê só o próprio");
   assert(lb.data.expenses[0].id !== c.data.expense.id, "B não recebe gasto de A");
 });
@@ -106,7 +106,7 @@ test("membro cria gasto de ressarcimento e lista só os seus", async () => {
 test("checkbox 'a diretoria já pagou' nasce pago", async () => {
   const c = client();
   eq((await c.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login");
-  const r = await c.post("/api/expenses", {
+  const r = await c.post("/api/reimbursements", {
     description: "Passagem comprada pela diretoria",
     amountCents: 80000,
     spentAt: "2026-09-27",
@@ -119,11 +119,11 @@ test("checkbox 'a diretoria já pagou' nasce pago", async () => {
 test("diretor vê o extrato consolidado com filtros", async () => {
   const d = client();
   eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
-  const all = await d.get("/api/expenses");
+  const all = await d.get("/api/reimbursements");
   assert(all.data.expenses.length >= 3, "diretor vê lançamentos de todos");
-  const pend = await d.get("/api/expenses?status=pendente");
+  const pend = await d.get("/api/reimbursements?status=pendente");
   assert(pend.data.expenses.every((e) => e.status === "pendente"), "filtro por status");
-  const byMember = await d.get("/api/expenses?member=" + MEMBER_ORDER);
+  const byMember = await d.get("/api/reimbursements?member=" + MEMBER_ORDER);
   assert(byMember.data.expenses.every((e) => e.memberOrder === MEMBER_ORDER), "filtro por membro");
 });
 
@@ -136,13 +136,13 @@ test("validação: valor, data e descrição ruins são recusados", async () => 
     ["spentAt", "2999-01-01"], ["spentAt", "27/09/2026"],
     ["description", "ab"], ["description", "x".repeat(161)],
   ]) {
-    const r = await c.post("/api/expenses", { ...base, [field]: bad });
+    const r = await c.post("/api/reimbursements", { ...base, [field]: bad });
     eq(r.status, 400, field + "=" + JSON.stringify(bad) + " devia dar 400, veio " + r.status);
   }
 });
 
 test("gastos exigem sessão", async () => {
-  const r = await client().get("/api/expenses");
+  const r = await client().get("/api/reimbursements");
   eq(r.status, 401, "anônimo recebe 401");
 });
 ```
@@ -150,7 +150,7 @@ test("gastos exigem sessão", async () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `node tests/e2e.js`
-Expected: FAIL nos 5 testes novos — `/api/expenses` ainda não existe (404/401 conforme o caso).
+Expected: FAIL nos 5 testes novos — `/api/reimbursements` ainda não existe (404/401 conforme o caso).
 
 - [ ] **Step 3: Implement**
 
@@ -160,16 +160,16 @@ Em `server.js`, depois do bloco `EVENT_PHOTOS_DIR` (~linha 280), antes das const
 // Centro de gastos — lançamentos de ressarcimento dos membros e registro do
 // que a diretoria já pagou. Metadado no volume, anexos (nota e comprovante)
 // em diretório próprio, como materials/ e event-photos/.
-const EXPENSES_PATH = path.join(STORAGE_DIR, "expenses.json");
-const EXPENSE_FILES_DIR = path.join(STORAGE_DIR, "expenses");
-fs.mkdirSync(EXPENSE_FILES_DIR, { recursive: true });
-const EXPENSE_MAX_ATTACHMENTS = 5;
-const EXPENSE_KINDS = ["reimbursement", "paid_by_board"];
+const EXPENSES_PATH = path.join(STORAGE_DIR, "reimbursements.json");
+const REIMBURSEMENT_FILES_DIR = path.join(STORAGE_DIR, "expenses");
+fs.mkdirSync(REIMBURSEMENT_FILES_DIR, { recursive: true });
+const REIMBURSEMENT_MAX_ATTACHMENTS = 5;
+const REIMBURSEMENT_KINDS = ["reimbursement", "paid_by_board"];
 if (!fs.existsSync(EXPENSES_PATH)) writeStore(EXPENSES_PATH, { expenses: [] });
-function readExpenses() {
+function readReimbursements() {
   return readStore(EXPENSES_PATH);
 }
-function writeExpenses(data) {
+function writeReimbursements(data) {
   writeStore(EXPENSES_PATH, data);
 }
 // "Hoje" no fuso do Brasil — um gasto de amanhã não é válido nem quando o
@@ -195,15 +195,15 @@ Rotas novas, antes de `app.get("/api/badges", ...)`:
 // Membro vê e mexe só nos próprios lançamentos; a diretoria vê e age em todos.
 // Para quem não é dono nem diretor a resposta é 404 — nem a existência do
 // lançamento vaza.
-function findExpense(data, id) {
+function findReimbursement(data, id) {
   return data.expenses.find((e) => e.id === id);
 }
-function canSeeExpense(exp, user) {
+function canSeeReimbursement(exp, user) {
   return exp.memberOrder === user.order || isDirectorRole(user);
 }
 
-app.get("/api/expenses", requireAuthApi, (req, res) => {
-  const all = readExpenses().expenses;
+app.get("/api/reimbursements", requireAuthApi, (req, res) => {
+  const all = readReimbursements().expenses;
   let list = isDirectorRole(req.session.user)
     ? all
     : all.filter((e) => e.memberOrder === req.session.user.order);
@@ -215,7 +215,7 @@ app.get("/api/expenses", requireAuthApi, (req, res) => {
   res.json({ expenses: list });
 });
 
-app.post("/api/expenses", requireAuthApi, (req, res) => {
+app.post("/api/reimbursements", requireAuthApi, (req, res) => {
   const b = req.body || {};
   const description = String(b.description || "").trim();
   const amountCents = Number(b.amountCents);
@@ -230,7 +230,7 @@ app.post("/api/expenses", requireAuthApi, (req, res) => {
   if (!validSpentAt(spentAt)) {
     return res.status(400).json({ error: "invalid_date", message: "Data inválida ou futura." });
   }
-  const data = readExpenses();
+  const data = readReimbursements();
   const now = new Date().toISOString();
   const expense = {
     id: "gx" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex"),
@@ -249,7 +249,7 @@ app.post("/api/expenses", requireAuthApi, (req, res) => {
     updatedAt: now,
   };
   data.expenses.push(expense);
-  writeExpenses(data);
+  writeReimbursements(data);
   res.json({ expense });
 });
 ```
@@ -271,12 +271,12 @@ git commit -m "feat(gastos): store e rotas de criacao e listagem do centro de ga
 ### Task 2: Ciclo de vida — edição, exclusão e decisão da diretoria
 
 **Files:**
-- Modify: `server.js` — rotas `PATCH`/`DELETE /api/expenses/:id` e `POST /api/expenses/:id/status`, logo depois do `POST /api/expenses`.
+- Modify: `server.js` — rotas `PATCH`/`DELETE /api/reimbursements/:id` e `POST /api/reimbursements/:id/status`, logo depois do `POST /api/reimbursements`.
 - Modify: `tests/e2e.js` — testes novos.
 
 **Interfaces:**
-- Consumes: `readExpenses`, `writeExpenses`, `findExpense`, `canSeeExpense`, `isDirectorRole`, validações da Task 1.
-- Produces: `EXPENSE_TRANSITIONS` (mapa status→permitidos) usado pelo front para esconder ações impossíveis.
+- Consumes: `readReimbursements`, `writeReimbursements`, `findReimbursement`, `canSeeReimbursement`, `isDirectorRole`, validações da Task 1.
+- Produces: `REIMBURSEMENT_TRANSITIONS` (mapa status→permitidos) usado pelo front para esconder ações impossíveis.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -284,52 +284,52 @@ git commit -m "feat(gastos): store e rotas de criacao e listagem do centro de ga
 test("ciclo: pendente → aprovado → pago; dono não edita depois da decisão", async () => {
   const m = client();
   eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
-  const c = await m.post("/api/expenses", { description: "Impressão de crachás", amountCents: 22000, spentAt: "2026-09-27" });
+  const c = await m.post("/api/reimbursements", { description: "Impressão de crachás", amountCents: 22000, spentAt: "2026-09-27" });
   const id = c.data.expense.id;
 
   // enquanto pendente, o dono edita
-  const ed = await m.patch("/api/expenses/" + id, { description: "Impressão de crachás e cordões" });
+  const ed = await m.patch("/api/reimbursements/" + id, { description: "Impressão de crachás e cordões" });
   eq(ed.status, 200, "dono edita pendente");
   eq(ed.data.expense.description, "Impressão de crachás e cordões");
 
   const d = client();
   eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
-  eq((await d.post("/api/expenses/" + id + "/status", { status: "aprovado" })).status, 200, "aprova");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "aprovado" })).status, 200, "aprova");
 
   // decidido: o dono não edita nem exclui mais
-  eq((await m.patch("/api/expenses/" + id, { description: "tenta mudar" })).status, 409, "edição travada");
-  eq((await m.del("/api/expenses/" + id)).status, 409, "exclusão travada");
+  eq((await m.patch("/api/reimbursements/" + id, { description: "tenta mudar" })).status, 409, "edição travada");
+  eq((await m.del("/api/reimbursements/" + id)).status, 409, "exclusão travada");
 
-  eq((await d.post("/api/expenses/" + id + "/status", { status: "pago" })).status, 200, "marca pago");
-  const fim = await d.get("/api/expenses?status=pago");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "pago" })).status, 200, "marca pago");
+  const fim = await d.get("/api/reimbursements?status=pago");
   assert(fim.data.expenses.some((e) => e.id === id && e.decidedBy === 4), "pago com decidedBy do diretor");
 });
 
 test("recusa exige motivo e pendente pode ser excluído pelo dono", async () => {
   const m = client();
   eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
-  const c = await m.post("/api/expenses", { description: "Táxi ao aeroporto", amountCents: 9000, spentAt: "2026-09-27" });
+  const c = await m.post("/api/reimbursements", { description: "Táxi ao aeroporto", amountCents: 9000, spentAt: "2026-09-27" });
   const id = c.data.expense.id;
 
   const d = client();
   eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
-  eq((await d.post("/api/expenses/" + id + "/status", { status: "recusado" })).status, 400, "recusa sem motivo");
-  eq((await d.post("/api/expenses/" + id + "/status", { status: "recusado", note: "Sem nota fiscal" })).status, 200, "recusa com motivo");
-  eq((await d.post("/api/expenses/" + id + "/status", { status: "pago" })).status, 409, "recusado não vira pago direto");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "recusado" })).status, 400, "recusa sem motivo");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "recusado", note: "Sem nota fiscal" })).status, 200, "recusa com motivo");
+  eq((await d.post("/api/reimbursements/" + id + "/status", { status: "pago" })).status, 409, "recusado não vira pago direto");
 
-  const c2 = await m.post("/api/expenses", { description: "Lanche da visita", amountCents: 1500, spentAt: "2026-09-27" });
-  eq((await m.del("/api/expenses/" + c2.data.expense.id)).status, 200, "dono exclui pendente");
+  const c2 = await m.post("/api/reimbursements", { description: "Lanche da visita", amountCents: 1500, spentAt: "2026-09-27" });
+  eq((await m.del("/api/reimbursements/" + c2.data.expense.id)).status, 200, "dono exclui pendente");
 });
 
 test("membro não decide nem enxerga gasto de outro", async () => {
   const a = client(); const b = client();
   eq((await a.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login A");
   eq((await b.login(6, MEMBER2_PASS)).status, 200, "login B");
-  const c = await a.post("/api/expenses", { description: "Gasto do A", amountCents: 500, spentAt: "2026-09-27" });
+  const c = await a.post("/api/reimbursements", { description: "Gasto do A", amountCents: 500, spentAt: "2026-09-27" });
   const id = c.data.expense.id;
-  eq((await b.patch("/api/expenses/" + id, { description: "invasão" })).status, 404, "editar alheio → 404");
-  eq((await b.del("/api/expenses/" + id)).status, 404, "excluir alheio → 404");
-  eq((await b.post("/api/expenses/" + id + "/status", { status: "aprovado" })).status, 403, "decidir não é de membro");
+  eq((await b.patch("/api/reimbursements/" + id, { description: "invasão" })).status, 404, "editar alheio → 404");
+  eq((await b.del("/api/reimbursements/" + id)).status, 404, "excluir alheio → 404");
+  eq((await b.post("/api/reimbursements/" + id + "/status", { status: "aprovado" })).status, 403, "decidir não é de membro");
 });
 ```
 
@@ -340,25 +340,25 @@ Expected: FAIL — rotas `PATCH`/`DELETE`/`status` ainda não existem.
 
 - [ ] **Step 3: Implement**
 
-Depois do `POST /api/expenses`, em `server.js`:
+Depois do `POST /api/reimbursements`, em `server.js`:
 
 ```js
 // Transições do ciclo de vida; o cliente usa o mesmo mapa para esconder ações.
-const EXPENSE_TRANSITIONS = {
+const REIMBURSEMENT_TRANSITIONS = {
   pendente: ["aprovado", "recusado"],
   aprovado: ["pago", "pendente"],
 };
 
-function expenseEditableBy(exp, user) {
+function reimbursementEditableBy(exp, user) {
   // Dono mexe só enquanto pendente; depois da decisão, só a diretoria.
   return isDirectorRole(user) || (exp.memberOrder === user.order && exp.status === "pendente");
 }
 
-app.patch("/api/expenses/:id", requireAuthApi, (req, res) => {
-  const data = readExpenses();
-  const exp = findExpense(data, req.params.id);
-  if (!exp || !canSeeExpense(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
-  if (!expenseEditableBy(exp, req.session.user)) {
+app.patch("/api/reimbursements/:id", requireAuthApi, (req, res) => {
+  const data = readReimbursements();
+  const exp = findReimbursement(data, req.params.id);
+  if (!exp || !canSeeReimbursement(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
+  if (!reimbursementEditableBy(exp, req.session.user)) {
     return res.status(409).json({ error: "locked", message: "Esse lançamento já foi decidido pela diretoria." });
   }
   const b = req.body || {};
@@ -377,34 +377,34 @@ app.patch("/api/expenses/:id", requireAuthApi, (req, res) => {
     exp.spentAt = String(b.spentAt);
   }
   exp.updatedAt = new Date().toISOString();
-  writeExpenses(data);
+  writeReimbursements(data);
   res.json({ expense: exp });
 });
 
-app.delete("/api/expenses/:id", requireAuthApi, (req, res) => {
-  const data = readExpenses();
+app.delete("/api/reimbursements/:id", requireAuthApi, (req, res) => {
+  const data = readReimbursements();
   const i = data.expenses.findIndex((e) => e.id === req.params.id);
-  if (i < 0 || !canSeeExpense(data.expenses[i], req.session.user)) return res.status(404).json({ error: "not_found" });
+  if (i < 0 || !canSeeReimbursement(data.expenses[i], req.session.user)) return res.status(404).json({ error: "not_found" });
   const exp = data.expenses[i];
-  if (!expenseEditableBy(exp, req.session.user)) {
+  if (!reimbursementEditableBy(exp, req.session.user)) {
     return res.status(409).json({ error: "locked", message: "Esse lançamento já foi decidido pela diretoria." });
   }
   for (const att of exp.attachments) {
-    fs.rmSync(path.join(EXPENSE_FILES_DIR, att.file), { force: true });
+    fs.rmSync(path.join(REIMBURSEMENT_FILES_DIR, att.file), { force: true });
   }
   data.expenses.splice(i, 1);
-  writeExpenses(data);
+  writeReimbursements(data);
   res.json({ ok: true });
 });
 
 // Decisão da diretoria: aprova, recusa (motivo obrigatório) ou marca pago.
 // decidedBy/decidedAt registram quem e quando, a cada decisão.
-app.post("/api/expenses/:id/status", requireDirectorApi, (req, res) => {
-  const data = readExpenses();
-  const exp = findExpense(data, req.params.id);
+app.post("/api/reimbursements/:id/status", requireDirectorApi, (req, res) => {
+  const data = readReimbursements();
+  const exp = findReimbursement(data, req.params.id);
   if (!exp) return res.status(404).json({ error: "not_found" });
   const next = String(req.body?.status || "");
-  if (!(EXPENSE_TRANSITIONS[exp.status] || []).includes(next)) {
+  if (!(REIMBURSEMENT_TRANSITIONS[exp.status] || []).includes(next)) {
     return res.status(409).json({ error: "invalid_transition", message: "Transição não permitida." });
   }
   const note = String(req.body?.note || "").trim().slice(0, 280) || null;
@@ -416,7 +416,7 @@ app.post("/api/expenses/:id/status", requireDirectorApi, (req, res) => {
   exp.decidedBy = req.session.user.order;
   exp.decidedAt = new Date().toISOString();
   exp.updatedAt = exp.decidedAt;
-  writeExpenses(data);
+  writeReimbursements(data);
   res.json({ expense: exp });
 });
 ```
@@ -438,12 +438,12 @@ git commit -m "feat(gastos): ciclo de vida com aprovacao, recusa motivada e trav
 ### Task 3: Anexos — nota fiscal e comprovante (imagem ou PDF)
 
 **Files:**
-- Modify: `server.js` — `POST`/`GET`/`DELETE /api/expenses/:id/attachments*`.
+- Modify: `server.js` — `POST`/`GET`/`DELETE /api/reimbursements/:id/attachments*`.
 - Modify: `tests/e2e.js` — testes novos.
 
 **Interfaces:**
-- Consumes: `EXPENSE_FILES_DIR`, `EXPENSE_MAX_ATTACHMENTS`, `findExpense`, `canSeeExpense`, `expenseEditableBy`, `sniffImage` (já existe, ~linha 253).
-- Produces: `attachments[] = { id, type: "image"|"pdf", file, name, size }` — o front monta links `/api/expenses/:id/attachments/:att`.
+- Consumes: `REIMBURSEMENT_FILES_DIR`, `REIMBURSEMENT_MAX_ATTACHMENTS`, `findReimbursement`, `canSeeReimbursement`, `reimbursementEditableBy`, `sniffImage` (já existe, ~linha 253).
+- Produces: `attachments[] = { id, type: "image"|"pdf", file, name, size }` — o front monta links `/api/reimbursements/:id/attachments/:att`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -459,49 +459,49 @@ const PDF_1PG = Buffer.from(
 test("anexos: imagem e PDF entram, download só para dono e diretor", async () => {
   const m = client();
   eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
-  const c = await m.post("/api/expenses", { description: "Fotocópias do edital", amountCents: 4000, spentAt: "2026-09-27" });
+  const c = await m.post("/api/reimbursements", { description: "Fotocópias do edital", amountCents: 4000, spentAt: "2026-09-27" });
   const id = c.data.expense.id;
 
-  const up = await m.post("/api/expenses/" + id + "/attachments?name=nota.png", PNG_1PX, { "Content-Type": "image/png" });
+  const up = await m.post("/api/reimbursements/" + id + "/attachments?name=nota.png", PNG_1PX, { "Content-Type": "image/png" });
   eq(up.status, 200, "upload imagem");
   eq(up.data.expense.attachments[0].type, "image");
-  const upPdf = await m.post("/api/expenses/" + id + "/attachments?name=nfe.pdf", PDF_1PG, { "Content-Type": "application/pdf" });
+  const upPdf = await m.post("/api/reimbursements/" + id + "/attachments?name=nfe.pdf", PDF_1PG, { "Content-Type": "application/pdf" });
   eq(upPdf.status, 200, "upload pdf");
   eq(upPdf.data.expense.attachments.length, 2);
 
   const att = up.data.expense.attachments[0];
-  const img = await m.get("/api/expenses/" + id + "/attachments/" + att.id);
+  const img = await m.get("/api/reimbursements/" + id + "/attachments/" + att.id);
   eq(img.status, 200, "dono baixa o próprio anexo");
   assert((img.headers.get("content-type") || "").startsWith("image/"), "content-type de imagem");
 
   const b = client();
   eq((await b.login(6, MEMBER2_PASS)).status, 200, "login membro B");
-  eq((await b.get("/api/expenses/" + id + "/attachments/" + att.id)).status, 404, "membro B não baixa anexo alheio");
+  eq((await b.get("/api/reimbursements/" + id + "/attachments/" + att.id)).status, 404, "membro B não baixa anexo alheio");
 
   const d = client();
   eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
-  eq((await d.get("/api/expenses/" + id + "/attachments/" + att.id)).status, 200, "diretor baixa");
+  eq((await d.get("/api/reimbursements/" + id + "/attachments/" + att.id)).status, 200, "diretor baixa");
 });
 
 test("anexos: limite de 5, lixo recusado e trava após decisão", async () => {
   const m = client();
   eq((await m.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro");
-  const c = await m.post("/api/expenses", { description: "Material do estande", amountCents: 900, spentAt: "2026-09-27" });
+  const c = await m.post("/api/reimbursements", { description: "Material do estande", amountCents: 900, spentAt: "2026-09-27" });
   const id = c.data.expense.id;
 
-  const lixo = await m.post("/api/expenses/" + id + "/attachments", Buffer.from("isso não é imagem"), { "Content-Type": "image/png" });
+  const lixo = await m.post("/api/reimbursements/" + id + "/attachments", Buffer.from("isso não é imagem"), { "Content-Type": "image/png" });
   eq(lixo.status, 400, "magic bytes errados → 400");
 
   for (let i = 0; i < 5; i++) {
-    eq((await m.post("/api/expenses/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 200, "anexo " + (i + 1));
+    eq((await m.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 200, "anexo " + (i + 1));
   }
-  eq((await m.post("/api/expenses/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 400, "6º anexo → 400");
+  eq((await m.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 400, "6º anexo → 400");
 
   const d = client();
   eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
-  await d.post("/api/expenses/" + id + "/status", { status: "aprovado" });
-  eq((await m.post("/api/expenses/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 409, "dono travado após decisão");
-  eq((await d.post("/api/expenses/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 200, "diretor ainda anexa");
+  await d.post("/api/reimbursements/" + id + "/status", { status: "aprovado" });
+  eq((await m.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 409, "dono travado após decisão");
+  eq((await d.post("/api/reimbursements/" + id + "/attachments", PNG_1PX, { "Content-Type": "image/png" })).status, 200, "diretor ainda anexa");
 });
 ```
 
@@ -512,25 +512,25 @@ Expected: FAIL — rotas de anexo ainda não existem.
 
 - [ ] **Step 3: Implement**
 
-Depois do `POST /api/expenses/:id/status`:
+Depois do `POST /api/reimbursements/:id/status`:
 
 ```js
 // Anexos do lançamento: nota fiscal ou comprovante, foto (JPG/PNG/WebP) ou
 // PDF (NF-e). Corpo cru com sniffing — o Content-Type do cliente não prova
 // nada, como no upload de avatar e de materiais.
 app.post(
-  "/api/expenses/:id/attachments",
+  "/api/reimbursements/:id/attachments",
   requireAuthApi,
   express.raw({ type: ["image/*", "application/pdf", "application/octet-stream"], limit: "25mb" }),
   (req, res) => {
-    const data = readExpenses();
-    const exp = findExpense(data, req.params.id);
-    if (!exp || !canSeeExpense(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
-    if (!expenseEditableBy(exp, req.session.user)) {
+    const data = readReimbursements();
+    const exp = findReimbursement(data, req.params.id);
+    if (!exp || !canSeeReimbursement(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
+    if (!reimbursementEditableBy(exp, req.session.user)) {
       return res.status(409).json({ error: "locked", message: "Esse lançamento já foi decidido pela diretoria." });
     }
-    if (exp.attachments.length >= EXPENSE_MAX_ATTACHMENTS) {
-      return res.status(400).json({ error: "too_many_attachments", message: "Máximo de " + EXPENSE_MAX_ATTACHMENTS + " anexos por gasto." });
+    if (exp.attachments.length >= REIMBURSEMENT_MAX_ATTACHMENTS) {
+      return res.status(400).json({ error: "too_many_attachments", message: "Máximo de " + REIMBURSEMENT_MAX_ATTACHMENTS + " anexos por gasto." });
     }
     if (!Buffer.isBuffer(req.body) || !req.body.length) {
       return res.status(400).json({ error: "empty_file" });
@@ -548,7 +548,7 @@ app.post(
     const attId = "ga" + Date.now().toString(36) + crypto.randomBytes(3).toString("hex");
     const ext = isPdf ? "pdf" : imgExt;
     const file = exp.id + "-" + attId + "." + ext;
-    fs.writeFileSync(path.join(EXPENSE_FILES_DIR, file), req.body);
+    fs.writeFileSync(path.join(REIMBURSEMENT_FILES_DIR, file), req.body);
     exp.attachments.push({
       id: attId,
       type: isPdf ? "pdf" : "image",
@@ -557,17 +557,17 @@ app.post(
       size: req.body.length,
     });
     exp.updatedAt = new Date().toISOString();
-    writeExpenses(data);
+    writeReimbursements(data);
     res.json({ expense: exp });
   }
 );
 
 // Anexo não é público: só o dono e a diretoria abrem.
-app.get("/api/expenses/:id/attachments/:att", requireAuthApi, (req, res) => {
-  const exp = findExpense(readExpenses(), req.params.id);
+app.get("/api/reimbursements/:id/attachments/:att", requireAuthApi, (req, res) => {
+  const exp = findReimbursement(readReimbursements(), req.params.id);
   const att = exp && exp.attachments.find((a) => a.id === req.params.att);
-  if (!exp || !att || !canSeeExpense(exp, req.session.user)) return res.status(404).end();
-  const file = path.join(EXPENSE_FILES_DIR, att.file);
+  if (!exp || !att || !canSeeReimbursement(exp, req.session.user)) return res.status(404).end();
+  const file = path.join(REIMBURSEMENT_FILES_DIR, att.file);
   if (!fs.existsSync(file)) return res.status(404).end();
   res.set("Cache-Control", "private, no-store");
   // res.type resolve a extensão para o MIME correto (jpg → image/jpeg).
@@ -575,19 +575,19 @@ app.get("/api/expenses/:id/attachments/:att", requireAuthApi, (req, res) => {
   res.sendFile(file);
 });
 
-app.delete("/api/expenses/:id/attachments/:att", requireAuthApi, (req, res) => {
-  const data = readExpenses();
-  const exp = findExpense(data, req.params.id);
-  if (!exp || !canSeeExpense(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
-  if (!expenseEditableBy(exp, req.session.user)) {
+app.delete("/api/reimbursements/:id/attachments/:att", requireAuthApi, (req, res) => {
+  const data = readReimbursements();
+  const exp = findReimbursement(data, req.params.id);
+  if (!exp || !canSeeReimbursement(exp, req.session.user)) return res.status(404).json({ error: "not_found" });
+  if (!reimbursementEditableBy(exp, req.session.user)) {
     return res.status(409).json({ error: "locked" });
   }
   const i = exp.attachments.findIndex((a) => a.id === req.params.att);
   if (i < 0) return res.status(404).json({ error: "not_found" });
-  fs.rmSync(path.join(EXPENSE_FILES_DIR, exp.attachments[i].file), { force: true });
+  fs.rmSync(path.join(REIMBURSEMENT_FILES_DIR, exp.attachments[i].file), { force: true });
   exp.attachments.splice(i, 1);
   exp.updatedAt = new Date().toISOString();
-  writeExpenses(data);
+  writeReimbursements(data);
   res.json({ expense: exp });
 });
 ```
@@ -765,7 +765,7 @@ async function refresh() {
   if (filterStatus) q.set("status", filterStatus);
   if (filterMember) q.set("member", filterMember);
   const qs = q.toString();
-  const data = await api("/api/expenses" + (qs ? "?" + qs : ""));
+  const data = await api("/api/reimbursements" + (qs ? "?" + qs : ""));
   expenses = data.expenses || [];
 }
 
@@ -844,7 +844,7 @@ function renderCard(e) {
   if (e.attachments && e.attachments.length) {
     h += '<div class="gx-atts">';
     for (const a of e.attachments) {
-      h += '<a href="/api/expenses/' + e.id + "/attachments/" + a.id + '" target="_blank" rel="noopener">' +
+      h += '<a href="/api/reimbursements/' + e.id + "/attachments/" + a.id + '" target="_blank" rel="noopener">' +
         (a.type === "pdf" ? "PDF · " : "Foto · ") + escapeHtml(a.name) + "</a>";
     }
     h += "</div>";
@@ -884,14 +884,14 @@ function bind(root) {
     try {
       let id = editingId;
       if (editingId) {
-        await api("/api/expenses/" + editingId, {
+        await api("/api/reimbursements/" + editingId, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description, amountCents, spentAt }),
         });
       } else {
         const paid = q("#gx-paid").checked;
-        const created = await api("/api/expenses", {
+        const created = await api("/api/reimbursements", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ description, amountCents, spentAt, kind: paid ? "paid_by_board" : "reimbursement" }),
@@ -901,7 +901,7 @@ function bind(root) {
         // corpo cru, como o upload de avatar.
         const files = q("#gx-files").files;
         for (const f of files) {
-          const up = await fetch("/api/expenses/" + id + "/attachments?name=" + encodeURIComponent(f.name), {
+          const up = await fetch("/api/reimbursements/" + id + "/attachments?name=" + encodeURIComponent(f.name), {
             method: "POST",
             headers: { "Content-Type": f.type || "application/octet-stream" },
             body: f,
@@ -927,7 +927,7 @@ function bind(root) {
         if (act === "edit") { editingId = id; formOpen = true; render(); window.scrollTo(0, 0); return; }
         if (act === "del") {
           if (!confirm("Excluir este lançamento?")) return;
-          try { await api("/api/expenses/" + id, { method: "DELETE" }); } catch (e) { alert(e.message); }
+          try { await api("/api/reimbursements/" + id, { method: "DELETE" }); } catch (e) { alert(e.message); }
           await refresh(); render(); return;
         }
         // decisões da diretoria
@@ -938,7 +938,7 @@ function bind(root) {
           if (!note.trim()) { alert("Recusa precisa de motivo."); return; }
         }
         try {
-          await api("/api/expenses/" + id + "/status", {
+          await api("/api/reimbursements/" + id + "/status", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: act, note: note || undefined }),
@@ -1054,7 +1054,7 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
 
   // fixture via API: lançamento do membro no extrato dele
   const fixture = await p.evaluate(async () => {
-    const r = await fetch('/api/expenses', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const r = await fetch('/api/reimbursements', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ description: 'Gasto de verificação', amountCents: 1234, spentAt: new Date().toISOString().slice(0, 10) }) });
     return { status: r.status, id: r.ok ? (await r.json()).expense.id : null };
   });
@@ -1073,7 +1073,7 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
 
   // limpeza do fixture
   if (fixture.id) {
-    const del = await p.evaluate(async (id) => (await fetch('/api/expenses/' + id, { method: 'DELETE' })).status, fixture.id);
+    const del = await p.evaluate(async (id) => (await fetch('/api/reimbursements/' + id, { method: 'DELETE' })).status, fixture.id);
     check(del === 200, 'fixture apagado', del);
   }
   check(errs.length === 0, 'sem erro de console/JS', errs.slice(0, 3).join(' | '));

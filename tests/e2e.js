@@ -24,6 +24,10 @@ const MEMBER_PASS = "teste-membro";
 // O teste de reset usa um fundador exclusivo. Credenciais do seed não são
 // aceitas: a diretoria gera um código temporário para o primeiro acesso.
 const RESET_ORDER = 3;
+// Centro de gastos: diretor que não é superadmin (order 4) e segundo membro
+// comum (order 6) para provar isolamento e o papel de diretoria.
+const DIRECTOR_PASS = "teste-diretor";
+const MEMBER2_PASS = "teste-membro2";
 
 // Todo evento agora exige local e horário no cadastro.
 const EV_LOCAL = { time: "19:00", location: "Auditório do IME" };
@@ -51,6 +55,8 @@ function setupVolume() {
         credentials: [
           { order: 1, passwordHash: bcrypt.hashSync(ADMIN_PASS, 10) },
           { order: MEMBER_ORDER, passwordHash: bcrypt.hashSync(MEMBER_PASS, 10) },
+          { order: 4, passwordHash: bcrypt.hashSync(DIRECTOR_PASS, 10) },
+          { order: 6, passwordHash: bcrypt.hashSync(MEMBER2_PASS, 10) },
         ],
       },
       null,
@@ -1462,6 +1468,76 @@ test("Turnstile: com chave configurada, formulário público sem token é recusa
   } finally {
     stub.close();
   }
+});
+
+// ---- Centro de gastos ----
+
+test("membro cria gasto de ressarcimento e lista só os seus", async () => {
+  const a = client();
+  eq((await a.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login membro A");
+  const c = await a.post("/api/reimbursements", {
+    description: "Uber até a gráfica — banner",
+    amountCents: 3450,
+    spentAt: "2026-09-27",
+    kind: "reimbursement",
+  });
+  eq(c.status, 200, "criar gasto");
+  eq(c.data.expense.status, "pendente", "ressarcimento nasce pendente");
+  eq(c.data.expense.memberOrder, MEMBER_ORDER, "dono é quem lançou");
+
+  const b = client();
+  eq((await b.login(6, MEMBER2_PASS)).status, 200, "login membro B");
+  await b.post("/api/reimbursements", { description: "Café da reunião", amountCents: 1200, spentAt: "2026-09-27" });
+
+  const la = await a.get("/api/reimbursements");
+  eq(la.data.expenses.length, 1, "membro A vê só o próprio");
+  eq(la.data.expenses[0].description, "Uber até a gráfica — banner");
+  const lb = await b.get("/api/reimbursements");
+  eq(lb.data.expenses.length, 1, "membro B vê só o próprio");
+  assert(lb.data.expenses[0].id !== c.data.expense.id, "B não recebe gasto de A");
+});
+
+test("checkbox 'a diretoria já pagou' nasce pago", async () => {
+  const c = client();
+  eq((await c.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login");
+  const r = await c.post("/api/reimbursements", {
+    description: "Passagem comprada pela diretoria",
+    amountCents: 80000,
+    spentAt: "2026-09-27",
+    kind: "paid_by_board",
+  });
+  eq(r.data.expense.status, "pago", "paid_by_board nasce pago");
+  eq(r.data.expense.kind, "paid_by_board");
+});
+
+test("diretor vê o extrato consolidado com filtros", async () => {
+  const d = client();
+  eq((await d.login(4, DIRECTOR_PASS)).status, 200, "login diretor");
+  const all = await d.get("/api/reimbursements");
+  assert(all.data.expenses.length >= 3, "diretor vê lançamentos de todos");
+  const pend = await d.get("/api/reimbursements?status=pendente");
+  assert(pend.data.expenses.every((e) => e.status === "pendente"), "filtro por status");
+  const byMember = await d.get("/api/reimbursements?member=" + MEMBER_ORDER);
+  assert(byMember.data.expenses.every((e) => e.memberOrder === MEMBER_ORDER), "filtro por membro");
+});
+
+test("validação: valor, data e descrição ruins são recusados", async () => {
+  const c = client();
+  eq((await c.login(MEMBER_ORDER, MEMBER_PASS)).status, 200, "login");
+  const base = { description: "Gasto válido", amountCents: 100, spentAt: "2026-09-27" };
+  for (const [field, bad] of [
+    ["amountCents", 12.34], ["amountCents", 0], ["amountCents", -50],
+    ["spentAt", "2999-01-01"], ["spentAt", "27/09/2026"],
+    ["description", "ab"], ["description", "x".repeat(161)],
+  ]) {
+    const r = await c.post("/api/reimbursements", { ...base, [field]: bad });
+    eq(r.status, 400, field + "=" + JSON.stringify(bad) + " devia dar 400, veio " + r.status);
+  }
+});
+
+test("gastos exigem sessão", async () => {
+  const r = await client().get("/api/reimbursements");
+  eq(r.status, 401, "anônimo recebe 401");
 });
 
 async function main() {

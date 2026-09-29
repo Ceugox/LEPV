@@ -16,9 +16,13 @@ ninguém sabe o que já foi pago e a prestação de contas depende de memória.
 
 ## Decisões
 
-- **Objeto próprio** em `expenses.json` + arquivos em `STORAGE_DIR/expenses/`,
+- **Objeto próprio** em `reimbursements.json` + arquivos em `STORAGE_DIR/reimbursements/`,
   nos mesmos moldes de `materials`/`event-photos`: metadado em JSON, binário no
   volume. Nada de tabela nem dependência nova.
+- **A rota é `/api/reimbursements`, não `/api/expenses`.** Esse nome foi da
+  feature removida de rateio da viagem (acerto via Pix) — e há teste guardando
+  que `/api/expenses` continua 404 e que `expenses.json` nunca renasce. O
+  nome novo não enfraquece o contrato e não confunde os dois domínios.
 - **Visibilidade privada.** O membro vê e mexe só nos próprios lançamentos;
   diretor (`director` ou `superadmin`) vê e age em todos. O extrato de gastos
   **não** é prestação de contas pública entre membros nesta versão.
@@ -46,7 +50,7 @@ ninguém sabe o que já foi pago e a prestação de contas depende de memória.
 
 ## Modelo de dados
 
-`data/expenses.json`, lido/escrito por `readJson`/`writeJson`:
+`data/reimbursements.json`, lido/escrito por `readJson`/`writeJson`:
 
 ```json
 {
@@ -96,14 +100,14 @@ request, como no resto do `server.js`).
 
 | Rota | Papel | Efeito |
 | --- | --- | --- |
-| `GET /api/expenses` | autenticado | membro recebe os próprios; diretor recebe todos, com filtros `?status=` e `?member=` |
-| `POST /api/expenses` | autenticado | cria lançamento em nome do próprio membro |
-| `PATCH /api/expenses/:id` | autenticado | dono edita só se `pendente`; diretor edita sempre |
-| `DELETE /api/expenses/:id` | autenticado | dono exclui só se `pendente`; diretor exclui sempre |
-| `POST /api/expenses/:id/status` | diretor | `{status, note?}`; transições válidas abaixo |
-| `POST /api/expenses/:id/attachments` | autenticado | corpo cru imagem/PDF; dono só se `pendente`, diretor sempre; máx. 5 |
-| `GET /api/expenses/:id/attachments/:att` | autenticado | dono ou diretor; anexos não são públicos |
-| `DELETE /api/expenses/:id/attachments/:att` | autenticado | dono só se `pendente`; diretor sempre |
+| `GET /api/reimbursements` | autenticado | membro recebe os próprios; diretor recebe todos, com filtros `?status=` e `?member=` |
+| `POST /api/reimbursements` | autenticado | cria lançamento em nome do próprio membro |
+| `PATCH /api/reimbursements/:id` | autenticado | dono edita só se `pendente`; diretor edita sempre |
+| `DELETE /api/reimbursements/:id` | autenticado | dono exclui só se `pendente`; diretor exclui sempre |
+| `POST /api/reimbursements/:id/status` | diretor | `{status, note?}`; transições válidas abaixo |
+| `POST /api/reimbursements/:id/attachments` | autenticado | corpo cru imagem/PDF; dono só se `pendente`, diretor sempre; máx. 5 |
+| `GET /api/reimbursements/:id/attachments/:att` | autenticado | dono ou diretor; anexos não são públicos |
+| `DELETE /api/reimbursements/:id/attachments/:att` | autenticado | dono só se `pendente`; diretor sempre |
 
 Transições válidas em `status` (diretor): `pendente → aprovado`,
 `pendente → recusado`, `aprovado → pago`, `aprovado → pendente` (reabrir).
