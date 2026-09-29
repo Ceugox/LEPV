@@ -166,6 +166,9 @@ jobs:
       - name: Agenda da diretoria
         run: npm run verify:board
 
+      - name: Centro de gastos
+        run: npm run verify:reimbursements
+
       # ---- autópsia: só quando algo acima falhou ----
       - name: Screenshots e console das páginas
         if: failure()
