@@ -41,12 +41,15 @@ ninguém sabe o que já foi pago e a prestação de contas depende de memória.
   avatar e de materiais. Imagem até 6 MB, PDF até 25 MB.
 - **Aba própria "Gastos"** no grupo `liga` da nav, para todo membro autenticado
   — não dentro da aba Diretoria (que não existe para membro comum). Módulo ES
-  novo `public/js/features/expenses.js`, no formato que a spec de
+  novo `public/js/features/reimbursements.js`, no formato que a spec de
   modularização e a implementação de `board.js` já definiram: `app.js` só
   injeta a aba e dispara o evento de carga.
 - **Mobile first.** O formulário é o caminho principal: abrir no celular,
-  fotografar a nota, lançar. `capture="environment"` no input de arquivo abre
-  a câmera direto; PDF continua selecionável pelo mesmo input.
+  fotografar a nota, lançar. Dois inputs de arquivo separados — um com
+  `capture="environment"` abre a câmera direto ("Tirar foto"), o outro sem
+  `capture` abre galeria/arquivos para PDF ("Escolher arquivo"). Motivo:
+  `capture` num input único trava o Android na câmera e não deixa escolher
+  arquivo.
 
 ## Modelo de dados
 
@@ -116,7 +119,7 @@ Recusar exige `note`. Marcar `pago` preenche `decidedBy`/`decidedAt` novamente.
 ## Tela
 
 Nova aba **Gastos** no grupo `liga` (depois de Membros), módulo
-`public/js/features/expenses.js`. O `app.js` só registra o botão e dispara
+`public/js/features/reimbursements.js`. O `app.js` só registra o botão e dispara
 `lepv:expenses:load`.
 
 **Membro — mobile first:**

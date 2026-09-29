@@ -3525,6 +3525,8 @@
     acessos: loadAccess,
     // O painel da diretoria é módulo ES; o loader só avisa que a aba ativou.
     diretoria: function () { document.dispatchEvent(new CustomEvent("lepv:board:load")); },
+    // Centro de gastos também é módulo ES — mesmo aviso por CustomEvent.
+    gastos: function () { document.dispatchEvent(new CustomEvent("lepv:reimbursements:load")); },
     legado: loadLegacy,
     resumo: loadMission,
     agenda: loadAgenda,

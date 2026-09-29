@@ -1295,6 +1295,65 @@
   .board-modal .danger-zone { margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .board-modal .danger-zone button { min-height: 44px; font: inherit; font-size: 13px; padding: 0 12px; border: 1px solid var(--danger-line); background: var(--danger-soft); color: var(--danger); border-radius: 3px; cursor: pointer; }
   @media (prefers-reduced-motion: reduce) { .board-menu, .board-day { transition: none; } }
+
+  /* ---- Centro de gastos: extrato + formulário mobile-first. Módulo em
+     /js/features/reimbursements.js; tudo por token, sem cor solta. ---- */
+  .gx-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 14px; }
+  .gx-sum { border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; min-width: 0; }
+  .gx-sum b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .gx-sum span { font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .gx-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+  .gx-toolbar .spacer { flex: 1; }
+  .gx-toolbar select {
+    min-height: 44px; padding: 0 10px; font: inherit; font-size: 14px;
+    border: 1px solid var(--line-2); border-radius: 3px; background: var(--card); color: var(--ink); max-width: 100%;
+  }
+  .gx-toolbar button, .gx-card button, .gx-form button, .gx-filters button, .gx-attach-btns button {
+    min-height: 44px; padding: 0 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--line-2); border-radius: 3px; background: var(--card); color: var(--ink);
+  }
+  .gx-toolbar button.primary, .gx-form button.primary, .gx-card button.primary { background: var(--ink); color: var(--card); border-color: var(--ink); }
+  .gx-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .gx-filters button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+  .gx-card { background: var(--card); border: 1px solid var(--line); border-radius: 3px; padding: 12px; min-width: 0; }
+  .gx-head { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+  .gx-head b { font-size: 14.5px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+  .gx-money { font-weight: 700; white-space: nowrap; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .gx-meta { font-size: 12.5px; color: var(--ink-3); margin: 4px 0 0; overflow-wrap: anywhere; }
+  .gx-badge { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+              border: 1px solid var(--line-2); border-radius: 99px; padding: 2px 8px; }
+  .gx-badge.pendente { color: var(--pending); border-color: var(--pending-line); }
+  .gx-badge.aprovado { color: var(--good); border-color: var(--good); }
+  .gx-badge.pago { background: var(--ink); color: var(--card); border-color: var(--ink); }
+  .gx-badge.recusado { color: var(--danger); border-color: var(--danger-line); }
+  .gx-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .gx-actions button { flex: 1 1 auto; padding: 0 10px; font-size: 12.5px; }
+  .gx-actions button.gx-danger { border-color: var(--danger-line); background: var(--danger-soft); color: var(--danger); }
+  .gx-atts { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+  .gx-atts a { font-size: 13px; min-height: 44px; display: inline-flex; align-items: center; color: var(--ink); }
+  .gx-reject { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .gx-reject label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--danger); margin-bottom: 4px; }
+  .gx-reject input { width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 10px; border: 1px solid var(--danger-line); border-radius: 3px; font: inherit; font-size: 15px; background: var(--card); color: var(--ink); }
+  .gx-form { border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 14px; margin: 0 0 14px; background: var(--card); display: flex; flex-direction: column; gap: 10px; }
+  .gx-form .gx-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gx-form .gx-row2 > .field { min-width: 0; }
+  @media (max-width: 480px) { .gx-form .gx-row2 { grid-template-columns: 1fr; } }
+  .gx-form label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--graphite-soft); }
+  .gx-form input[type="text"], .gx-form input[type="date"] {
+    width: 100%; box-sizing: border-box; min-height: 44px; padding: 8px 10px;
+    border: 1px solid var(--line-2); border-radius: 3px; font: inherit; font-size: 15px;
+    background: var(--card); color: var(--ink);
+  }
+  .gx-check { display: flex; gap: 10px; align-items: center; min-height: 44px; }
+  .gx-check input { width: 22px; height: 22px; margin: 0; flex: none; }
+  .gx-check label { font-size: 14px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink); }
+  .gx-attach-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .gx-attach-btns button { flex: 1 1 auto; }
+  .gx-pending { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; color: var(--ink-2); }
+  .gx-pending li { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+  .gx-pending button { min-height: 36px; min-width: 36px; padding: 0; border: 0; background: none; color: var(--graphite-soft); font-size: 18px; }
+  .gx-note { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
+  .gx-note.warn { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -1319,6 +1378,7 @@
   <button data-tab="inicio" data-group="liga" class="active" role="tab" id="tab-inicio" aria-controls="panel-inicio" aria-selected="true">Início</button>
   <button data-tab="eventos" data-group="liga" role="tab" id="tab-eventos" aria-controls="panel-eventos" aria-selected="false" tabindex="-1">Eventos</button>
   <button data-tab="membros" data-group="liga" role="tab" id="tab-membros" aria-controls="panel-membros" aria-selected="false" tabindex="-1">Membros</button>
+  <button data-tab="gastos" data-group="liga" role="tab" id="tab-gastos" aria-controls="panel-gastos" aria-selected="false" tabindex="-1">Gastos</button>
   <button type="button" data-group="imersao" class="group-hidden back-liga" id="back-liga">← Liga</button>
   <button data-tab="legado" data-group="imersao" class="group-hidden" role="tab" id="tab-legado" aria-controls="panel-legado" aria-selected="false" tabindex="-1">Legado</button>
   <button data-tab="empresas" data-group="imersao" class="group-hidden" role="tab" id="tab-empresas" aria-controls="panel-empresas" aria-selected="false" tabindex="-1">Empresas</button>
@@ -1412,6 +1472,15 @@
       <div id="visitors-panel"></div>
     </section>
 
+    <!-- Centro de gastos: lançamentos de ressarcimento e registro do que a
+         diretoria já pagou. Todo membro lança; a diretoria decide no mesmo
+         lugar. Módulo ES /js/features/reimbursements.js. -->
+    <section class="panel" id="panel-gastos" role="tabpanel" aria-labelledby="tab-gastos" tabindex="0">
+      <div id="expenses-root">
+        <div class="card rv"><p class="empty-state">Carregando...</p></div>
+      </div>
+    </section>
+
     <!-- Acessos: monitoramento de quem usa o site. A aba só é injetada no nav
          para o super admin; o conteúdo vem de uma rota que também exige. -->
     <section class="panel" id="panel-acessos" role="tabpanel" aria-labelledby="tab-acessos" tabindex="0">
@@ -1487,6 +1556,7 @@
 
 <script src="/app.js"></script>
 <script type="module" src="/js/features/board.js"></script>
+<script type="module" src="/js/features/reimbursements.js"></script>
 <script src="/art.js"></script>
 <script>
   LEPVArt.reveal();

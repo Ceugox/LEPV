@@ -2,7 +2,7 @@
 // Nasceu pra agenda/trajetos sobreviverem ao sinal ruim do metrô; hoje serve
 // pro acervo continuar legível offline usando a última resposta vista.
 // Nada de cache-first — deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v11"; // v11: Turnstile nos formulários públicos (/js/turnstile.js)
+var CACHE = "lepv-sp-v12"; // v12: centro de gastos (/js/features/reimbursements.js)
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();

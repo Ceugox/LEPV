@@ -4,7 +4,7 @@
 
 **Goal:** Membros lançam gastos para ressarcimento (ou registro do que a diretoria já pagou) com nota/comprovante anexados por foto ou PDF; a diretoria aprova, recusa e marca pagamento num extrato consolidado.
 
-**Architecture:** Store novo `reimbursements.json` no volume + arquivos em `STORAGE_DIR/reimbursements/`; rotas `/api/reimbursements*` atrás de `requireAuthApi`/`requireDirectorApi`; uploads em corpo cru com sniffing (padrão avatar/materiais). No cliente, aba "Gastos" no grupo `liga`, módulo ES `public/js/features/expenses.js` acionado por `CustomEvent`, seguindo `board.js`.
+**Architecture:** Store novo `reimbursements.json` no volume + arquivos em `STORAGE_DIR/reimbursements/`; rotas `/api/reimbursements*` atrás de `requireAuthApi`/`requireDirectorApi`; uploads em corpo cru com sniffing (padrão avatar/materiais). No cliente, aba "Gastos" no grupo `liga`, módulo ES `public/js/features/reimbursements.js` acionado por `CustomEvent`, seguindo `board.js`.
 
 **Tech Stack:** Node.js 24, Express 4, JS ES modules nativos no browser, Playwright para verificação, CSS puro com tokens do tema.
 
@@ -32,12 +32,12 @@
 | --- | --- |
 | `server.js` | store `expenses`, validação, rotas CRUD, transições de status, anexos. |
 | `tests/e2e.js` | casos novos de API (criação, isolamento, ciclo, anexos, validação). |
-| `public/js/features/expenses.js` | módulo ES da aba: resumo, formulário mobile, extrato, ações da diretoria. |
+| `public/js/features/reimbursements.js` | módulo ES da aba: resumo, formulário mobile, extrato, ações da diretoria. |
 | `public/app.html` | painel `panel-gastos`, botão da aba no nav, CSS `.gx-*`, `<script type="module">`. |
-| `public/app.js` | `loaders.gastos` disparando `lepv:expenses:load`. |
+| `public/app.js` | `loaders.gastos` disparando `lepv:reimbursements:load`. |
 | `public/sw.js` | bump de `CACHE` para v12. |
-| `scripts/verify-expenses.js` | verificação Playwright da aba (membro e diretor, 390px, toque). |
-| `package.json` | `verify:expenses` no fim da cadeia `verify`. |
+| `scripts/verify-reimbursements.js` | verificação Playwright da aba (membro e diretor, 390px, toque). |
+| `package.json` | `verify:reimbursements` no fim da cadeia `verify`. |
 | `.github/workflows/ci.yml` | passo "Centro de gastos" após `verify:board`. |
 
 ---
@@ -609,14 +609,14 @@ git commit -m "feat(gastos): anexos de nota e comprovante — imagem ou PDF, ate
 ### Task 4: Aba "Gastos" no app (mobile first)
 
 **Files:**
-- Create: `public/js/features/expenses.js`
+- Create: `public/js/features/reimbursements.js`
 - Modify: `public/app.html` — botão da aba no nav, painel `panel-gastos`, CSS `.gx-*`, `<script type="module">`.
 - Modify: `public/app.js` — `loaders.gastos`.
 - Modify: `public/sw.js` — bump de CACHE.
 
 **Interfaces:**
 - Consumes: API das Tasks 1–3; `/api/me` (`{ order, director, superadmin, ... }`); padrão do `board.js` (`api()`, `escapeHtml`, `todayISO` por `America/Sao_Paulo`).
-- Produces: `#expenses-root` renderizado dentro de `#panel-gastos`; listener de `lepv:expenses:load`.
+- Produces: `#expenses-root` renderizado dentro de `#panel-gastos`; listener de `lepv:reimbursements:load`.
 
 - [ ] **Step 1: Aba e painel em `app.html`**
 
@@ -630,7 +630,7 @@ E o painel, depois de `panel-membros`:
 
 ```html
     <!-- Centro de gastos: lançamentos de ressarcimento e registro do que a
-         diretoria já pagou. Módulo ES /js/features/expenses.js. -->
+         diretoria já pagou. Módulo ES /js/features/reimbursements.js. -->
     <section class="panel" id="panel-gastos" role="tabpanel" aria-labelledby="tab-gastos" tabindex="0">
       <div id="expenses-root">
         <div class="card rv"><p class="empty-state">Carregando...</p></div>
@@ -638,14 +638,14 @@ E o painel, depois de `panel-membros`:
     </section>
 ```
 
-`<script type="module" src="/js/features/expenses.js"></script>` ao lado do de `board.js`.
+`<script type="module" src="/js/features/reimbursements.js"></script>` ao lado do de `board.js`.
 
 - [ ] **Step 2: Loader em `app.js`**
 
 No objeto `loaders` (~linha 3520):
 
 ```js
-    gastos: function () { document.dispatchEvent(new CustomEvent("lepv:expenses:load")); },
+    gastos: function () { document.dispatchEvent(new CustomEvent("lepv:reimbursements:load")); },
 ```
 
 - [ ] **Step 3: CSS `.gx-*` em `app.html`**
@@ -691,12 +691,12 @@ Junto do bloco `.board-*` (~linha 1233), só tokens do tema; alvos ≥ 44 px:
   .gx-note.warn { color: var(--danger); }
 ```
 
-- [ ] **Step 4: Módulo `public/js/features/expenses.js`**
+- [ ] **Step 4: Módulo `public/js/features/reimbursements.js`**
 
 ```js
 // Centro de gastos — lançamentos de ressarcimento dos membros e registro do
 // que a diretoria já pagou. Segundo módulo ES do app (depois de board.js):
-// o app.js põe a aba no nav e dispara "lepv:expenses:load" quando ela ativa.
+// o app.js põe a aba no nav e dispara "lepv:reimbursements:load" quando ela ativa.
 // Visibilidade é privada: a API devolve só os lançamentos do membro, e o
 // extrato consolidado só existe para quem tem papel de diretoria.
 
@@ -969,14 +969,14 @@ async function load() {
   }
 }
 
-document.addEventListener("lepv:expenses:load", load);
+document.addEventListener("lepv:reimbursements:load", load);
 ```
 
 `/api/me` já devolve `{ authenticated, order, name, director, superadmin, ... }` (espalha `sessionUser`) — os campos lidos pelo módulo existem.
 
 - [ ] **Step 5: Bump do service worker**
 
-Em `public/sw.js`: `CACHE` de `lepv-sp-v11` para `lepv-sp-v12`, com comentário `// v12: centro de gastos (/js/features/expenses.js)`.
+Em `public/sw.js`: `CACHE` de `lepv-sp-v11` para `lepv-sp-v12`, com comentário `// v12: centro de gastos (/js/features/reimbursements.js)`.
 
 - [ ] **Step 6: Rodar e conferir a aba no navegador**
 
@@ -991,23 +991,23 @@ Login como membro → aba "Gastos" aparece entre Membros e Diretoria → Novo ga
 - [ ] **Step 7: Commit**
 
 ```bash
-git add public/js/features/expenses.js public/app.html public/app.js public/sw.js
+git add public/js/features/reimbursements.js public/app.html public/app.js public/sw.js
 git commit -m "feat(gastos): aba Gastos no app — formulario mobile, extrato privado e acoes da diretoria"
 ```
 
 ---
 
-### Task 5: verify-expenses.js + cadeia de verificação
+### Task 5: verify-reimbursements.js + cadeia de verificação
 
 **Files:**
-- Create: `scripts/verify-expenses.js`
-- Modify: `package.json` — `verify:expenses` no fim de `verify`.
+- Create: `scripts/verify-reimbursements.js`
+- Modify: `package.json` — `verify:reimbursements` no fim de `verify`.
 - Modify: `.github/workflows/ci.yml` — passo após `verify:board`.
 
 **Interfaces:**
 - Consumes: mesma base dos demais verify (`--base`, `LEPV_CI_ADMIN_PASS`=`ci-admin`, membro order 2 senha `2`), helpers de `verify-board.js` (`clearPin`, `click`).
 
-- [ ] **Step 1: Escrever `scripts/verify-expenses.js`**
+- [ ] **Step 1: Escrever `scripts/verify-reimbursements.js`**
 
 ```js
 const { chromium } = require('playwright');
@@ -1059,7 +1059,7 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
     return { status: r.status, id: r.ok ? (await r.json()).expense.id : null };
   });
   check(fixture.status === 200, 'gasto de fixture criado', fixture.status);
-  await p.evaluate(() => document.dispatchEvent(new CustomEvent('lepv:expenses:load')));
+  await p.evaluate(() => document.dispatchEvent(new CustomEvent('lepv:reimbursements:load')));
   await p.waitForTimeout(600);
   const card = await p.evaluate(async (id) => {
     const el = document.querySelector('.gx-card[data-id="' + id + '"]');
@@ -1096,7 +1096,7 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
     check(false, 'diretor (order 1) loga no volume de fixture', l2);
   }
   await b.close();
-  console.log(bad ? `\n${bad} falha(s)` : '\nverify-expenses OK');
+  console.log(bad ? `\n${bad} falha(s)` : '\nverify-reimbursements OK');
   process.exit(bad ? 1 : 0);
 })();
 ```
@@ -1104,17 +1104,17 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
 - [ ] **Step 2: `package.json`**
 
 ```json
-    "verify:expenses": "node scripts/verify-expenses.js",
+    "verify:reimbursements": "node scripts/verify-reimbursements.js",
 ```
 
-e no fim da cadeia `verify`: `... && npm run verify:board && npm run verify:expenses`.
+e no fim da cadeia `verify`: `... && npm run verify:board && npm run verify:reimbursements`.
 
 - [ ] **Step 3: `.github/workflows/ci.yml`**
 
 Depois do passo `npm run verify:board`:
 
 ```yaml
-        run: npm run verify:expenses
+        run: npm run verify:reimbursements
 ```
 
 - [ ] **Step 4: Rodar tudo**
@@ -1129,7 +1129,7 @@ Expected: e2e 100%, 14 verificações verdes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add scripts/verify-expenses.js package.json .github/workflows/ci.yml
+git add scripts/verify-reimbursements.js package.json .github/workflows/ci.yml
 git commit -m "test(gastos): verificacao Playwright da aba na cadeia verify e no CI"
 ```
 
