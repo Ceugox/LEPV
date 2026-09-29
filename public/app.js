@@ -1275,6 +1275,7 @@
             s.temGrupo ? "Grupo: " + s.temGrupo : "",
             s.temTema ? "Tema: " + s.temTema : "",
             s.cpf ? "CPF: " + s.cpf : "",
+            s.tamanhoBlusa ? "Blusa: " + s.tamanhoBlusa : "",
             s.consentPatrocinadores ? "Autoriza dados p/ patrocinadores" : "",
             s.email,
             s.phone,

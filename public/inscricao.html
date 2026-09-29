@@ -284,6 +284,20 @@
                 <option value="Não">Não</option>
               </select>
             </div>
+            <!-- Só existe na inscrição oficial, junto do CPF: é dado pra
+                 encomendar o kit, não faz sentido perguntar antes de a vaga
+                 estar confirmada. -->
+            <div class="field" id="s-blusa-field" style="display:none;">
+              <label for="s-blusa">Tamanho de blusa (unissex)</label>
+              <select id="s-blusa">
+                <option value="">Selecione</option>
+                <option value="PP">PP</option>
+                <option value="P">P</option>
+                <option value="M">M</option>
+                <option value="G">G</option>
+                <option value="GG">GG</option>
+              </select>
+            </div>
           </div>
           <!-- Consentimento LGPD para compartilhar dados com patrocinadores
                (manual do participante, item 12): opt-in de verdade — vem
@@ -423,6 +437,7 @@
             document.getElementById("s-tema-field").style.display = "none";
             document.getElementById("s-cpf-field").style.display = "flex";
             document.getElementById("s-cpf").required = true;
+            document.getElementById("s-blusa-field").style.display = "flex";
           }
         } else {
           // As listas fechadas vêm do servidor: turma nova entra só no server.js.
@@ -489,6 +504,7 @@
       body.temGrupo = document.getElementById("s-grupo").value;
       body.temTema = document.getElementById("s-tema").value;
       body.cpf = document.getElementById("s-cpf").value;
+      body.tamanhoBlusa = document.getElementById("s-blusa").value;
       body.consentPatrocinadores = document.getElementById("s-consent-patrocinadores").checked;
     } else {
       body.turma = document.getElementById("s-turma").value;

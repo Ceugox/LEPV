@@ -1659,6 +1659,7 @@ const HACKATHON_VINCULOS = ["Ativa do IME", "Reserva do IME", "FGV"];
 const HACKATHON_ANOS_FACULDADE = ["1", "2", "3", "4", "5"];
 const HACKATHON_SIMNAO = ["Sim", "Não"];
 const HACKATHON_DATAS_ALT = ["2 e 3 de outubro", "9 e 10 de outubro", "Outro"];
+const HACKATHON_TAMANHOS_BLUSA = ["PP", "P", "M", "G", "GG"];
 
 // Dígitos verificadores do CPF (algoritmo padrão da Receita) — pedido só na
 // inscrição oficial do Hackathon, quando o dado vira oficial de verdade (uso:
@@ -2763,6 +2764,7 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
       ? req.body.datasAlternativas.map((d) => String(d))
       : [];
     const datasAlternativasOutro = String(req.body.datasAlternativasOutro || "").trim().slice(0, 200);
+    const tamanhoBlusa = String(req.body.tamanhoBlusa || "").trim();
     const cpf = String(req.body.cpf || "").replace(/\D/g, "");
     // CPF só é exigido a partir da inscrição oficial — na pré-inscrição a
     // pergunta nem aparece no formulário (ver inscricao.html).
@@ -2789,6 +2791,9 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
     if (datasAlternativas.includes("Outro") && !datasAlternativasOutro) {
       return res.status(400).json({ error: "invalid_datas_outro", message: "Descreva a data alternativa." });
     }
+    if (tamanhoBlusa && HACKATHON_TAMANHOS_BLUSA.indexOf(tamanhoBlusa) === -1) {
+      return res.status(400).json({ error: "invalid_blusa", message: "Tamanho de blusa inválido." });
+    }
     if (cpfObrigatorio ? !cpfValido(cpf) : cpf && !cpfValido(cpf)) {
       return res.status(400).json({ error: "invalid_cpf", message: "Informe um CPF válido." });
     }
@@ -2801,6 +2806,7 @@ app.post("/api/event-signup/:token", turnstileGate, (req, res) => {
       datasAlternativas,
       datasAlternativasOutro: datasAlternativas.includes("Outro") ? datasAlternativasOutro : "",
       temGrupo,
+      tamanhoBlusa,
       temTema,
       cpf,
       // Opt-in real (manual do participante, item 12): default false,
