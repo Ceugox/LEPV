@@ -167,24 +167,19 @@ nav.top.past .brand img{width:40px;opacity:1;margin-right:0;transform:none}
    verbete da seção I: ganha um cartaz de largura inteira. Mesma gramática do
    resto do documento — papel, hairline, raio de 4px, sem sombra. O card de
    raio 20px com box-shadow do tema antigo não sobrevive aqui. */
-.poster{display:grid;grid-template-columns:1fr;margin:0 0 30px;
-  border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--card)}
-@media(min-width:900px){ .poster{grid-template-columns:minmax(300px,.92fr) 1.2fr} }
-/* A arte do hackathon é PÔSTER, não foto de fundo: tem título, tópicos e o
-   aviso de pré-inscrições dentro da imagem. Daí object-fit:contain e a razão
-   natural (1200×980) — com cover, o banner anterior cortava justamente a
-   faixa de baixo, onde está "pré-inscrições abertas". A moldura é absoluta
-   como no verbete, para a altura vir do texto e não da imagem. */
-.poster .ph{position:relative;aspect-ratio:1200/980;background:var(--paper-2);
-  border-bottom:1px solid var(--line)}
-@media(min-width:900px){
-  .poster .ph{aspect-ratio:auto;min-height:280px;border-bottom:0;border-right:1px solid var(--line)}
-  .poster .ph img{position:absolute;inset:0}
-}
-.poster .ph img{width:100%;height:100%;object-fit:contain;display:block}
-.poster .body{padding:24px var(--pad) 26px;display:flex;flex-direction:column;
-  justify-content:center;gap:13px}
-@media(min-width:900px){ .poster .body{padding:30px 32px} }
+.poster{display:grid;grid-template-columns:1fr;gap:22px;margin:0 0 30px}
+@media(min-width:900px){ .poster{grid-template-columns:340px 1fr;gap:52px;align-items:center} }
+/* A arte do hackathon é PÔSTER com texto dentro, e cada evento sobe a sua
+   (1080×1350 de Instagram, 1200×980 do banner antigo...). Por isso ela entra
+   como prancha do documento, na proporção natural (height:auto), sem caixa
+   em volta: a moldura fixa anterior assumia 1200×980 e, com a arte 4:5,
+   sobrava papel bege dos lados, um encarte dentro de um card. */
+.poster .ph{margin:0}
+.poster .ph img{display:block;width:100%;height:auto;border:1px solid var(--line-2)}
+.poster .ph figcaption{margin-top:9px;font-family:var(--fd);font-style:italic;
+  font-size:13.5px;color:var(--ink-3)}
+@media(max-width:899px){ .poster .ph{max-width:460px} }
+.poster .body{display:flex;flex-direction:column;justify-content:center;gap:13px}
 .poster .k{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;
   letter-spacing:.14em;text-transform:uppercase;color:var(--wine);margin:0}
 .poster .k i{width:6px;height:6px;background:var(--wine);border-radius:50%;font-style:normal;
@@ -498,11 +493,11 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
       ? '<img src="' + escHtml(ev.titleImage) + '" alt="' + escHtml(ev.title) + '" loading="lazy">'
       : '<img src="/img/hackathon-banner-1200.jpg"' +
              ' srcset="/img/hackathon-banner-800.jpg 800w, /img/hackathon-banner-1200.jpg 1200w"' +
-             ' sizes="(min-width:900px) 42vw, 100vw"' +
+             ' sizes="(min-width:900px) 340px, 100vw"' +
              ' alt="' + escHtml(ev.title) + '" loading="lazy">';
     return (
       '<div class="poster rv">' +
-        '<div class="ph">' + img + "</div>" +
+        '<figure class="ph">' + img + "<figcaption>Fig. 1 · Encarte de divulgação</figcaption></figure>" +
         '<div class="body">' +
           '<p class="k"><i></i>' + escHtml(kindDe(ev) + " · " + diaMes(ev)) + "</p>" +
           "<h3>" + escHtml(ev.title) + "</h3>" +

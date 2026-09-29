@@ -1180,6 +1180,111 @@
     );
   }
 
+  // Lista de inscritos da gestão. Era uma linha de texto por pessoa com até
+  // quinze campos colados por " · " em 12.5px cinza: impossível achar o CPF de
+  // alguém ou contar quantos têm grupo. Agora é tabela com colunas rotuladas
+  // (no celular, uma ficha por pessoa com o rótulo ao lado de cada valor) e um
+  // resumo por cima com as contagens que a diretoria pergunta.
+  function fmtCpf(c) {
+    var d = String(c || "").replace(/\D/g, "");
+    return d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : d;
+  }
+  function waHref(phone) {
+    var d = String(phone || "").replace(/\D/g, "");
+    if (d.length < 10) return "";
+    return "https://wa.me/" + (d.length <= 11 ? "55" + d : d);
+  }
+  function linkedinHref(v) {
+    var s = String(v || "").trim();
+    if (!s) return "";
+    return /^https?:\/\//i.test(s) ? s : "https://" + s.replace(/^\/+/, "");
+  }
+  // "Sim"/"Não" viram marcas legíveis de relance numa coluna de dez linhas.
+  function simNao(v) {
+    if (v === "Sim") return '<span class="yn yes">Sim</span>';
+    if (v === "Não") return '<span class="yn no">Não</span>';
+    return '<span class="muted">—</span>';
+  }
+
+  function participantsHtml(ev) {
+    var list = ev.signups;
+    var isHack = ev.type === "hackathon";
+    var fila = list.filter(function (s) { return s.status === "waitlist"; }).length;
+
+    var resumo = [list.length + (list.length === 1 ? " inscrito" : " inscritos")];
+    if (fila) resumo.push(fila + " na fila");
+    if (isHack) {
+      var porVinculo = {};
+      list.forEach(function (s) { if (s.vinculo) porVinculo[s.vinculo] = (porVinculo[s.vinculo] || 0) + 1; });
+      Object.keys(porVinculo).forEach(function (k) { resumo.push(porVinculo[k] + " " + k); });
+      var n = function (f) { return list.filter(f).length; };
+      resumo.push(n(function (s) { return s.temGrupo === "Sim"; }) + " com grupo");
+      resumo.push(n(function (s) { return s.consentPatrocinadores; }) + " autorizam patrocinadores");
+    }
+
+    var linhas = list.map(function (s) {
+      var perfil = isHack
+        ? [s.vinculo, s.curso, s.anoFaculdade ? s.anoFaculdade + "º ano" : ""]
+        : [s.turma ? "Turma " + s.turma : "", s.especialidade, s.idade ? s.idade + " anos" : ""];
+      perfil = perfil.filter(Boolean).join(" · ");
+
+      var wa = waHref(s.phone);
+      var li = linkedinHref(s.linkedin);
+      var contato = [
+        s.email ? '<a href="mailto:' + esc(s.email) + '">' + esc(s.email) + "</a>" : "",
+        s.phone ? (wa ? '<a href="' + esc(wa) + '" target="_blank" rel="noopener">' + esc(s.phone) + "</a>" : esc(s.phone)) : "",
+        li ? '<a href="' + esc(li) + '" target="_blank" rel="noopener">LinkedIn ↗</a>' : "",
+      ].filter(Boolean).map(function (x) { return "<div>" + x + "</div>"; }).join("");
+
+      var status = s.status === "waitlist"
+        ? '<span class="signup-badge done">fila</span>'
+        : '<span class="signup-badge open">' + (s.type === "member" ? "membro" : "visitante") + "</span>";
+      if (s.attended) status += ' <span class="invite-flag">compareceu</span>';
+
+      // Cada célula tem UM filho: no celular a célula vira grade rótulo|valor
+      // e filhos soltos (e-mail, telefone, LinkedIn) caíam na coluna do rótulo.
+      var cols =
+        '<td class="p-who" data-label="Participante"><div><strong>' + esc(s.name) + "</strong>" +
+          (perfil ? '<div class="sub">' + esc(perfil) + "</div>" : "") +
+          '<div class="p-badges">' + status + "</div></div></td>" +
+        '<td class="p-contact" data-label="Contato"><div>' + (contato || '<span class="muted">—</span>') + "</div></td>";
+
+      if (isHack) {
+        var datasAlt = (s.datasAlternativas || []).map(function (d) {
+          return d === "Outro" && s.datasAlternativasOutro ? s.datasAlternativasOutro : d;
+        }).join("; ");
+        // As três perguntas sim/não numa coluna só, rotuladas: sete colunas
+        // não cabem nos ~780px do painel e espremiam o contato em fatias.
+        cols +=
+          '<td data-label="Respostas"><dl class="answers">' +
+            "<dt>Grupo</dt><dd>" + simNao(s.temGrupo) + "</dd>" +
+            "<dt>Tema</dt><dd>" + simNao(s.temTema) + "</dd>" +
+            "<dt>Topa 16–17/out</dt><dd>" + simNao(s.topaDias16e17) + "</dd>" +
+            (datasAlt ? '<dd class="alt sub">Datas alternativas: ' + esc(datasAlt) + "</dd>" : "") +
+          "</dl></td>" +
+          '<td data-label="CPF · dados"><div><span class="num">' + (s.cpf ? esc(fmtCpf(s.cpf)) : '<span class="muted">—</span>') + "</span>" +
+            (s.tamanhoBlusa ? '<div class="sub">Blusa ' + esc(s.tamanhoBlusa) + "</div>" : "") +
+            '<div class="sub">' + (s.consentPatrocinadores
+              ? '<span class="yn yes">Autoriza patrocinadores</span>'
+              : '<span class="yn no">Não autoriza patrocinadores</span>') + "</div></div></td>";
+      }
+      cols +=
+        '<td class="p-status"><span><button type="button" class="del-btn" data-delsignup="' + esc(s.id) + '" title="Remover inscrição de ' + esc(s.name) + '" aria-label="Remover inscrição de ' + esc(s.name) + '">×</button></span></td>';
+      return "<tr>" + cols + "</tr>";
+    }).join("");
+
+    var head = "<th>Participante</th><th>Contato</th>" +
+      (isHack ? "<th>Respostas</th><th>CPF · dados</th>" : "") +
+      '<th><span class="sr-only">Remover</span></th>';
+
+    return (
+      '<p class="participants-summary num">' + esc(resumo.join(" · ")) + "</p>" +
+      '<div class="table-scroll"><table class="participants' + (isHack ? " hack" : "") + '">' +
+        "<thead><tr>" + head + "</tr></thead><tbody>" + linhas + "</tbody>" +
+      "</table></div>"
+    );
+  }
+
   function managePanelHtml(ev) {
     // Edição inline: os mesmos campos da criação, já preenchidos.
     var editar =
@@ -1258,39 +1363,7 @@
         : "");
 
     var listaInscritos = ev.signups.length
-      ? ev.signups.map(function (s) {
-          var datasAlt = (s.datasAlternativas || []).map(function (d) {
-            return d === "Outro" && s.datasAlternativasOutro ? s.datasAlternativasOutro : d;
-          }).join(", ");
-          var contato = [
-            s.turma ? "Turma " + s.turma : "",
-            s.especialidade || "",
-            s.idade ? s.idade + " anos" : "",
-            s.vinculo || "",
-            s.curso || "",
-            s.linkedin || "",
-            s.anoFaculdade ? s.anoFaculdade + "º ano" : "",
-            s.topaDias16e17 ? "Topa 16-17: " + s.topaDias16e17 : "",
-            datasAlt ? "Datas alt.: " + datasAlt : "",
-            s.temGrupo ? "Grupo: " + s.temGrupo : "",
-            s.temTema ? "Tema: " + s.temTema : "",
-            s.cpf ? "CPF: " + s.cpf : "",
-            s.tamanhoBlusa ? "Blusa: " + s.tamanhoBlusa : "",
-            s.consentPatrocinadores ? "Autoriza dados p/ patrocinadores" : "",
-            s.email,
-            s.phone,
-          ].filter(Boolean).join(" · ");
-          var tag = s.status === "waitlist"
-            ? '<span class="signup-badge done">fila</span>'
-            : '<span class="signup-badge open">' + (s.type === "member" ? "membro" : "visitante") + "</span>";
-          var presente = s.attended ? ' <span class="invite-flag">compareceu</span>' : "";
-          return (
-            '<div class="visitor-row">' +
-              "<span><strong>" + esc(s.name) + "</strong>" + (contato ? ' <span style="color:var(--graphite-soft);">' + esc(contato) + "</span>" : "") + presente + "</span>" +
-              '<span>' + tag + '<button type="button" class="del-btn" data-delsignup="' + esc(s.id) + '" title="Remover inscrição">×</button></span>' +
-            "</div>"
-          );
-        }).join("")
+      ? participantsHtml(ev)
       : '<p class="empty-state">Ninguém inscrito ainda.</p>';
 
     var present = {};
