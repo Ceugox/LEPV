@@ -32,11 +32,29 @@
 
   var TINTA = {
     papel: '#eedbae', sepia: '#a8512f', agua: '#b4cfc6', aguaLinha: '#3b7190',
-    aguaTexto: '#2c6688', mata: '#c3d99a', urbano: '#e4b394', preto: '#1f1b16', estrada: '#c8412f'
+    aguaTexto: '#2c6688', mata: '#c3d99a', urbano: '#e4b394', preto: '#1f1b16', estrada: '#c8412f',
+    vinho: '#8c2f39'
   };
 
   var RIO = [-43.30, -22.93];
   var PRAIA = [-43.1650, -22.9562];
+  /* Instituto Militar de Engenharia, Praça General Tibúrcio 80 (contorno do OSM, relação 4022872) */
+  var IME = [-43.1662, -22.9559];
+  /* fachada nordeste, voltada para a praça e para a praia */
+  var ENTRADA = [-43.16598, -22.95576];
+  var IME_AREA = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [
+    [[-43.16683, -22.95608], [-43.1667, -22.95623], [-43.16649, -22.95605], [-43.16666, -22.95589],
+      [-43.16663, -22.95587], [-43.16638, -22.95609], [-43.16643, -22.95608], [-43.16659, -22.9562],
+      [-43.16648, -22.95631], [-43.16632, -22.95618], [-43.16633, -22.95613], [-43.16601, -22.95641],
+      [-43.16592, -22.95633], [-43.16598, -22.95628], [-43.16593, -22.95623], [-43.16587, -22.95628],
+      [-43.1657, -22.95615], [-43.16567, -22.95618], [-43.1656, -22.95609], [-43.16636, -22.95543],
+      [-43.16658, -22.95567], [-43.16652, -22.95572], [-43.16656, -22.95575], [-43.1666, -22.95571],
+      [-43.16678, -22.95592], [-43.16675, -22.95595], [-43.16683, -22.95608]],
+    [[-43.16651, -22.95578], [-43.16648, -22.95574], [-43.16642, -22.95579], [-43.16628, -22.95568],
+      [-43.16617, -22.95578], [-43.16625, -22.95583], [-43.16631, -22.95597], [-43.16651, -22.95578]],
+    [[-43.16622, -22.95605], [-43.166, -22.95592], [-43.16588, -22.95602], [-43.16603, -22.95615],
+      [-43.16597, -22.9562], [-43.16601, -22.95624], [-43.16622, -22.95605]]
+  ] } };
   /* fim da visão geral e começo do pouso: a mesma câmera nos dois lados do login */
   var ALTO = { center: [-43.19, -22.94], zoom: 11.6, pitch: 48, bearing: 12 };
 
@@ -48,7 +66,9 @@
     { t: 'Pão de Açúcar', c: [-43.1566, -22.9486], cls: 'pico', alt: '396', zmin: 13.2, zmax: 22 },
     { t: 'Morro da Urca', c: [-43.1648, -22.9505], cls: 'pico', alt: '220', zmin: 13.6, zmax: 22 },
     { t: 'Morro da Babilônia', c: [-43.1720, -22.9585], cls: 'pico', alt: '249', zmin: 14, zmax: 22 },
-    { t: 'Praia Vermelha', c: PRAIA, cls: 'destino', zmin: 10.5, zmax: 22 }
+    { t: 'Praia Vermelha', c: PRAIA, cls: 'destino', zmin: 10.5, zmax: 22 },
+    { t: 'IME', sub: 'Instituto Militar de Engenharia', c: IME, cls: 'ime', zmin: 10.5, zmax: 16.8 },
+    { t: 'Entrada do IME', sub: 'Praça General Tibúrcio, 80', c: ENTRADA, cls: 'ime', longo: true, zmin: 16.8, zmax: 22 }
   ];
 
   var ROTEIROS = {
@@ -79,7 +99,7 @@
       ],
       kicker: 'Carta do Rio de Janeiro',
       titulo: 'Praia <i>Vermelha</i>',
-      dur: 10500,
+      dur: 15500,
       passos: function (map, cena) {
         cena.depois(700, function () {
           map.flyTo({ center: PRAIA, zoom: 15.2, pitch: 54, bearing: -18,
@@ -88,7 +108,17 @@
         cena.depois(6400, function () {
           cena.chegou();
           cena.fixarKicker('Pouso · Urca, Rio de Janeiro');
-          map.easeTo({ bearing: 8, pitch: 58, zoom: 15.4, duration: 3600,
+        });
+        /* desce até a praça e vira para a fachada do IME */
+        var estreita = window.innerWidth < 720, perto = estreita ? 17.1 : 17.5;
+        cena.depois(7200, function () {
+          map.flyTo({ center: ENTRADA, zoom: perto, pitch: 68, bearing: -135,
+            offset: estreita ? [70, -40] : [0, -110], duration: 4400, curve: 1, essential: true });
+        });
+        cena.depois(11700, function () {
+          cena.fixarTitulo('Entrada do <i>IME</i>');
+          cena.fixarKicker('Praça General Tibúrcio, 80 · Urca');
+          map.easeTo({ bearing: -118, zoom: perto + 0.2, duration: 3600,
             easing: function (t) { return t; }, essential: true });
         });
       }
@@ -266,7 +296,8 @@
           thresholds: { 9: [200, 1000], 10: [100, 500], 11: [50, 250], 12: [20, 100], 13: [20, 100], 14: [20, 100], 15: [10, 50] },
           elevationKey: 'ele', levelKey: 'nivel', contourLayer: 'curvas', buffer: 1, overzoom: 1
         })] },
-        grade: { type: 'geojson', data: quadricula() }
+        grade: { type: 'geojson', data: quadricula() },
+        ime: { type: 'geojson', data: IME_AREA }
       },
       layers: [
         { id: 'papel', type: 'background', paint: { 'background-color': TINTA.papel } },
@@ -313,6 +344,12 @@
           paint: { 'line-color': TINTA.estrada, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.7, 15, 2.8] } },
         { id: 'edificio', type: 'fill', source: 'omt', 'source-layer': 'building', minzoom: 14,
           paint: { 'fill-color': TINTA.preto, 'fill-opacity': 0.5 } },
+        { id: 'ime-halo', type: 'line', source: 'ime', minzoom: 12,
+          paint: { 'line-color': TINTA.vinho, 'line-opacity': 0.5, 'line-blur': 6,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 12, 8, 16, 30] } },
+        { id: 'ime', type: 'fill-extrusion', source: 'ime', minzoom: 12,
+          paint: { 'fill-extrusion-color': TINTA.vinho, 'fill-extrusion-opacity': 1,
+            'fill-extrusion-height': ['interpolate', ['linear'], ['zoom'], 12, 0, 13.5, 30] } },
         { id: 'grade', type: 'line', source: 'grade',
           filter: ['any', ['get', 'dez'], ['>=', ['zoom'], 12]],
           paint: { 'line-color': TINTA.preto, 'line-opacity': 0.45, 'line-width': ['case', ['get', 'dez'], 0.9, 0.5] } },
@@ -428,23 +465,35 @@
     else if (e.key === 'Tab') { e.preventDefault(); el.querySelector('.voo-skip').focus(); }
   }
 
+  function conteudoRotulo(r) {
+    if (r.cls === 'ime') return '<span><strong>' + r.t + '</strong><small>' + r.sub + '</small></span><b></b>';
+    return (r.cls === 'pico' ? '<b>△</b>' : r.cls === 'destino' ? '<b></b>' : '') +
+      '<span>' + r.t + (r.alt ? ' <em>' + r.alt + '</em>' : '') + '</span>';
+  }
+  function ancora(r) {
+    if (r.cls === 'agua' || r.cls === 'relevo') return 'center';
+    return r.cls === 'ime' ? 'right' : 'left';
+  }
+
   function rotular(map) {
     marcas = ROTULOS.map(function (r) {
       /* o Marker controla a opacidade do elemento externo (oclusão pelo relevo);
          a visibilidade por zoom fica no filho */
       var box = document.createElement('div'), d = document.createElement('div');
-      d.className = 'voo-lbl voo-lbl-' + r.cls;
-      d.innerHTML = (r.cls === 'pico' ? '<b>△</b>' : r.cls === 'destino' ? '<b></b>' : '') +
-        '<span>' + r.t + (r.alt ? ' <em>' + r.alt + '</em>' : '') + '</span>';
+      d.className = 'voo-lbl voo-lbl-' + r.cls + (r.longo ? ' voo-lbl-longo' : '');
+      d.innerHTML = conteudoRotulo(r);
       box.appendChild(d);
-      new maplibregl.Marker({ element: box, anchor: r.cls === 'agua' || r.cls === 'relevo' ? 'center' : 'left',
-        opacityWhenCovered: r.cls === 'destino' ? '1' : '0.25' })
+      new maplibregl.Marker({ element: box, anchor: ancora(r),
+        opacityWhenCovered: r.cls === 'destino' || r.cls === 'ime' ? '1' : '0.25' })
         .setLngLat(r.c).addTo(map);
       return { r: r, d: d };
     });
   }
   function mostrarRotulos(z) {
-    marcas.forEach(function (m) { m.d.classList.toggle('on', z >= m.r.zmin && z < m.r.zmax); });
+    marcas.forEach(function (m) {
+      m.d.classList.toggle('on', z >= m.r.zmin && z < m.r.zmax);
+      m.d.classList.toggle('perto', z >= 13);
+    });
   }
 
   function voar(r) {
@@ -477,7 +526,8 @@
     var cena = {
       depois: function (ms, fn) { timers.push(setTimeout(function () { if (ativo) fn(); }, ms)); },
       chegou: function () { el.classList.add('chegou'); },
-      fixarKicker: function (t) { kickerFixo = true; k.textContent = t; }
+      fixarKicker: function (t) { kickerFixo = true; k.textContent = t; },
+      fixarTitulo: function (h) { el.querySelector('.voo-t').innerHTML = h; }
     };
     var semCarga = setTimeout(encerrar, 8000);
     timers.push(semCarga);
