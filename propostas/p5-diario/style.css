@@ -110,10 +110,11 @@ main { padding: 26px 22px 90px; min-width: 0; }
 /* números gigantes */
 .zahlen { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); margin-bottom: 30px; }
 @media (min-width: 720px) { .zahlen { grid-template-columns: repeat(4, 1fr); } }
-.z { padding: 18px 18px 14px 0; border-left: 1px solid var(--line); }
-.z:first-child { border-left: none; }
-@media (max-width: 719px) { .z:nth-child(odd) { border-left: none; } .z:nth-child(n+3) { border-top: 1px solid var(--line); } }
-.z b { display: block; font-family: var(--fd); font-weight: 400; font-size: clamp(38px, 5vw, 54px); line-height: 0.95; color: var(--ink); font-variant-numeric: tabular-nums; }
+.z { padding: 18px 22px 14px 16px; border-left: 1px solid var(--line); min-width: 0; }
+.z:first-child { border-left: none; padding-left: 0; }
+@media (max-width: 719px) { .z:nth-child(odd) { border-left: none; padding-left: 0; } .z:nth-child(n+3) { border-top: 1px solid var(--line); } }
+.z b { display: block; font-family: var(--fd); font-weight: 400; font-size: clamp(34px, 4vw, 46px); line-height: 0.95; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+.z:nth-child(2) b { font-size: clamp(30px, 3.3vw, 38px); }
 .z b i { font-style: italic; color: var(--wine); }
 .z span { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-top: 8px; }
 
