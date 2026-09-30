@@ -927,12 +927,12 @@
                 : "")
             : "";
           var photoBtnHtml = isMe
-            ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+            ? '<div class="mc-actions">' +
                 '<button type="button" class="avatar-edit" id="avatar-edit-btn">' + (m.photo ? "Trocar foto" : "Adicionar foto") + "</button>" +
                 '<button type="button" class="avatar-edit" id="pass-edit-btn">Trocar senha</button>' +
               "</div>"
             : (me.superadmin
-                ? '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+                ? '<div class="mc-actions">' +
                     '<button type="button" class="avatar-edit" data-reset-pass="' + m.order + '">Resetar senha</button>' +
                     '<button type="button" class="btn-reject" data-member-delete="' + m.order + '">Excluir usuário</button>' +
                   '</div>'
@@ -1509,7 +1509,6 @@
             "</select>" +
             '<input type="text" id="new-event-title" placeholder="Título" maxlength="100">' +
             '<input type="date" id="new-event-date">' +
-            '<button type="button" class="btn-primary" id="new-event-btn">Criar</button>' +
           "</div>" +
           '<div class="meeting-new" style="margin-top:8px;">' +
             '<input type="time" id="new-event-time" aria-label="Horário">' +
@@ -1518,7 +1517,10 @@
           '<div class="meeting-new" style="margin-top:8px;">' +
             '<input type="text" id="new-event-text" placeholder="Aviso que aparece no mural (opcional)" maxlength="600" style="flex:1 1 100%;">' +
           "</div>" +
-          '<p class="questions-hint">O evento já nasce com o formulário de inscrição publicado na página principal, junto com o aviso.</p>' +
+          '<div class="event-form-foot">' +
+            '<p class="questions-hint">O evento já nasce com o formulário de inscrição publicado na página principal, junto com o aviso.</p>' +
+            '<button type="button" class="btn-primary" id="new-event-btn">Criar evento</button>' +
+          "</div>" +
         "</div>"
       : "";
 
