@@ -1,0 +1,47 @@
+/* ============================================================
+   Abertura em mapa 3D (voo.js): tela cheia por cima da página enquanto a
+   câmera sobrevoa o Rio. Na landing, visão geral da cidade; depois do
+   login, o pouso na Praia Vermelha.
+   ============================================================ */
+.voo-on body::after{content:"";position:fixed;inset:0;z-index:99;background:#0d0f12}
+.voo-lock body{overflow:hidden}
+.voo{position:fixed;inset:0;z-index:100;background:#0d0f12;color:#f4efe6;
+  transition:opacity .9s ease,visibility 0s linear .9s}
+.voo[hidden]{display:none}
+.voo.out{opacity:0;visibility:hidden}
+/* .voo .voo-map vence o position:relative de .maplibregl-map, que chega depois */
+.voo .voo-map{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
+.voo.live .voo-map{opacity:1}
+.voo::after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  radial-gradient(120% 90% at 50% 45%,transparent 45%,rgba(13,15,18,.55) 100%),
+  linear-gradient(to bottom,rgba(13,15,18,.55),transparent 22%,transparent 62%,rgba(13,15,18,.85))}
+.voo-hud{position:absolute;z-index:2;left:var(--pad,22px);right:var(--pad,22px);bottom:clamp(40px,9vh,96px);
+  max-width:var(--max,1180px);margin:0 auto;pointer-events:none}
+.voo-k{margin:0 0 10px;font-size:11.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+  opacity:.8;transition:opacity .4s ease}
+.voo-t{margin:0;font-family:var(--fd,serif);font-weight:400;font-size:clamp(46px,9vw,120px);line-height:.95;
+  letter-spacing:-.01em;opacity:0;transform:translateY(14px);transition:opacity .9s ease,transform .9s ease}
+.voo-t i{font-style:italic;color:#e0a3a8}
+.voo.chegou .voo-t{opacity:1;transform:none}
+.voo-c{margin:14px 0 0;font-family:var(--fd,serif);font-style:italic;font-size:clamp(17px,2vw,22px);
+  font-variant-numeric:tabular-nums;opacity:.85}
+.voo-top{position:absolute;z-index:2;top:18px;left:var(--pad,22px);right:var(--pad,22px);display:flex;
+  align-items:center;justify-content:space-between;gap:16px}
+.voo-marca{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:.14em}
+.voo-marca img{height:34px;filter:brightness(0) invert(1)}
+.voo-skip{font:inherit;font-size:13px;font-weight:600;letter-spacing:.04em;color:#f4efe6;
+  background:rgba(13,15,18,.4);border:1px solid rgba(244,239,230,.45);border-radius:999px;
+  padding:9px 16px;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.voo-skip:hover{background:rgba(244,239,230,.14)}
+.voo-skip:focus-visible{outline:2px solid #f4efe6;outline-offset:3px}
+.voo-bar{position:absolute;z-index:2;left:0;right:0;bottom:0;height:2px;background:rgba(244,239,230,.14)}
+.voo-bar i{display:block;height:100%;width:100%;background:var(--wine,#8c2f39);transform-origin:left;
+  transform:scaleX(0)}
+.voo.live .voo-bar i{transform:scaleX(1);transition:transform var(--dur,10s) linear}
+.voo .maplibregl-ctrl-bottom-right{z-index:3}
+.voo .maplibregl-ctrl.maplibregl-ctrl-attrib,.voo .maplibregl-ctrl-attrib.maplibregl-compact-show{font-size:10px;background:rgba(13,15,18,.55);color:#cfc8bb}
+.voo .maplibregl-ctrl-attrib a{color:#cfc8bb}
+@media(prefers-reduced-motion:reduce){
+  .voo-on body::after{display:none}
+  .voo{display:none}
+}
