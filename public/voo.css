@@ -1,47 +1,73 @@
 /* ============================================================
-   Abertura em mapa 3D (voo.js): tela cheia por cima da página enquanto a
-   câmera sobrevoa o Rio. Na landing, visão geral da cidade; depois do
-   login, o pouso na Praia Vermelha.
+   Abertura em mapa (voo.js): uma folha de carta topográfica em tela
+   cheia por cima da página, com moldura dupla, cabeçalho de folha e o
+   título num cartucho. Na landing, a carta do Rio; depois do login, o
+   pouso na Praia Vermelha.
    ============================================================ */
-.voo-on body::after{content:"";position:fixed;inset:0;z-index:99;background:#0d0f12}
+.voo-on body::after{content:"";position:fixed;inset:0;z-index:99;background:#eedbae}
 .voo-lock body{overflow:hidden}
-.voo{position:fixed;inset:0;z-index:100;background:#0d0f12;color:#f4efe6;
+.voo{--m:clamp(10px,2.4vw,30px);--mt:clamp(58px,8vh,72px);--tinta:#1f1b16;
+  position:fixed;inset:0;z-index:100;color:var(--tinta);
+  background:radial-gradient(130% 110% at 50% 40%,#f2e2ba 0%,#eedbae 55%,#e2c993 100%);
   transition:opacity .9s ease,visibility 0s linear .9s}
 .voo[hidden]{display:none}
 .voo.out{opacity:0;visibility:hidden}
+/* moldura dupla da folha */
+.voo-folha{position:absolute;top:var(--mt);left:var(--m);right:var(--m);bottom:calc(var(--m) + 8px);
+  border:1.5px solid var(--tinta);box-shadow:0 0 0 5px #eedbae,0 0 0 6px var(--tinta)}
 /* .voo .voo-map vence o position:relative de .maplibregl-map, que chega depois */
 .voo .voo-map{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
 .voo.live .voo-map{opacity:1}
-.voo::after{content:"";position:absolute;inset:0;pointer-events:none;background:
-  radial-gradient(120% 90% at 50% 45%,transparent 45%,rgba(13,15,18,.55) 100%),
-  linear-gradient(to bottom,rgba(13,15,18,.55),transparent 22%,transparent 62%,rgba(13,15,18,.85))}
-.voo-hud{position:absolute;z-index:2;left:var(--pad,22px);right:var(--pad,22px);bottom:clamp(40px,9vh,96px);
-  max-width:var(--max,1180px);margin:0 auto;pointer-events:none}
-.voo-k{margin:0 0 10px;font-size:11.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
-  opacity:.8;transition:opacity .4s ease}
-.voo-t{margin:0;font-family:var(--fd,serif);font-weight:400;font-size:clamp(46px,9vw,120px);line-height:.95;
-  letter-spacing:-.01em;opacity:0;transform:translateY(14px);transition:opacity .9s ease,transform .9s ease}
-.voo-t i{font-style:italic;color:#e0a3a8}
-.voo.chegou .voo-t{opacity:1;transform:none}
-.voo-c{margin:14px 0 0;font-family:var(--fd,serif);font-style:italic;font-size:clamp(17px,2vw,22px);
-  font-variant-numeric:tabular-nums;opacity:.85}
-.voo-top{position:absolute;z-index:2;top:18px;left:var(--pad,22px);right:var(--pad,22px);display:flex;
+.voo-folha::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(120% 95% at 50% 45%,transparent 55%,rgba(120,84,40,.22) 100%)}
+.voo-top{position:absolute;z-index:2;top:0;left:var(--m);right:var(--m);height:var(--mt);display:flex;
   align-items:center;justify-content:space-between;gap:16px}
 .voo-marca{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:.14em}
-.voo-marca img{height:34px;filter:brightness(0) invert(1)}
-.voo-skip{font:inherit;font-size:13px;font-weight:600;letter-spacing:.04em;color:#f4efe6;
-  background:rgba(13,15,18,.4);border:1px solid rgba(244,239,230,.45);border-radius:999px;
-  padding:9px 16px;cursor:pointer;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-.voo-skip:hover{background:rgba(244,239,230,.14)}
-.voo-skip:focus-visible{outline:2px solid #f4efe6;outline-offset:3px}
-.voo-bar{position:absolute;z-index:2;left:0;right:0;bottom:0;height:2px;background:rgba(244,239,230,.14)}
-.voo-bar i{display:block;height:100%;width:100%;background:var(--wine,#8c2f39);transform-origin:left;
-  transform:scaleX(0)}
+.voo-marca img{height:30px}
+.voo-folha-id{margin:0;font-family:var(--fd,serif);font-size:15px;letter-spacing:.14em;text-transform:uppercase}
+.voo-skip{font:inherit;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--tinta);
+  background:transparent;border:1px solid var(--tinta);border-radius:999px;padding:8px 15px;cursor:pointer}
+.voo-skip:hover{background:var(--tinta);color:#eedbae}
+.voo-skip:focus-visible{outline:2px solid var(--wine,#8c2f39);outline-offset:3px}
+/* cartucho do título, no canto inferior esquerdo da folha */
+.voo-hud{position:absolute;z-index:2;left:calc(var(--m) + clamp(14px,3vw,40px));bottom:calc(var(--m) + clamp(28px,6vh,64px));
+  max-width:min(560px,calc(100% - 2 * var(--m) - 28px));padding:18px 24px 20px;pointer-events:none;
+  background:rgba(238,219,174,.94);border:1px solid var(--tinta);box-shadow:inset 0 0 0 3px #eedbae,inset 0 0 0 4px var(--tinta)}
+.voo-k{margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;opacity:.75}
+.voo-t{margin:0;font-family:var(--fd,serif);font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.95;
+  letter-spacing:.01em;opacity:0;transform:translateY(10px);transition:opacity .9s ease,transform .9s ease}
+.voo-t i{font-style:italic;color:var(--wine,#8c2f39)}
+.voo.chegou .voo-t{opacity:1;transform:none}
+.voo-c{margin:10px 0 0;font-family:var(--fd,serif);font-style:italic;font-size:clamp(15px,1.8vw,19px);
+  font-variant-numeric:tabular-nums;opacity:.8}
+/* escala gráfica: enche durante a abertura */
+.voo-bar{position:absolute;z-index:2;left:var(--m);right:var(--m);bottom:calc(var(--m) - 6px);height:5px;
+  border:1px solid var(--tinta);background:repeating-linear-gradient(90deg,var(--tinta) 0 40px,transparent 40px 80px);opacity:.5}
+.voo-bar i{display:block;height:100%;width:100%;background:var(--wine,#8c2f39);transform-origin:left;transform:scaleX(0)}
 .voo.live .voo-bar i{transform:scaleX(1);transition:transform var(--dur,10s) linear}
+/* rótulos da carta */
+.voo-lbl{font-family:var(--fd,serif);color:var(--tinta);white-space:nowrap;pointer-events:none;opacity:0;
+  transition:opacity .6s ease;text-shadow:0 0 3px #eedbae,0 0 3px #eedbae,0 0 6px #eedbae;display:flex;align-items:center;gap:5px}
+.voo-lbl.on{opacity:1}
+.voo-lbl-agua{font-style:italic;color:#2c6688;font-size:clamp(15px,1.6vw,21px);letter-spacing:.28em;text-transform:uppercase;
+  text-shadow:0 0 4px #b4cfc6,0 0 4px #b4cfc6}
+.voo-lbl-relevo{font-size:clamp(14px,1.4vw,18px);letter-spacing:.3em;text-transform:uppercase;color:#7a3c22}
+.voo-lbl-pico{font-size:16px;font-style:italic}
+.voo-lbl-pico b{font-style:normal;font-size:12px;font-weight:400}
+.voo-lbl-pico em{font-style:normal;font-family:var(--fs,sans-serif);font-size:11px}
+.voo-lbl-destino{font-size:clamp(18px,2vw,26px);font-style:italic;color:var(--wine,#8c2f39)}
+.voo-lbl-destino b{width:12px;height:12px;border-radius:50%;background:var(--wine,#8c2f39);box-shadow:0 0 0 3px #eedbae;
+  animation:voo-pulso 1.8s ease-out infinite}
+@keyframes voo-pulso{0%{box-shadow:0 0 0 3px #eedbae,0 0 0 3px rgba(140,47,57,.6)}100%{box-shadow:0 0 0 3px #eedbae,0 0 0 18px rgba(140,47,57,0)}}
 .voo .maplibregl-ctrl-bottom-right{z-index:3}
-.voo .maplibregl-ctrl.maplibregl-ctrl-attrib,.voo .maplibregl-ctrl-attrib.maplibregl-compact-show{font-size:10px;background:rgba(13,15,18,.55);color:#cfc8bb}
-.voo .maplibregl-ctrl-attrib a{color:#cfc8bb}
+.voo .maplibregl-ctrl.maplibregl-ctrl-attrib,.voo .maplibregl-ctrl-attrib.maplibregl-compact-show{font-size:10px;background:rgba(238,219,174,.9);color:var(--tinta)}
+.voo .maplibregl-ctrl-attrib a{color:var(--tinta)}
+@media(max-width:720px){
+  .voo-folha-id{display:none}
+  .voo-hud{padding:14px 16px 16px}
+}
 @media(prefers-reduced-motion:reduce){
   .voo-on body::after{display:none}
   .voo{display:none}
+  .voo-lbl-destino b{animation:none}
 }
