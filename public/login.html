@@ -340,6 +340,12 @@
 <script src="/js/turnstile.js"></script>
 <script>
 (function () {
+  /* voo.js na área de membros: a câmera pousa na Praia Vermelha só na
+     chegada vinda do login, não em todo carregamento de "/". */
+  function marcarPouso() {
+    try { sessionStorage.setItem("lepv-pouso", "1"); } catch (e) {}
+  }
+
   // Nome/curso/interesses agora podem vir de cadastro público — escapa tudo
   // que entra em innerHTML.
   function esc(s) {
@@ -554,6 +560,7 @@
         if (res.ok && res.data.mustChangePassword) {
           showNewPass();
         } else if (res.ok) {
+          marcarPouso();
           window.location.href = "/";
         } else {
           errorEl.textContent = res.data.message || "Não foi possível entrar.";
@@ -603,6 +610,7 @@
       .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
       .then(function (res) {
         if (res.ok) {
+          marcarPouso();
           window.location.href = "/";
         } else {
           npError.textContent = res.data.message || "Não foi possível salvar a senha.";

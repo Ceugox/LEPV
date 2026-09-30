@@ -22,7 +22,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALVOS = [
     os.path.join("public", "styles.css"),
+    os.path.join("public", "voo.css"),
     os.path.join("public", "home.html"),
+    os.path.join("public", "home-v2.html"),
     os.path.join("public", "app.html"),
     os.path.join("public", "login.html"),
     os.path.join("public", "inscricao.html"),
