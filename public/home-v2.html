@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEPV — Liga de Empreendedorismo da Praia Vermelha</title>
+<meta name="description" content="A LEPV constrói no IME o ambiente que o empreendedorismo precisa para existir: encontro semanal, repertório fora da grade e uma rede de empresas e alumni.">
+<meta name="theme-color" content="#121214">
+<!-- Versão paralela da landing (home.html segue sendo a oficial em "/"):
+     canônica aponta para a raiz e a página fica fora do índice. -->
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://lepv.org/">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta property="og:title" content="LEPV — Liga de Empreendedorismo da Praia Vermelha">
+<meta property="og:description" content="Engenharia que empreende. O ambiente de fomento ao empreendedorismo no IME.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lepv.org/">
+<meta property="og:image" content="https://lepv.org/assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+<style>
+/* ============================================================
+   Landing pública, v2. Tokens, .rv, .contour, .idx/.irow, .blk e o
+   marquee vivem em styles.css; aqui só o que é específico desta página.
+   ============================================================ */
+
+@media(prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
+section[id]{scroll-margin-top:72px}
+main:focus{outline:none}
+
+/* foco visível e consistente: vinho sobre papel, com respiro */
+a:focus-visible,button:focus-visible{outline:2px solid var(--wine);outline-offset:3px;border-radius:2px}
+.marquee-band a:focus-visible{outline-color:#fff}
+
+/* ---------- nav ---------- */
+nav.top{position:sticky;top:0;z-index:40;background:rgba(250,248,245,.86);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;gap:26px;height:64px;max-width:var(--max);
+  margin:0 auto;padding:0 var(--pad)}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto;text-decoration:none;
+  color:inherit;min-height:44px}
+/* A marca fica sempre no nav: 40px é o piso da engrenagem. */
+.brand img{height:40px;width:40px}
+.brand b{font-family:var(--fd);font-size:22px;font-weight:400;color:var(--ink);letter-spacing:.01em}
+.nav-links{display:none;gap:18px}
+@media(min-width:760px){ .nav-links{display:flex} }
+.nav-links a{color:var(--ink-2);text-decoration:none;font-size:14.5px;transition:color .15s;
+  display:inline-flex;align-items:center;min-height:44px;padding:0 6px}
+.nav-links a:hover{color:var(--wine)}
+.nav-cta{background:var(--ink);color:var(--paper);text-decoration:none;font-size:13.5px;
+  font-weight:600;padding:9px 17px;border-radius:100px;transition:background .16s;
+  white-space:nowrap;display:inline-flex;align-items:center;min-height:44px}
+.nav-cta:hover{background:var(--wine)}
+.burger{display:grid;align-content:center;justify-items:center;gap:4px;background:none;
+  border:0;padding:0;cursor:pointer;min-width:44px;min-height:44px;color:var(--ink)}
+.burger i{display:block;width:19px;height:1.5px;background:currentColor;transition:transform .2s,opacity .2s}
+.burger[aria-expanded="true"] i:nth-child(1){transform:translateY(5.5px) rotate(45deg)}
+.burger[aria-expanded="true"] i:nth-child(2){opacity:0}
+.burger[aria-expanded="true"] i:nth-child(3){transform:translateY(-5.5px) rotate(-45deg)}
+@media(min-width:760px){ .burger{display:none} }
+/* O menu mora dentro do nav sticky: abre logo abaixo da barra em qualquer
+   ponto do scroll. */
+.mobile-menu{display:flex;flex-direction:column;gap:2px;padding:6px var(--pad) 14px;
+  background:var(--paper);border-top:1px solid var(--line)}
+.mobile-menu[hidden]{display:none}
+.mobile-menu a{display:flex;align-items:center;min-height:44px;padding:0 6px;color:var(--ink-2);
+  text-decoration:none;border-bottom:1px dotted var(--line-2)}
+.mobile-menu a:last-child{border-bottom:0}
+@media(min-width:760px){ .mobile-menu{display:none!important} }
+
+/* ---------- topo ----------
+   Mesma fotografia e o mesmo pan descendo do céu à enseada. A composição
+   muda: o selo fica no alto, sobre um véu leve, e a manchete curta desce
+   para a base, onde o véu é forte. O meio da foto fica limpo. O texto do
+   topo não usa .rv: com o progresso ligado à posição, o que nasce perto da
+   base da tela ficaria meio apagado no primeiro quadro. */
+.hero{position:relative;min-height:620px;height:92vh;max-height:900px;
+  display:flex;flex-direction:column;overflow:hidden;background:var(--paper-2)}
+.hero-ph{position:absolute;inset:0;z-index:0}
+.hero-ph img{width:100%;height:100%;object-fit:cover;object-position:54% 10%;
+  filter:contrast(1.1) brightness(1.02)}
+.hero-ph::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(180deg,rgba(250,248,245,.72) 0%,rgba(250,248,245,.28) 16%,transparent 28%,
+                  transparent 46%,rgba(250,248,245,.46) 62%,rgba(250,248,245,.92) 82%,var(--paper) 98%),
+  linear-gradient(90deg,rgba(250,248,245,.46) 0%,rgba(250,248,245,.08) 44%,transparent 64%)}
+.hero-art{position:absolute;left:0;right:0;bottom:0;z-index:1;
+  width:100%;height:46%;pointer-events:none}
+.hero-in{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;
+  width:100%;max-width:var(--max);margin:0 auto;padding:30px var(--pad) 48px}
+.hero .stamp{margin:0}
+.hero-copy{margin-top:auto}
+.hero h1{font-family:var(--fd);font-weight:400;color:var(--ink);
+  font-size:clamp(46px,8vw,112px);line-height:.95;letter-spacing:-.02em;
+  margin:0 0 16px;max-width:12ch;text-wrap:balance}
+.hero h1 i{font-style:italic;color:var(--wine)}
+.hero .lede{margin:0 0 26px;font-size:clamp(16px,1.6vw,19px);line-height:1.5;color:var(--ink-2);
+  max-width:62ch}
+.hero .acts{display:flex;flex-wrap:wrap;gap:10px}
+
+/* No mobile a foto vira uma faixa acima do texto, com o selo por cima. */
+@media(max-width:719px){
+  .hero{height:auto;min-height:0;max-height:none}
+  .hero-ph{position:relative;height:62vw;min-height:230px}
+  .hero-ph::after{background:
+    linear-gradient(180deg,rgba(250,248,245,.78) 0%,rgba(250,248,245,.2) 30%,transparent 44%,
+                    transparent 64%,rgba(250,248,245,.85) 92%,var(--paper) 100%)}
+  .hero-art{height:30%}
+  /* hero-in sai do fluxo de posicionamento para o selo ancorar no .hero,
+     sobre a faixa da foto */
+  .hero-in{position:static;padding:0 var(--pad) 36px}
+  .hero .stamp{position:absolute;z-index:2;top:18px;left:var(--pad);right:var(--pad)}
+  .hero .stamp img{height:44px}
+  .hero-copy{position:relative;z-index:2;margin-top:18px}
+}
+
+/* ---------- I. o que a liga faz ----------
+   Três colunas separadas por filete, abertas por um filete de tinta — o
+   mesmo vocabulário do índice. Numeração romana minúscula em vinho. */
+.does{display:grid;grid-template-columns:1fr;border-top:1px solid var(--ink);margin:0;padding:0;list-style:none}
+@media(min-width:860px){ .does{grid-template-columns:repeat(3,1fr)} }
+.does li{padding:22px 0 26px;border-bottom:1px solid var(--line)}
+@media(min-width:860px){
+  .does li{padding:26px 28px 30px;border-bottom:0;border-left:1px solid var(--line)}
+  .does li:first-child{padding-left:0;border-left:0}
+  .does li:last-child{padding-right:0}
+}
+.does .n{display:block;font-family:var(--fd);font-style:italic;font-size:22px;color:var(--wine);margin:0 0 12px}
+.does h3{font-family:var(--fd);font-weight:400;font-size:clamp(24px,2.8vw,31px);line-height:1.06;
+  color:var(--ink);margin:0 0 10px}
+.does p{margin:0;font-size:15.5px;line-height:1.68;color:var(--ink-2);max-width:40ch}
+.does .more{display:inline-flex;align-items:center;gap:6px;margin-top:14px;min-height:32px;
+  font-size:13px;font-weight:600;color:var(--wine);text-decoration:none}
+.does .more:hover{text-decoration:underline}
+
+/* ---------- II. agenda: filtro por tipo ---------- */
+.filt{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 26px}
+.filt button{font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-2);background:transparent;border:1px solid var(--line-2);border-radius:100px;
+  padding:0 15px;min-height:44px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  transition:background .16s,border-color .16s,color .16s}
+.filt button:hover{border-color:var(--ink);color:var(--ink)}
+.filt button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.filt button:disabled{opacity:.42;cursor:default;border-style:dashed}
+.filt button:disabled:hover{border-color:var(--line-2);color:var(--ink-2)}
+.filt .c{font-weight:500;letter-spacing:0;opacity:.7;font-variant-numeric:tabular-nums}
+.agenda-sub{display:flex;align-items:baseline;gap:12px;margin:40px 0 10px;
+  font-size:10.5px;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-3)}
+.agenda-sub .r{flex:1;height:1px;background:var(--line)}
+#next-card:empty,#hk-poster:empty{display:none}
+
+/* ---------- III. mosaico editorial ----------
+   Grade assimétrica de 12 colunas: retratos em pé nas bordas, horizontais
+   largos no miolo. No mobile vira duas colunas com retratos em pé. */
+.mosaic{margin:0}
+.mosaic .grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr);
+  grid-auto-rows:34vw;grid-auto-flow:dense}
+.mosaic .m{margin:0;overflow:hidden;border:1px solid var(--line);border-radius:4px;background:var(--paper-2)}
+.mosaic .m img{display:block;width:100%;height:100%;object-fit:cover;filter:saturate(.94);
+  transition:transform .6s cubic-bezier(.22,1,.36,1),filter .3s}
+.mosaic .m:hover img{transform:scale(1.03);filter:saturate(1.04)}
+.mosaic .tall{grid-row:span 2}
+.mosaic .wide{grid-column:span 2}
+@media(min-width:900px){
+  .mosaic .grid{grid-template-columns:repeat(12,1fr);grid-auto-rows:clamp(84px,8.4vw,112px);gap:12px}
+  .mosaic .m1{grid-column:1/4;grid-row:1/5}
+  .mosaic .m2{grid-column:4/10;grid-row:1/4}
+  .mosaic .m3{grid-column:10/13;grid-row:1/5}
+  .mosaic .m4{grid-column:4/7;grid-row:4/6}
+  .mosaic .m5{grid-column:7/10;grid-row:4/6}
+  .mosaic .m6{grid-column:1/4;grid-row:5/8}
+  .mosaic .m7{grid-column:4/10;grid-row:6/8}
+  .mosaic .m8{grid-column:10/13;grid-row:5/8}
+}
+.mosaic figcaption{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin-top:14px;
+  padding-top:12px;border-top:1px solid var(--line)}
+.mosaic figcaption b{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--wine)}
+.mosaic figcaption span{font-family:var(--fd);font-style:italic;font-size:15.5px;color:var(--ink-3)}
+
+/* ---------- verbete do próximo evento ---------- */
+.entry{display:grid;grid-template-columns:1fr;gap:16px;padding:24px 0 0;
+  text-decoration:none;color:inherit}
+@media(min-width:900px){
+  .entry{grid-template-columns:minmax(280px,.9fr) 1.25fr minmax(190px,.62fr);
+         gap:32px;align-items:stretch}
+}
+/* A foto é absoluta de propósito: assim NÃO entra no cálculo de altura da
+   linha. Uma foto retrato com height:100% levava o bloco de 190 para 620px.
+   A altura vem do texto; a foto cobre o que sobrar. */
+.entry .ph{border:1px solid var(--line);border-radius:4px;overflow:hidden;
+  background:var(--card);position:relative;aspect-ratio:16/10}
+/* Com capa própria o slot toma a proporção da arte (6:5) em vez do 16/10 de
+   fotografia: senão o contain deixa um quarto do quadro em papel vazio. */
+.entry .ph.art{aspect-ratio:6/5}
+@media(min-width:900px){
+  .entry .ph{aspect-ratio:auto;align-self:stretch;min-height:210px}
+  .entry .ph.art{aspect-ratio:auto}
+  .entry .ph img{position:absolute;inset:0}
+}
+.entry .ph img{width:100%;height:100%;object-fit:cover;display:block}
+/* Capa que é arte, não fotografia: aparece inteira sobre o papel. */
+.entry .ph.art{background:var(--paper);border-color:var(--line-2)}
+.entry .ph.art img{object-fit:contain}
+.entry .mid{display:flex;flex-direction:column}
+.entry .mid .fill{flex:1}
+.entry .k{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--wine);margin:0 0 9px}
+.entry .k i{width:6px;height:6px;background:var(--wine);border-radius:50%;font-style:normal;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.32;transform:scale(.8)}}
+@media(prefers-reduced-motion:reduce){ .entry .k i{animation:none} }
+.entry h3{font-family:var(--fd);font-weight:400;font-size:clamp(26px,3.6vw,36px);
+  line-height:1.04;margin:0 0 11px;color:var(--ink)}
+.entry p{font-size:15.5px;line-height:1.68;margin:0 0 18px;color:var(--ink-2);max-width:48ch}
+.entry .hint{font-family:var(--fd);font-style:italic;font-size:14.5px;color:var(--ink-3);
+  margin:0;padding-top:14px;border-top:1px dotted var(--line-2)}
+.entry .side{font-size:13px;color:var(--ink-3);border-top:1px solid var(--line)}
+.entry .side div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
+  border-bottom:1px dotted var(--line-2);font-variant-numeric:tabular-nums}
+.entry .side div:last-of-type{border-bottom:0}
+.entry .side b{color:var(--ink);font-weight:600}
+/* o CTA fecha a coluna de dados ocupando a largura toda */
+.entry .side .btn{margin-top:14px;width:100%;justify-content:center}
+
+/* ---------- cartaz do evento com peça de divulgação própria ----------
+   O hackathon chega com imagem de divulgação pronta, então não disputa o
+   verbete da seção I: ganha um cartaz de largura inteira. Mesma gramática do
+   resto do documento — papel, hairline, raio de 4px, sem sombra. O card de
+   raio 20px com box-shadow do tema antigo não sobrevive aqui. */
+.poster{display:grid;grid-template-columns:1fr;gap:22px;margin:0 0 30px}
+@media(min-width:900px){ .poster{grid-template-columns:340px 1fr;gap:52px;align-items:center} }
+/* A arte do hackathon é PÔSTER com texto dentro, e cada evento sobe a sua
+   (1080×1350 de Instagram, 1200×980 do banner antigo...). Por isso ela entra
+   como prancha do documento, na proporção natural (height:auto), sem caixa
+   em volta: a moldura fixa anterior assumia 1200×980 e, com a arte 4:5,
+   sobrava papel bege dos lados, um encarte dentro de um card. */
+.poster .ph{margin:0}
+.poster .ph img{display:block;width:100%;height:auto;border:1px solid var(--line-2)}
+.poster .ph figcaption{margin-top:9px;font-family:var(--fd);font-style:italic;
+  font-size:13.5px;color:var(--ink-3)}
+@media(max-width:899px){ .poster .ph{max-width:460px} }
+.poster .body{display:flex;flex-direction:column;justify-content:center;gap:13px}
+.poster .k{display:inline-flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--wine);margin:0}
+.poster .k i{width:6px;height:6px;background:var(--wine);border-radius:50%;font-style:normal;
+  animation:pulse 2.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){ .poster .k i{animation:none} }
+.poster h3{font-family:var(--fd);font-weight:400;font-size:clamp(28px,4vw,40px);
+  line-height:1.03;margin:0;color:var(--ink)}
+.poster p{font-size:15.5px;line-height:1.68;margin:0;color:var(--ink-2);max-width:46ch}
+.poster .facts{margin:2px 0 0;font-size:13px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.poster .facts b{color:var(--ink);font-weight:600}
+/* As datas do hackathon são propostas, não fixas — o formulário pergunta se a
+   pessoa topa 16 e 17 e coleta alternativas. O aviso acompanha a data em vez de
+   substituí-la, e vem como nota de documento (serifa em itálico), não como
+   etiqueta colorida de raio 8px do tema antigo. */
+.poster .note{font-family:var(--fd);font-style:italic;font-size:14.5px;
+  color:var(--ink-3);margin:0}
+.poster .acts{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+
+/* ---------- rodapé ---------- */
+footer.site{max-width:var(--max);margin:0 auto;padding:38px var(--pad) 46px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
+footer.site img{height:40px;width:auto}
+footer.site .links{margin-left:auto;display:flex;gap:12px;flex-wrap:wrap}
+footer.site a{color:var(--wine);font-weight:600;text-decoration:none;
+  display:inline-flex;align-items:center;min-height:28px;padding:0 4px}
+footer.site a:hover{text-decoration:underline}
+footer.site .credit{flex-basis:100%;margin:14px 0 0;padding-top:14px;
+  border-top:1px solid var(--line);font-size:11.5px;line-height:1.6;color:var(--ink-3)}
+footer.site .credit i{font-family:var(--fd);font-style:italic;font-size:13px}
+/* O link do crédito vive dentro de um parágrafo, então não pode virar
+   inline-flex (quebraria a linha). Ganha os 24px do WCAG 2.5.8 por
+   padding vertical, que não desloca o texto em volta. */
+footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-height:0;
+  line-height:1.2}
+
+/* ---------- movimento reduzido ----------
+   Tudo no estado final, sem marquee, sem faixa e sem transições. O !important
+   vence o --p inline que o JS escreve em cada .rv. */
+@media(prefers-reduced-motion:reduce){
+  .rv{--p:1!important}
+  .m-track,.strip-track{animation:none!important}
+  .burger i,.mosaic .m img,.filt button,.irow{transition:none}
+  .mosaic .m:hover img{transform:none}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+
+<nav class="top" aria-label="Principal">
+  <div class="nav-in">
+    <a class="brand" href="/"><img src="/assets/logo-mark.png" alt=""><b>LEPV</b></a>
+    <div class="nav-links">
+      <a href="#faz">O que fazemos</a>
+      <a href="#agenda">Agenda</a>
+      <a href="#liga">A liga</a>
+      <a href="/login.html">Membros</a>
+    </div>
+    <a href="/login.html" class="nav-cta">Entrar</a>
+    <button class="burger" type="button" aria-label="Abrir menu" aria-controls="mobile-menu" aria-expanded="false"><i></i><i></i><i></i></button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu" hidden>
+    <a href="#faz">O que fazemos</a>
+    <a href="#agenda">Agenda</a>
+    <a href="#liga">A liga</a>
+    <a href="/login.html">Membros</a>
+  </div>
+</nav>
+
+<main id="main-content" tabindex="-1">
+<header class="hero" id="hero">
+  <!-- Praia Vermelha tomada do Morro da Urca, domínio público (acervo
+       Brascan / IMS via Wikimedia Commons). Crédito no rodapé. O
+       enquadramento desce conforme o scroll. -->
+  <div class="hero-ph">
+    <img id="hero-photo"
+         src="/assets/praia-vermelha.jpg"
+         srcset="/assets/praia-vermelha-900.jpg 900w, /assets/praia-vermelha.jpg 1800w"
+         sizes="100vw"
+         alt="Enseada da Praia Vermelha vista do Morro da Urca, com o conjunto de edifícios institucionais à esquerda da praia — o IME entre eles — e Botafogo ao fundo.">
+  </div>
+  <svg class="hero-art contour" aria-hidden="true"></svg>
+  <div class="hero-in">
+    <div class="stamp">
+      <img src="/assets/logo-mark.png" alt="">
+      <b>Liga de Empreendedorismo da Praia Vermelha</b>
+    </div>
+    <div class="hero-copy">
+      <h1>Engenharia que <i>empreende</i>.</h1>
+      <p class="lede">Encontro semanal, repertório fora da grade e uma rede de empresas e alumni — dentro do IME.</p>
+      <div class="acts">
+        <a class="btn btn-p" href="/login.html#solicitar"><span class="ar">→</span>Quero ser membro</a>
+        <a class="btn btn-g" href="#agenda">Ver agenda</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="blk" id="faz"><div class="wrap">
+  <div class="blk-head rv"><span class="n">I.</span><h2>O que a liga <i>faz</i></h2><span class="r"></span></div>
+  <p class="blk-note rv">Reuniões, aulas e visitas são os meios. O fim é fundar algo deixar de ser exceção na engenharia.</p>
+  <ul class="does">
+    <li class="rv" style="--i:0">
+      <span class="n">i.</span>
+      <h3>Encontros semanais</h3>
+      <p>Toda semana a liga se reúne no IME: gente de cursos e períodos diferentes, pauta aberta
+        e projetos que avançam de um encontro para o outro.</p>
+      <a class="more" href="#agenda">Próximos encontros →</a>
+    </li>
+    <li class="rv" style="--i:1">
+      <span class="n">ii.</span>
+      <h3>Repertório</h3>
+      <p>Aulas e conversas com quem já fundou, investiu ou operou — o que não está na grade
+        curricular, contado por quem fez.</p>
+    </li>
+    <li class="rv" style="--i:2">
+      <span class="n">iii.</span>
+      <h3>Rede de empresas e alumni</h3>
+      <p>Visitas a empresas, a missão a São Paulo e uma rede de alumni ao alcance de quem está
+        começando.</p>
+      <a class="more" href="#empresas">Quem já abriu as portas →</a>
+    </li>
+  </ul>
+</div></section>
+
+<div class="rule2"></div>
+
+<section class="blk" id="agenda"><div class="wrap">
+  <div class="blk-head rv"><span class="n">II.</span><h2>A <i>agenda</i></h2><span class="r"></span></div>
+  <p class="blk-note rv">Inscrições abertas, com vagas e fila de espera — em ordem de data.</p>
+  <div class="filt rv" role="group" aria-label="Filtrar eventos por tipo" id="agenda-filt">
+    <button type="button" data-f="all" aria-pressed="true">Todos</button>
+    <button type="button" data-f="reuniao" aria-pressed="false">Reuniões</button>
+    <button type="button" data-f="aula" aria-pressed="false">Aulas</button>
+    <button type="button" data-f="visita" aria-pressed="false">Visitas</button>
+    <button type="button" data-f="hackathon" aria-pressed="false">Hackathon</button>
+  </div>
+  <p class="sr-only" id="agenda-status" aria-live="polite"></p>
+  <div id="hk-poster"></div>
+  <div id="next-card"></div>
+  <p class="agenda-sub"><span>O semestre inteiro</span><span class="r"></span></p>
+  <div class="idx" id="agenda-idx"></div>
+  <p class="foot-note"><sup>1</sup> A presença abre automaticamente na data do evento, pelo
+    horário de Brasília. Membros confirmam por código; visitantes, por QR.</p>
+</div></section>
+
+<section class="blk" id="liga"><div class="wrap">
+  <div class="blk-head rv"><span class="n">III.</span><h2>A liga por <i>dentro</i></h2><span class="r"></span></div>
+  <p class="blk-note rv">Registro de reuniões, visitas e da missão a São Paulo.</p>
+  <figure class="mosaic rv">
+    <div class="grid">
+      <div class="m m1 tall"><img loading="lazy" src="/gallery/liga-01.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m2 wide"><img loading="lazy" src="/gallery/liga-06.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m3 tall"><img loading="lazy" src="/gallery/liga-13.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m4"><img loading="lazy" src="/gallery/liga-04.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m5"><img loading="lazy" src="/gallery/liga-09.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m6 tall"><img loading="lazy" src="/gallery/liga-17.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m7 wide"><img loading="lazy" src="/gallery/liga-15.jpg" alt="Atividade da LEPV"></div>
+      <div class="m m8 tall"><img loading="lazy" src="/gallery/liga-11.jpg" alt="Atividade da LEPV"></div>
+    </div>
+    <figcaption><b>Fig. 2</b><span>Reuniões no IME, visitas a empresas e a missão a São Paulo, em ordem livre.</span></figcaption>
+  </figure>
+</div></section>
+
+<section class="marquee-band" id="empresas">
+  <div class="wrap">
+    <p class="marquee-label rv"><span>IV · Empresas que abriram as portas</span><span class="rule"></span></p>
+  </div>
+  <div class="marquee rv" style="--i:1" role="img" aria-label="Logos das 12 empresas que já receberam a liga: NOMAD, Mottu, Insper, Link, Mirow &amp; Co., Sharpi, Bain &amp; Company, Revolut, Segura, PAX, ENTER e Tivita">
+    <div class="m-row" id="m-row-1"></div>
+    <div class="m-row reverse" id="m-row-2"></div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site">
+  <img src="/assets/logo-mark.png" alt="LEPV">
+  <span>LEPV — Liga de Empreendedorismo da Praia Vermelha · Rio de Janeiro</span>
+  <span class="links">
+    <a href="https://www.instagram.com/lepv.rj" target="_blank" rel="noopener">Instagram</a>
+    <a href="/login.html#solicitar">Solicitar acesso →</a>
+  </span>
+  <p class="credit">Imagem do cabeçalho: <i>Praia Vermelha e Botafogo, tomada do Morro
+    da Urca</i> — Centro de Documentação e Memória da Brascan / Instituto Moreira Salles,
+    domínio público, via
+    <a href="https://commons.wikimedia.org/wiki/File:Praia_Vermelha_e_Botafogo_-_tomada_do_Morro_da_Urca_(013RJ009012).jpg"
+       target="_blank" rel="noopener">Wikimedia Commons</a>.</p>
+</footer>
+
+<script src="/art.js"></script>
+<script>
+(function () {
+  /* ---------------- menu mobile ----------------
+     Ao abrir, o foco entra no primeiro link e fica preso entre o botão e os
+     links; Esc fecha e devolve o foco ao botão. */
+  var burger = document.querySelector('.burger');
+  var mobileMenu = document.getElementById('mobile-menu');
+  var menuLinks = Array.prototype.slice.call(mobileMenu.querySelectorAll('a'));
+  function menuOpen() { return burger.getAttribute('aria-expanded') === 'true'; }
+  function setMobileMenu(open, devolverFoco) {
+    mobileMenu.hidden = !open;
+    burger.setAttribute('aria-expanded', String(open));
+    burger.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+    if (open && menuLinks.length) menuLinks[0].focus();
+    else if (!open && devolverFoco) burger.focus();
+  }
+  burger.addEventListener('click', function () { setMobileMenu(!menuOpen(), true); });
+  mobileMenu.addEventListener('click', function (event) {
+    if (event.target.closest('a')) setMobileMenu(false, false);
+  });
+  document.addEventListener('keydown', function (event) {
+    if (!menuOpen()) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMobileMenu(false, true);
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    var alvos = [burger].concat(menuLinks);
+    var primeiro = alvos[0], ultimo = alvos[alvos.length - 1];
+    var dentro = alvos.indexOf(document.activeElement) !== -1;
+    if (!dentro) { event.preventDefault(); primeiro.focus(); }
+    else if (event.shiftKey && document.activeElement === primeiro) { event.preventDefault(); ultimo.focus(); }
+    else if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro.focus(); }
+  });
+  window.addEventListener('resize', function () {
+    if (menuOpen() && window.matchMedia('(min-width: 760px)').matches) setMobileMenu(false, false);
+  });
+
+  /* ---------------- arte e motion ---------------- */
+  LEPVArt.fitContour(document.querySelector('.hero-art'),
+    {waves:true, levels:0, ribs:false, sea:false,
+     waveAmpRatio:.075, waveOpacity:.85, drawWindow:.5});
+  LEPVArt.drawOnScroll(document.getElementById('hero'));
+  LEPVArt.panOnScroll(document.getElementById('hero-photo'),
+    {fromY: 10, toY: 92, fromX: 54, toX: 40, container: document.getElementById('hero')});
+  LEPVArt.reveal();
+
+  /* ---------------- marquee de logos ---------------- */
+  // sharpi/segura têm fundo opaco, viram wordmark
+  var ROW1 = [
+    { name: "NOMAD", logo: "/logos/nomad-mono.svg" },
+    { name: "Mottu", logo: "/logos/mottu.svg" },
+    { name: "Insper", logo: "/logos/insper.png" },
+    { name: "Link", logo: "/logos/link.png", scale: 1.2 },
+    { name: "Mirow & Co.", logo: "/logos/mirow.svg" },
+    { name: "Sharpi", word: true }
+  ];
+  var ROW2 = [
+    { name: "Bain & Company", logo: "/logos/bain.svg" },
+    { name: "Revolut", logo: "/logos/revolut.svg" },
+    { name: "Segura", word: true },
+    { name: "PAX", logo: "/logos/pax.svg" },
+    { name: "ENTER", logo: "/logos/enter.svg" },
+    { name: "Tivita", logo: "/logos/tivita.svg" }
+  ];
+  function itemHtml(c) {
+    if (c.word) return '<span class="m-word">' + escHtml(c.name) + "</span>";
+    var style = c.scale ? ' style="height:' + Math.round(27 * c.scale) + 'px"' : "";
+    return '<img class="m-logo" src="' + escHtml(c.logo) + '" alt="' + escHtml(c.name) + '" loading="lazy"' + style + ">";
+  }
+  function fillRow(id, items, duration) {
+    var row = document.getElementById(id);
+    var track = '<div class="m-track" style="--duration:' + duration + '">' + items.map(itemHtml).join("") + "</div>";
+    // 3 cópias da trilha: o loop translateX(-100% - gap) nunca mostra buraco em telas largas
+    var hidden = track.replace('class="m-track"', 'class="m-track" aria-hidden="true"');
+    row.innerHTML = track + hidden + hidden;
+  }
+  fillRow("m-row-1", ROW1, "45s");
+  fillRow("m-row-2", ROW2, "52s");
+
+  /* ---------------- eventos publicados ---------------- */
+  function escHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function diaMes(ev) {
+    var p = String(ev.date || "").split("-");
+    if (p.length !== 3) return "";
+    var MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+    return p[2] + " " + (MES[parseInt(p[1], 10) - 1] || "");
+  }
+  function quandoDe(ev) {
+    var d = diaMes(ev);
+    return d + (ev.time ? " · " + ev.time : "");
+  }
+  function vagasTexto(ev) {
+    if (!ev.capacity) return "aberto";
+    return ev.seatsLeft > 0
+      ? '<b>' + escHtml(ev.seatsLeft) + "</b>/" + escHtml(ev.capacity) + " vagas"
+      : "fila de espera";
+  }
+  // O rótulo do CTA acompanha o aviso de vagas — botão não pode contradizer o texto.
+  function ctaDe(ev) {
+    return ev.capacity && ev.seatsLeft <= 0 ? "Entrar na fila de espera" : "Garantir vaga";
+  }
+  function kindDe(ev) {
+    return ev.kind || "Evento";
+  }
+  // Evento remoto não tem porta com QR; a detecção é pelo texto livre do local.
+  function ehRemoto(ev) {
+    return /online|remoto|à dist|a dist|meet|zoom|teams/i.test(String(ev.location || ""));
+  }
+  function posterHtml(ev) {
+    var fatos = [];
+    if (ev.time) fatos.push("<b>" + escHtml(ev.time) + "</b>");
+    if (ev.location) fatos.push(escHtml(ev.location));
+    if (ev.travelMinutes > 0) fatos.push("~" + escHtml(ev.travelMinutes) + " min do IME");
+    var img = ev.titleImage
+      ? '<img src="' + escHtml(ev.titleImage) + '" alt="' + escHtml(ev.title) + '" loading="lazy">'
+      : '<img src="/img/hackathon-banner-1200.jpg"' +
+             ' srcset="/img/hackathon-banner-800.jpg 800w, /img/hackathon-banner-1200.jpg 1200w"' +
+             ' sizes="(min-width:900px) 340px, 100vw"' +
+             ' alt="' + escHtml(ev.title) + '" loading="lazy">';
+    return (
+      '<div class="poster rv">' +
+        '<figure class="ph">' + img + "<figcaption>Fig. 1 · Encarte de divulgação</figcaption></figure>" +
+        '<div class="body">' +
+          '<p class="k"><i></i>' + escHtml(kindDe(ev) + " · " + diaMes(ev)) + "</p>" +
+          "<h3>" + escHtml(ev.title) + "</h3>" +
+          (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
+          (fatos.length ? '<p class="facts">' + fatos.join(" · ") + "</p>" : "") +
+          (ev.phase === "pre-inscricao" ? '<p class="note">Datas e horários ainda serão confirmados.</p>' : "") +
+          '<div class="acts">' +
+            '<a class="btn btn-p" href="' + escHtml(ev.detailsUrl) + '">' +
+              '<span class="ar">→</span>Confira todos os detalhes</a>' +
+            '<a class="btn btn-g" href="' + escHtml(ev.signupUrl) + '">' + ctaDe(ev) + "</a>" +
+          "</div>" +
+        "</div>" +
+      "</div>"
+    );
+  }
+  function entryHtml(d) {
+    return (
+      '<div class="entry rv">' +
+        '<div class="ph' + (d.cover ? " art" : "") + '">' +
+          '<img src="' + escHtml(d.cover || "/gallery/liga-06.jpg") + '" alt="" loading="lazy">' +
+        "</div>" +
+        '<div class="mid">' +
+          '<p class="k"><i></i>' + escHtml(kindDe(d) + " · " + diaMes(d)) + '</p>' +
+          "<h3>" + escHtml(d.title) + "</h3>" +
+          (d.text ? "<p>" + escHtml(d.text) + "</p>" : "") +
+          '<span class="fill"></span>' +
+          '<p class="hint">' + (ehRemoto(d)
+            ? "Aberto a visitantes · link da videochamada na página do evento"
+            : "Aberto a visitantes · confirmação por QR no dia") + "</p>" +
+        "</div>" +
+        '<div class="side">' +
+          (d.time ? "<div><span>Horário</span><b>" + escHtml(d.time) + "</b></div>" : "") +
+          (d.location ? "<div><span>Local</span><b>" + escHtml(d.location) + "</b></div>" : "") +
+          (d.travelMinutes > 0 ? "<div><span>Trajeto do IME</span><b>" + escHtml(d.travelMinutes) + " min</b></div>" : "") +
+          "<div><span>Vagas</span><b>" + vagasTexto(d).replace(/<\/?b>/g, "") + "</b></div>" +
+          '<a class="btn btn-p" href="' + escHtml(d.signupUrl) + '"><span class="ar">→</span>' + ctaDe(d) + "</a>" +
+        "</div>" +
+      "</div>"
+    );
+  }
+  function irowHtml(ev, i) {
+    // A linha do hackathon leva à página de detalhes (manual, trilha, regulamento).
+    var destino = ev.type === "hackathon" ? ev.detailsUrl : ev.signupUrl;
+    return (
+      '<a class="irow rv" style="--i:' + Math.min(i, 6) + '" href="' + escHtml(destino) + '">' +
+        '<span class="k">' + escHtml(kindDe(ev)) + "</span>" +
+        '<span class="ti"><h4>' + escHtml(ev.title) + "</h4></span>" +
+        '<span class="wh">' + escHtml(quandoDe(ev)) + "</span>" +
+        '<span class="st">' + vagasTexto(ev) + "</span>" +
+        '<span class="go">→</span>' +
+      "</a>"
+    );
+  }
+
+  /* ---------------- agenda consolidada + filtro ----------------
+     Um render só para cartaz, verbete e índice, parametrizado pelo tipo.
+     O cartaz é do hackathon; o verbete, do evento comum mais próximo do
+     filtro; o índice lista todos os eventos do filtro. */
+  var VAZIO = {
+    all: "Nenhum evento com inscrições abertas agora. O próximo aparece aqui assim que for publicado.",
+    reuniao: "Nenhuma reunião com inscrições abertas agora.",
+    aula: "Nenhuma aula com inscrições abertas agora.",
+    visita: "Nenhuma visita com inscrições abertas agora.",
+    hackathon: "Nenhum hackathon com inscrições abertas agora."
+  };
+  var ROTULO = { all: "todos os tipos", reuniao: "reuniões", aula: "aulas", visita: "visitas", hackathon: "hackathon" };
+  var filt = document.getElementById("agenda-filt");
+  var status = document.getElementById("agenda-status");
+  var poster = document.getElementById("hk-poster");
+  var nextCard = document.getElementById("next-card");
+  var idx = document.getElementById("agenda-idx");
+  var events = [];
+
+  function render(f, anunciar) {
+    var lista = f === "all" ? events : events.filter(function (ev) { return ev.type === f; });
+    var cartazes = lista.filter(function (ev) { return ev.type === "hackathon"; });
+    var regulares = lista.filter(function (ev) { return ev.type !== "hackathon"; });
+
+    poster.innerHTML = cartazes.length ? posterHtml(cartazes[0]) : "";
+    if (regulares.length) nextCard.innerHTML = entryHtml(regulares[0]);
+    else if (f === "all" && events.length)
+      nextCard.innerHTML = '<p class="idx-empty rv">Nenhuma reunião, aula ou visita com inscrições abertas agora. ' +
+                           "A próxima aparece aqui assim que for publicada.</p>";
+    else nextCard.innerHTML = "";
+    idx.innerHTML = lista.length
+      ? lista.map(irowHtml).join("")
+      : '<p class="idx-empty rv">' + VAZIO[f] + "</p>";
+
+    if (anunciar) {
+      // Troca de filtro acontece com a seção já na tela: nada de revelar de novo.
+      [poster, nextCard, idx].forEach(function (box) {
+        Array.prototype.forEach.call(box.querySelectorAll(".rv"), function (el) {
+          el.style.setProperty("--p", 1);
+          el.classList.add("in");
+        });
+      });
+      status.textContent = lista.length + (lista.length === 1 ? " evento" : " eventos") + " em " + ROTULO[f] + ".";
+    } else {
+      LEPVArt.reveal(".rv:not(.in)");
+    }
+  }
+
+  function contar() {
+    Array.prototype.forEach.call(filt.querySelectorAll("button"), function (b) {
+      var f = b.getAttribute("data-f");
+      var n = f === "all" ? events.length : events.filter(function (ev) { return ev.type === f; }).length;
+      var c = b.querySelector(".c");
+      if (!c) { c = document.createElement("span"); c.className = "c"; b.appendChild(c); }
+      c.textContent = String(n);
+      b.disabled = f !== "all" && n === 0;
+    });
+  }
+
+  filt.addEventListener("click", function (event) {
+    var b = event.target.closest("button[data-f]");
+    if (!b || b.disabled || b.getAttribute("aria-pressed") === "true") return;
+    Array.prototype.forEach.call(filt.querySelectorAll("button"), function (x) {
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+    render(b.getAttribute("data-f"), true);
+  });
+
+  fetch("/api/public-events")
+    .then(function (r) { return r.ok ? r.json() : { events: [] }; })
+    .then(function (data) {
+      events = (data.events || []).slice().sort(function (a, b) {
+        return (a.date + " " + (a.time || "")) < (b.date + " " + (b.time || "")) ? -1 : 1;
+      });
+      contar();
+      render("all", false);
+    })
+    .catch(function () { contar(); render("all", false); });
+})();
+</script>
+</body>
+</html>
