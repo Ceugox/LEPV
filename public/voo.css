@@ -1,0 +1,91 @@
+/* ============================================================
+   Abertura em mapa (voo.js): uma folha de carta topográfica em tela
+   cheia por cima da página, com moldura dupla, cabeçalho de folha e o
+   título num cartucho. Na landing, a carta do Rio; depois do login, o
+   pouso na Praia Vermelha.
+   ============================================================ */
+.voo-on body::after{content:"";position:fixed;inset:0;z-index:99;background:#eedbae}
+.voo-lock body{overflow:hidden}
+.voo{--m:clamp(10px,2.4vw,30px);--mt:clamp(58px,8vh,72px);--tinta:#1f1b16;
+  position:fixed;inset:0;z-index:100;color:var(--tinta);
+  background:radial-gradient(130% 110% at 50% 40%,#f2e2ba 0%,#eedbae 55%,#e2c993 100%);
+  transition:opacity .9s ease,visibility 0s linear .9s}
+.voo[hidden]{display:none}
+.voo.out{opacity:0;visibility:hidden}
+/* moldura dupla da folha */
+.voo-folha{position:absolute;top:var(--mt);left:var(--m);right:var(--m);bottom:calc(var(--m) + 8px);
+  border:1.5px solid var(--tinta);box-shadow:0 0 0 5px #eedbae,0 0 0 6px var(--tinta)}
+/* .voo .voo-map vence o position:relative de .maplibregl-map, que chega depois */
+.voo .voo-map{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
+.voo.live .voo-map{opacity:1}
+.voo-folha::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+  background:radial-gradient(120% 95% at 50% 45%,transparent 55%,rgba(120,84,40,.22) 100%)}
+.voo-top{position:absolute;z-index:2;top:0;left:var(--m);right:var(--m);height:var(--mt);display:flex;
+  align-items:center;justify-content:space-between;gap:16px}
+.voo-marca{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:.14em}
+.voo-marca img{height:30px}
+.voo-folha-id{margin:0;font-family:var(--fd,serif);font-size:15px;letter-spacing:.14em;text-transform:uppercase}
+.voo-skip{font:inherit;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--tinta);
+  background:transparent;border:1px solid var(--tinta);border-radius:999px;padding:8px 15px;cursor:pointer}
+.voo-skip:hover{background:var(--tinta);color:#eedbae}
+.voo-skip:focus-visible{outline:2px solid var(--wine,#8c2f39);outline-offset:3px}
+/* cartucho do título, no canto inferior esquerdo da folha */
+.voo-hud{position:absolute;z-index:2;left:calc(var(--m) + clamp(14px,3vw,40px));bottom:calc(var(--m) + clamp(28px,6vh,64px));
+  max-width:min(560px,calc(100% - 2 * var(--m) - 28px));padding:18px 24px 20px;pointer-events:none;
+  background:rgba(238,219,174,.94);border:1px solid var(--tinta);box-shadow:inset 0 0 0 3px #eedbae,inset 0 0 0 4px var(--tinta)}
+.voo-k{margin:0 0 8px;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;opacity:.75}
+.voo-t{margin:0;font-family:var(--fd,serif);font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.95;
+  letter-spacing:.01em;opacity:0;transform:translateY(10px);transition:opacity .9s ease,transform .9s ease}
+.voo-t i{font-style:italic;color:var(--wine,#8c2f39)}
+.voo.chegou .voo-t{opacity:1;transform:none}
+.voo-c{margin:10px 0 0;font-family:var(--fd,serif);font-style:italic;font-size:clamp(15px,1.8vw,19px);
+  font-variant-numeric:tabular-nums;opacity:.8}
+/* escala gráfica: enche durante a abertura */
+.voo-bar{position:absolute;z-index:2;left:var(--m);right:var(--m);bottom:calc(var(--m) - 6px);height:5px;
+  border:1px solid var(--tinta);background:repeating-linear-gradient(90deg,var(--tinta) 0 40px,transparent 40px 80px);opacity:.5}
+.voo-bar i{display:block;height:100%;width:100%;background:var(--wine,#8c2f39);transform-origin:left;transform:scaleX(0)}
+.voo.live .voo-bar i{transform:scaleX(1);transition:transform var(--dur,10s) linear}
+/* rótulos da carta */
+.voo-lbl{font-family:var(--fd,serif);color:var(--tinta);white-space:nowrap;pointer-events:none;opacity:0;
+  transition:opacity .6s ease;text-shadow:0 0 3px #eedbae,0 0 3px #eedbae,0 0 6px #eedbae;display:flex;align-items:center;gap:5px}
+.voo-lbl.on{opacity:1}
+.voo-lbl-agua{font-style:italic;color:#2c6688;font-size:clamp(15px,1.6vw,21px);letter-spacing:.28em;text-transform:uppercase;
+  text-shadow:0 0 4px #b4cfc6,0 0 4px #b4cfc6}
+.voo-lbl-relevo{font-size:clamp(14px,1.4vw,18px);letter-spacing:.3em;text-transform:uppercase;color:#7a3c22}
+.voo-lbl-pico{font-size:16px;font-style:italic}
+.voo-lbl-pico b{font-style:normal;font-size:12px;font-weight:400}
+.voo-lbl-pico em{font-style:normal;font-family:var(--fs,sans-serif);font-size:11px}
+.voo-lbl-destino{font-size:clamp(18px,2vw,26px);font-style:italic;color:var(--wine,#8c2f39)}
+.voo-lbl-destino b{width:12px;height:12px;border-radius:50%;background:var(--wine,#8c2f39);box-shadow:0 0 0 3px #eedbae;
+  animation:voo-pulso 1.8s ease-out infinite}
+/* IME: bandeira com o escudo fincada na entrada; cresce de perto */
+.voo-lbl-bandeira{display:block;position:relative;width:1px;height:96px;text-shadow:none;transform:scale(.62);transform-origin:0 100%;
+  transition:opacity .6s ease,transform 1.2s ease}
+.voo-lbl-bandeira.perto{transform:none}
+.voo-lbl-bandeira>i{position:absolute;left:-1.5px;bottom:0;width:3px;height:100%;background:var(--tinta);border-radius:2px}
+.voo-lbl-bandeira>i::after{content:"";position:absolute;left:-3px;bottom:-3px;width:9px;height:5px;border-radius:50%;background:var(--tinta)}
+.voo-lbl-bandeira>span{position:absolute;left:1.5px;top:2px;display:flex;align-items:center;gap:8px;padding:6px 14px 6px 8px;
+  background:var(--wine,#8c2f39);color:#eedbae;box-shadow:inset 0 0 0 1px rgba(238,219,174,.35),2px 3px 0 rgba(31,27,22,.25);
+  transform-origin:0 50%;animation:voo-tremula 2.6s ease-in-out infinite;clip-path:polygon(0 0,100% 0,94% 50%,100% 100%,0 100%)}
+.voo-lbl-bandeira img{width:32px;height:38px;display:block}
+.voo-lbl-bandeira>span>span{display:flex;flex-direction:column;padding-right:6px}
+.voo-lbl-bandeira strong{font-family:var(--fs,sans-serif);font-weight:700;font-size:18px;letter-spacing:.3em;line-height:1}
+.voo-lbl-bandeira small{display:none;font-style:italic;font-size:13px;line-height:1.2;margin-top:3px}
+.voo-lbl-bandeira.perto small{display:block}
+@keyframes voo-tremula{0%,100%{transform:perspective(240px) rotateY(0) skewY(0)}50%{transform:perspective(240px) rotateY(-16deg) skewY(2.5deg)}}
+@keyframes voo-pulso{0%{box-shadow:0 0 0 3px #eedbae,0 0 0 3px rgba(140,47,57,.6)}100%{box-shadow:0 0 0 3px #eedbae,0 0 0 18px rgba(140,47,57,0)}}
+.voo .maplibregl-ctrl-bottom-right{z-index:3}
+.voo .maplibregl-ctrl.maplibregl-ctrl-attrib,.voo .maplibregl-ctrl-attrib.maplibregl-compact-show{font-size:10px;background:rgba(238,219,174,.9);color:var(--tinta)}
+.voo .maplibregl-ctrl-attrib a{color:var(--tinta)}
+@media(max-width:720px){
+  .voo-folha-id{display:none}
+  .voo-hud{padding:14px 16px 16px}
+  .voo-lbl-bandeira img{width:26px;height:31px}
+  .voo-lbl-bandeira strong{font-size:15px}
+  .voo-lbl-bandeira small{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){
+  .voo-on body::after{display:none}
+  .voo{display:none}
+  .voo-lbl-destino b,.voo-lbl-bandeira>span{animation:none}
+}

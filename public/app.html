@@ -12,6 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/voo.css">
+<script src="/voo.js" data-voo="pouso"></script>
 <style>
   /* A LIGA usa o papel claro + cards brancos de styles.css. Aqui só entra o
      hairline forte, que não existe nos tokens globais. */
@@ -26,7 +28,12 @@
   body.imersao {
     --canvas: #06152A;
     --white: #0B2140;            /* superfície de card */
+    --card: var(--white);
     --offwhite: #12294D;         /* superfície elevada (stopcards, campos) */
+    --ink: #F5F7FA;
+    --ink-2: rgba(255,255,255,0.80);
+    --ink-3: rgba(255,255,255,0.58);
+    --line-2: rgba(255,255,255,0.18);
     --line: rgba(255,255,255,0.10);
     --line-strong: rgba(255,255,255,0.18);
     --graphite: rgba(255,255,255,0.80);
@@ -53,7 +60,7 @@
     background-size: 200% 100%;
   }
 
-  .wrap { max-width: 860px; margin: 0 auto; padding: 0 16px 96px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 96px; }
 
   header.topbar {
     background: var(--navy);
@@ -1354,6 +1361,80 @@
   .gx-pending button { min-height: 36px; min-width: 36px; padding: 0; border: 0; background: none; color: var(--graphite-soft); font-size: 18px; }
   .gx-note { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
   .gx-note.warn { color: var(--danger); }
+
+  /* ---- Portal: cabeça de página, ações e ajustes de leitura ---- */
+  .page-head { margin: 8px 0 24px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .page-kicker {
+    font-family: var(--f); font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--red); margin: 0 0 8px;
+  }
+  .page-title {
+    font-family: var(--fd); font-weight: 400; font-size: clamp(36px, 5vw, 54px);
+    line-height: 1; letter-spacing: -0.01em; color: var(--ink); margin: 0;
+  }
+  .page-sub { font-size: 14.5px; line-height: 1.55; color: var(--ink-3); margin: 10px 0 0; max-width: 60ch; }
+  @media (min-width: 700px) { .page-head { margin: 12px 0 30px; padding-bottom: 22px; } }
+
+  .board-toolbar button, .board-actions button, .board-menu button, .board-subscribe button, .board-month-nav button,
+  .gx-toolbar button, .gx-card button, .gx-form button, .gx-filters button, .gx-attach-btns button,
+  .gx-toolbar select, .board-view { border-radius: var(--radius-sm); }
+  .board-toolbar button.primary, .gx-toolbar button.primary, .gx-form button.primary, .gx-card button.primary {
+    background: var(--red); border-color: var(--red); color: #fff;
+  }
+  .board-toolbar button.primary:hover, .gx-toolbar button.primary:hover,
+  .gx-form button.primary:hover, .gx-card button.primary:hover { background: var(--red-hover); border-color: var(--red-hover); }
+  .gx-filters button { border-radius: 999px; }
+
+  .checkin-row input::placeholder { letter-spacing: 0.02em; text-transform: none; font-weight: 500; }
+  .event-card { gap: 12px; }
+  .event-head [data-manage] { margin-left: auto; }
+  .event-title { font-size: 22px; }
+  .event-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+  .event-form-foot .questions-hint { margin: 0; flex: 1 1 260px; }
+  @media (max-width: 560px) {
+    .event-title { order: 9; flex: 1 1 100%; font-size: 21px; }
+    .event-form-foot .btn-primary { flex: 1 1 100%; }
+  }
+
+  .member-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .member-card { padding: 16px; border-radius: 4px; transition: border-color 0.15s; }
+  .member-card:hover { border-color: var(--line-2); }
+  .member-card .avatar { width: 48px; height: 48px; }
+  .member-card .name { font-size: 15px; }
+  .mc-actions {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto;
+    padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  .mc-actions .avatar-edit, .mc-actions .btn-reject {
+    flex: 1 1 auto; width: auto; margin: 0; min-height: 44px; border-style: solid;
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .mc-actions .btn-reject:hover { border-color: var(--danger); color: var(--danger); }
+
+  .addbar input {
+    font: inherit; font-size: 13.5px; padding: 10px 12px; border-radius: var(--radius-sm); min-width: 0;
+    background: var(--white); border: 1px solid var(--line); color: var(--graphite);
+  }
+  .addbar input:focus { outline: none; border-color: var(--line-2); box-shadow: 0 0 0 3px var(--line); }
+  @media (max-width: 480px) { .addbar input { font-size: 16px; } }
+
+  .access-table td { white-space: nowrap; }
+  .access-table td:last-child { white-space: normal; min-width: 220px; }
+  @media (max-width: 699px) {
+    .access-table { width: max-content; min-width: 100%; }
+    .access-table td:last-child { width: 300px; }
+  }
+  .access-table th { white-space: nowrap; }
+
+  @media (max-width: 479px) {
+    header.topbar .brandtext .b2 { display: none; }
+  }
+  @media (max-width: 699px) {
+    nav.tabs::after {
+      content: ""; position: sticky; right: 0; flex: none; width: 36px; margin-left: -36px;
+      background: linear-gradient(90deg, transparent, var(--navy)); pointer-events: none;
+    }
+  }
 </style>
 </head>
 <body>
@@ -1448,6 +1529,11 @@
     <!-- Eventos: reunião, aula, visita e social são o mesmo objeto. Cada um
          nasce como aviso, pode abrir inscrição e tem presença que abre no dia. -->
     <section class="panel" id="panel-eventos" role="tabpanel" aria-labelledby="tab-eventos" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">Liga</p>
+        <h2 class="page-title">Eventos</h2>
+        <p class="page-sub">Reuniões, aulas, visitas e hackathons, com inscrição e presença no mesmo lugar.</p>
+      </header>
       <div id="events-content">
         <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
@@ -1460,6 +1546,11 @@
     </section>
 
     <section class="panel" id="panel-membros" role="tabpanel" aria-labelledby="tab-membros" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">Liga</p>
+        <h2 class="page-title">Membros</h2>
+        <p class="page-sub">Quem faz a LEPV, turma a turma.</p>
+      </header>
       <div id="signup-panel"></div>
       <div id="immersion-entry"></div>
       <div class="card rv">
@@ -1476,6 +1567,11 @@
          diretoria já pagou. Todo membro lança; a diretoria decide no mesmo
          lugar. Módulo ES /js/features/reimbursements.js. -->
     <section class="panel" id="panel-gastos" role="tabpanel" aria-labelledby="tab-gastos" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">Liga</p>
+        <h2 class="page-title">Gastos</h2>
+        <p class="page-sub">Lance um ressarcimento e acompanhe até o pagamento.</p>
+      </header>
       <div id="expenses-root">
         <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
@@ -1484,6 +1580,11 @@
     <!-- Acessos: monitoramento de quem usa o site. A aba só é injetada no nav
          para o super admin; o conteúdo vem de uma rota que também exige. -->
     <section class="panel" id="panel-acessos" role="tabpanel" aria-labelledby="tab-acessos" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">Super admin</p>
+        <h2 class="page-title">Acessos</h2>
+        <p class="page-sub">Quem está usando o portal, e quando.</p>
+      </header>
       <div id="access-content">
         <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
@@ -1492,18 +1593,33 @@
     <!-- Diretoria: agenda de encontros externos. A aba só é injetada no nav
          para diretor; o conteúdo é o módulo ES /js/features/board.js. -->
     <section class="panel" id="panel-diretoria" role="tabpanel" aria-labelledby="tab-diretoria" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">Diretoria</p>
+        <h2 class="page-title">Encontros</h2>
+        <p class="page-sub">Os encontros externos da diretoria, em quadro ou calendário.</p>
+      </header>
       <div id="board-root">
         <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
     </section>
 
     <section class="panel" id="panel-agenda" role="tabpanel" aria-labelledby="tab-agenda" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">1ª Imersão · São Paulo</p>
+        <h2 class="page-title">Roteiro</h2>
+        <p class="page-sub">Os seis dias em São Paulo, parada por parada.</p>
+      </header>
       <div class="card rv hotel-card" id="hotel-card"></div>
       <div class="daypicker" id="daypicker" role="tablist" aria-label="Dias da agenda"></div>
       <div id="agenda-days" role="region" aria-live="polite" aria-label="Roteiro do dia"></div>
     </section>
 
     <section class="panel" id="panel-empresas" role="tabpanel" aria-labelledby="tab-empresas" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">1ª Imersão · São Paulo</p>
+        <h2 class="page-title">Empresas</h2>
+        <p class="page-sub">Cada visita com registro, materiais, perguntas e aprendizados.</p>
+      </header>
       <div class="company-picker" id="company-picker" role="tablist" aria-label="Empresas"></div>
       <div class="card rv company-detail" id="company-detail" role="region" aria-live="polite" aria-label="Detalhes da empresa">
         <p class="empty-state">Carregando...</p>
@@ -1516,6 +1632,11 @@
     </section>
 
     <section class="panel" id="panel-selos" role="tabpanel" aria-labelledby="tab-selos" tabindex="0">
+      <header class="page-head">
+        <p class="page-kicker">1ª Imersão · São Paulo</p>
+        <h2 class="page-title">Selos</h2>
+        <p class="page-sub">Os selos de cada visita e o bóton da imersão.</p>
+      </header>
       <div id="badges-content">
         <div class="card rv"><p class="empty-state">Carregando...</p></div>
       </div>
