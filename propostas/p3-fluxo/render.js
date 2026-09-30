@@ -21,9 +21,9 @@
       "<h1>A liga em movimento</h1>" +
       "<p>Reuniões, aulas, visitas e imersões dentro das empresas — a primeira levou 11 membros a São Paulo, com 12 visitas em 6 dias.</p></div></div></div>" +
     '<div class="metricas">' +
-      '<div class="met"><b>11</b><span>Membros ativos</span><div class="barra"><i style="width:73%"></i></div></div>' +
+      '<div class="met"><b data-count="11">11</b><span>Membros ativos</span><div class="barra"><i style="width:73%"></i></div></div>' +
       '<div class="met"><b>XVII–XXX</b><span>Turmas na liga</span><div class="barra"><i style="width:54%"></i></div></div>' +
-      '<div class="met"><b>12</b><span>Empresas na rede</span><div class="barra"><i style="width:100%"></i></div></div>' +
+      '<div class="met"><b data-count="12">12</b><span>Empresas na rede</span><div class="barra"><i style="width:100%"></i></div></div>' +
       '<div class="met"><b>1ª</b><span>Imersão · SP 2026</span><div class="barra"><i style="width:100%"></i></div></div>' +
     "</div>" +
     '<div class="card"><h2>Mural da liga</h2><p class="ajuda">Avisos da diretoria e o que abriu inscrição.</p>' +

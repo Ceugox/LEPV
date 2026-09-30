@@ -27,9 +27,9 @@
   $("p-inicio").innerHTML =
     cap("I", "A liga em <i>folha corrida</i>", "O que aconteceu, o que vem aí e quem sustenta — aberto na data de hoje.", "qua · 30/09/2026") +
     '<div class="zahlen">' +
-      '<div class="z"><b>11</b><span>Membros ativos</span></div>' +
+      '<div class="z"><b data-count="11">11</b><span>Membros ativos</span></div>' +
       '<div class="z"><b><i>XVII</i>–XXX</b><span>Turmas na liga</span></div>' +
-      '<div class="z"><b>12</b><span>Empresas na rede</span></div>' +
+      '<div class="z"><b data-count="12">12</b><span>Empresas na rede</span></div>' +
       '<div class="z"><b>1<i>ª</i></b><span>Imersão · SP 2026</span></div>' +
     "</div>" +
     '<div class="blk">' + bh("Edital da semana", D.mural.length + " avisos") +

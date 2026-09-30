@@ -25,7 +25,7 @@
       "<p>A LEPV nasceu na Praia Vermelha para aproximar estudantes de engenharia do mundo real dos negócios. Reuniões, aulas práticas, visitas e imersões dentro das empresas — a primeira levou a liga a São Paulo, com 12 visitas em 6 dias.</p></div>" +
     "</div>" +
     '<div class="ticker"><div class="ticker-in">' +
-      D.stats.map(function (s) { return '<div class="tk"><b>' + s.v + "</b><span>" + s.label + "</span></div>"; }).join("") +
+      D.stats.map(function (s) { return '<div class="tk"><b' + (/^\d+$/.test(s.v) ? ' data-count="' + s.v + '"' : "") + '>' + s.v + "</b><span>" + s.label + "</span></div>"; }).join("") +
     "</div></div>" +
     '<div class="blk"><div class="blk-head"><span class="n">1.</span><h2>Mural da liga</h2><span class="r"></span></div>' +
       D.mural.map(function (m) {

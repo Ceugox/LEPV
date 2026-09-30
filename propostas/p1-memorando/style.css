@@ -324,3 +324,29 @@ table.razao tr:hover td { background: var(--card); }
 .aviso { font-size: 13px; line-height: 1.55; padding: 11px 14px; border: 1px solid #EBD3AC; background: #FBF4E4; color: var(--ink); border-radius: 3px; }
 
 .foot-note { font-size: 12px; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 16px; margin-top: 30px; }
+
+/* ---------- dinâmica: folha pós-login + troca de capítulo ---------- */
+#intro { position: fixed; inset: 0; z-index: 80; background: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .62s cubic-bezier(.7,0,.25,1); }
+#intro.sai { transform: translateY(-101%); }
+#intro .folha { text-align: center; animation: sube .7s cubic-bezier(.2,.7,.3,1) both; }
+#intro .folha img { width: 84px; height: 84px; object-fit: contain; display: block; margin: 0 auto 20px; }
+#intro .carimbo { display: inline-block; font-weight: 700; font-size: 12px; letter-spacing: .22em;
+  text-transform: uppercase; color: var(--wine); border: 3px double var(--wine); border-radius: 4px;
+  padding: 9px 18px; transform: rotate(-6deg);
+  animation: carimba .36s cubic-bezier(.3,1.5,.5,1) 1.05s both; }
+@keyframes carimba { from { opacity: 0; transform: rotate(-6deg) scale(2); } to { opacity: 1; transform: rotate(-6deg) scale(1); } }
+@keyframes sube { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+@keyframes entra { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.panel.active > * { animation: entra .45s cubic-bezier(.2,.7,.3,1) both; }
+.panel.active > *:nth-child(2) { animation-delay: .05s; }
+.panel.active > *:nth-child(3) { animation-delay: .11s; }
+.panel.active > *:nth-child(4) { animation-delay: .17s; }
+.panel.active > *:nth-child(n+5) { animation-delay: .23s; }
+
+@media (prefers-reduced-motion: reduce) {
+  #intro { display: none !important; }
+  .panel.active > * { animation: none !important; }
+}

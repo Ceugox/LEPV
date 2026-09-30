@@ -23,7 +23,7 @@
       "<div><h1>Bem-vinda de volta, <i>Clara</i>.</h1>" +
       "<p>A liga teve uma semana cheia: a assembleia saiu, a visita à NOMAD abriu inscrição e a Aula 3 teve 18 presentes.</p></div></div>" +
     '<div class="metricas">' +
-      D.stats.map(function (s) { return '<div class="met"><b>' + s.v + "</b><span>" + s.label + "</span></div>"; }).join("") +
+      D.stats.map(function (s) { return '<div class="met"><b' + (/^\d+$/.test(s.v) ? ' data-count="' + s.v + '"' : "") + '>' + s.v + "</b><span>" + s.label + "</span></div>"; }).join("") +
     "</div>" +
     '<div class="card" style="margin-top:16px"><h2>Mural da liga</h2><p class="ajuda">Avisos da diretoria e o que abriu inscrição.</p>' +
       D.mural.map(function (m) {

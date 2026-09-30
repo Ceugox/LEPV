@@ -57,6 +57,22 @@
 
   footer { border-top: 3px double var(--ink); margin-top: 34px; padding: 18px 0 30px;
     font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  /* abertura: cabeçalho e propostas sobem em cascata */
+  @keyframes sobe { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  header .wrap > * { animation: sobe .6s cubic-bezier(.2,.7,.3,1) both; }
+  header .wrap > *:nth-child(2) { animation-delay: .08s; }
+  header .wrap > *:nth-child(3) { animation-delay: .16s; }
+  header .wrap > *:nth-child(4) { animation-delay: .24s; }
+  .grid .prop { animation: sobe .55s cubic-bezier(.2,.7,.3,1) both; }
+  .grid .prop:nth-child(1) { animation-delay: .28s; }
+  .grid .prop:nth-child(2) { animation-delay: .36s; }
+  .grid .prop:nth-child(3) { animation-delay: .44s; }
+  .grid .prop:nth-child(4) { animation-delay: .52s; }
+  .grid .prop:nth-child(5) { animation-delay: .6s; }
+  @media (prefers-reduced-motion: reduce) {
+    header .wrap > *, .grid .prop { animation: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -146,6 +162,7 @@
   <div class="abas">
     <h3>O que dá para testar em cada uma</h3>
     <ul>
+      <li><b>Entrada animada</b> — cada proposta abre com sua sequência pós-login (recarregue para rever); contadores sobem e painéis entram em cascata.</li>
       <li><b>As doze abas</b> — Início, Eventos, Membros, Gastos, Diretoria, Acessos, Legado, Empresas, Selos, Roteiro, A missão, Arquivo.</li>
       <li><b>Deep-link</b> — abra direto numa aba pelo hash: <code>…/index.html#empresas</code>, <code>#gastos</code>.</li>
       <li><b>Mobile</b> — redimensione para ~390px: a navegação vira trilha horizontal rolável.</li>

@@ -47,7 +47,7 @@
   /* ---------- Início ---------- */
   $("p-inicio").innerHTML =
     '<div class="kpis">' +
-      D.stats.map(function (s) { return '<div class="kpi"><b>' + s.v + "</b><span>" + s.label + "</span></div>"; }).join("") +
+      D.stats.map(function (s) { return '<div class="kpi"><b' + (/^\d+$/.test(s.v) ? ' data-count="' + s.v + '"' : "") + '>' + s.v + "</b><span>" + s.label + "</span></div>"; }).join("") +
     "</div>" +
     '<div class="sheet"><div class="sh"><h2>Mural da liga</h2><span class="meta">' + D.mural.length + ' avisos ativos</span></div><div class="sc">' +
       D.mural.map(function (m) {

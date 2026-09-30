@@ -252,3 +252,36 @@ main { padding: 26px 22px 90px; min-width: 0; }
 .vazio span { font-family: var(--fd); font-style: italic; font-size: 14px; color: var(--ink-3); }
 
 .foot-note { font-family: var(--fd); font-style: italic; font-size: 13.5px; color: var(--ink-3); border-top: 3px double var(--ink); padding-top: 14px; margin-top: 40px; }
+
+/* ---------- dinâmica: folha de rosto + capítulos que entram ---------- */
+#intro { position: fixed; inset: 0; z-index: 80; background: var(--paper-2);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .7s cubic-bezier(.75,0,.2,1); }
+#intro.sai { transform: translateY(-101%); }
+#intro .cabeca { text-align: center; animation: capa .8s cubic-bezier(.2,.7,.3,1) both; }
+#intro .ed { display: block; font-family: var(--f); font-size: 11px; font-weight: 600;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 16px; }
+#intro .cabeca > b { display: block; font-family: var(--fd); font-weight: 400; color: var(--ink);
+  font-size: clamp(44px, 9vw, 84px); line-height: 1; letter-spacing: -0.01em; }
+#intro .cabeca > b i { color: var(--wine); }
+#intro .fl { display: flex; justify-content: center; gap: 8px; margin: 20px auto 14px; }
+#intro .fl i { height: 2px; background: var(--ink); width: 90px; transform-origin: center;
+  animation: filete .55s cubic-bezier(.2,.7,.3,1) both; }
+#intro .fl i:first-child { animation-delay: .5s; }
+#intro .fl i:last-child { animation-delay: .65s; background: var(--wine); }
+#intro .assin { display: block; font-family: var(--fd); font-style: italic; font-size: 15px;
+  color: var(--ink-3); animation: capa .7s .9s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes capa { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes filete { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@keyframes entra { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.panel.active > * { animation: entra .5s cubic-bezier(.2,.7,.3,1) both; }
+.panel.active > *:nth-child(2) { animation-delay: .06s; }
+.panel.active > *:nth-child(3) { animation-delay: .13s; }
+.panel.active > *:nth-child(4) { animation-delay: .2s; }
+.panel.active > *:nth-child(n+5) { animation-delay: .26s; }
+
+@media (prefers-reduced-motion: reduce) {
+  #intro { display: none !important; }
+  .panel.active > * { animation: none !important; }
+}
