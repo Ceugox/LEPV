@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propostas de UI — área de membros LEPV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FAF8F5; --paper-2: #F3EFE9; --ink: #121214; --ink-2: #3D3940;
+    --ink-3: #6E6672; --line: #E2DCD4; --line-2: #CDC4B9; --wine: #7F0A1A; --wine-2: #9E1F30;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink-2);
+    font-family: "Archivo", system-ui, sans-serif; font-size: 15px; line-height: 1.65; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  header { border-bottom: 3px double var(--ink); padding: 34px 0 26px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .brand img { width: 34px; height: 34px; object-fit: contain; }
+  .brand span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  h1 { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; color: var(--ink);
+    font-size: clamp(30px, 4.6vw, 46px); line-height: 1.06; margin: 0 0 10px; letter-spacing: -0.01em; }
+  .lede { max-width: 640px; margin: 0; color: var(--ink-2); }
+  .lede i { font-family: "Instrument Serif", Georgia, serif; }
+
+  .nota { margin: 18px 0 0; font-size: 12.5px; color: var(--ink-3); }
+  .nota b { color: var(--wine); font-weight: 600; }
+
+  .grid { display: grid; gap: 0; border-top: 1px solid var(--line); margin-top: 30px; }
+  .prop { display: grid; grid-template-columns: 64px 1fr; gap: 18px; padding: 26px 0;
+    border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+  @media (min-width: 720px) { .prop { grid-template-columns: 90px 1fr auto; align-items: center; } }
+  .prop:hover .abrir { border-color: var(--wine); color: var(--wine); }
+  .rn { font-family: "Instrument Serif", Georgia, serif; font-size: clamp(28px, 4vw, 42px);
+    color: var(--wine); line-height: 1; }
+  .prop h2 { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; color: var(--ink);
+    font-size: clamp(21px, 2.6vw, 27px); margin: 0 0 4px; }
+  .prop h2 .tag { font-family: "Archivo", sans-serif; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--wine-2); vertical-align: middle;
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 9px; margin-left: 10px; }
+  .prop h2 .tag.livre { color: var(--ink-3); }
+  .prop p { margin: 0; font-size: 13.5px; max-width: 620px; }
+  .prop .refs { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ink-3); }
+  .abrir { grid-column: 1 / -1; justify-self: start; font-size: 12.5px; font-weight: 600;
+    border: 1px solid var(--line-2); border-radius: 999px; padding: 8px 16px; color: var(--ink-2); }
+  @media (min-width: 720px) { .abrir { grid-column: auto; } }
+
+  .abas { margin: 26px 0 8px; border-top: 1px solid var(--line); padding-top: 18px; }
+  .abas h3 { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; color: var(--ink);
+    font-size: 20px; margin: 0 0 10px; }
+  .abas ul { margin: 0; padding: 0 0 0 18px; font-size: 13.5px; color: var(--ink-2); }
+  .abas code { font-size: 12px; background: var(--paper-2); border: 1px solid var(--line);
+    border-radius: 4px; padding: 1px 5px; }
+
+  footer { border-top: 3px double var(--ink); margin-top: 34px; padding: 18px 0 30px;
+    font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <img src="_assets/logo-mark.png" alt="LEPV">
+      <span>LEPV — Liga de Empreendedorismo da Praia Vermelha</span>
+    </div>
+    <h1>Cinco propostas para a área de membros</h1>
+    <p class="lede">Mockups navegáveis da concha completa — as doze abas funcionam
+      em todas as propostas e cada aba tem endereço próprio
+      (<i>p1-memorando/#eventos</i>). Conteúdo realista: os onze membros, as doze
+      empresas da imersão e o roteiro de julho.</p>
+    <p class="nota"><b>P1 e P5</b> evoluem a identidade atual (papel · tinta · vinho).
+      <b>P2, P3 e P4</b> são explorações livres com referências externas.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+
+    <a class="prop" href="p1-memorando/index.html">
+      <span class="rn">I.</span>
+      <div>
+        <h2>Memorando <span class="tag">da marca</span></h2>
+        <p>A área de membros vira continuação da landing: mesma gramática de
+          documento. Abas como capítulos, painéis como folhas com filete, dados em
+          listas tipográficas. Sem barra preta — a logo volta a aparecer.
+          <span class="refs">papel #FAF8F5 · tinta #121214 · vinho #7F0A1A · Instrument Serif + Archivo</span></p>
+      </div>
+      <span class="abrir">Abrir →</span>
+    </a>
+
+    <a class="prop" href="p2-conclave/index.html">
+      <span class="rn">II.</span>
+      <div>
+        <h2>Conclave <span class="tag livre">livre · claude.ai</span></h2>
+        <p>Quente e humana: sidebar fixa em creme, cartões macios com hairlines
+          quentes, serif de sistema e acento terracota. Pílulas arredondadas e tom
+          acolhedor — o oposto do quadrado.
+          <span class="refs">creme #F5F0E8 · terracota · cantos 12–16px · sidebar por grupos</span></p>
+      </div>
+      <span class="abrir">Abrir →</span>
+    </a>
+
+    <a class="prop" href="p3-fluxo/index.html">
+      <span class="rn">III.</span>
+      <div>
+        <h2>Fluxo <span class="tag livre">livre · avenia.ai</span></h2>
+        <p>"Estabilidade fluida": base gelo, washes de gradiente petróleo, cantos
+          generosos e dados na frente — métricas, barras de presença e anéis.
+          Resgata o navy da história da marca sem pesar.
+          <span class="refs">gelo #F2F6F9 · gradiente petróleo · pills segmentadas · cantos 16–20px</span></p>
+      </div>
+      <span class="abrir">Abrir →</span>
+    </a>
+
+    <a class="prop" href="p4-planta/index.html">
+      <span class="rn">IV.</span>
+      <div>
+        <h2>Planta baixa <span class="tag livre">livre · xtrace.ai</span></h2>
+        <p>Console técnico: denso e tabular, hairlines de 1px, raio mínimo, mono
+          só em identificadores e datas. Eventos como tabela de verdade, sidebar
+          com atalhos de teclado, breadcrumb. Um único acento funcional — vinho.
+          <span class="refs">#FAFAFA · hairlines · mono tabular · vinho como cor da máquina</span></p>
+      </div>
+      <span class="abrir">Abrir →</span>
+    </a>
+
+    <a class="prop" href="p5-diario/index.html">
+      <span class="rn">V.</span>
+      <div>
+        <h2>Diário de bordo <span class="tag">da marca</span></h2>
+        <p>A paleta papel/tinta/vinho levada ao limite editorial: índice com
+          numerais romanos, estatísticas em serif gigante, eventos como
+          lançamentos de livro-caixa com dotted leaders. A liga como república
+          que imprime o próprio jornal.
+          <span class="refs">contraste alto · serif gigante · livro-caixa · zero cinza morno</span></p>
+      </div>
+      <span class="abrir">Abrir →</span>
+    </a>
+
+  </div>
+
+  <div class="abas">
+    <h3>O que dá para testar em cada uma</h3>
+    <ul>
+      <li><b>As doze abas</b> — Início, Eventos, Membros, Gastos, Diretoria, Acessos, Legado, Empresas, Selos, Roteiro, A missão, Arquivo.</li>
+      <li><b>Deep-link</b> — abra direto numa aba pelo hash: <code>…/index.html#empresas</code>, <code>#gastos</code>.</li>
+      <li><b>Mobile</b> — redimensione para ~390px: a navegação vira trilha horizontal rolável.</li>
+      <li><b>Logos em fundo escuro</b> — Mirow &amp; Co. e PAX usam tile escuro, como no app real.</li>
+    </ul>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap" style="display:contents">
+    <span>propostas/ · mockups estáticos, dados de exemplo</span>
+    <span>setembro de 2026</span>
+  </div>
+</footer>
+
+</body>
+</html>
