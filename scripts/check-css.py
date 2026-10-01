@@ -23,6 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALVOS = [
     os.path.join("public", "styles.css"),
     os.path.join("public", "intro.css"),
+    os.path.join("public", "portal.css"),
     os.path.join("public", "home.html"),
     os.path.join("public", "home-v2.html"),
     os.path.join("public", "app.html"),

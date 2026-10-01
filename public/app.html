@@ -241,9 +241,11 @@
   }
   .hero-text h2 .accent { color: var(--red); }
   .hero-copy { font-size: 14px; line-height: 1.65; color: var(--graphite); margin: 0; max-width: 58ch; }
-  @media (max-width: 560px) {
-    .hero-liga { flex-direction: column; align-items: flex-start; }
-    .hero-text h2 { font-size: 29px; }
+  @media (max-width: 699px) {
+    .hero-liga { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .hero-logo { width: 72px; height: 72px; object-fit: contain; }
+    .hero-text { width: 100%; }
+    .hero-text h2 { font-size: clamp(29px, 8vw, 36px); }
   }
 
   .stats-liga { display: grid; grid-template-columns: repeat(2, 1fr); padding: 0; overflow: hidden; }
@@ -1435,6 +1437,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="/portal.css">
 </head>
 <body>
 <div class="site-intro" aria-hidden="true">
@@ -1683,6 +1686,7 @@
 <script src="/app.js"></script>
 <script type="module" src="/js/features/board.js"></script>
 <script type="module" src="/js/features/reimbursements.js"></script>
+<script type="module" src="/js/features/portal.js"></script>
 <script src="/art.js"></script>
 <script>
   LEPVArt.reveal();
