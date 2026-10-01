@@ -216,46 +216,7 @@ footer.site .credit i{font-family:var(--fd);font-style:italic;font-size:13px}
 footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-height:0;
   line-height:1.2}
 </style>
-<style>
-/* Abertura curta: o topo aparece por tempo, sem depender da rolagem. */
-.site-intro {
-  position: fixed; inset: 0; z-index: 1000;
-  display: grid; place-items: center; background: var(--paper, #faf8f5);
-  pointer-events: none;
-  animation: intro-out 380ms cubic-bezier(.22,1,.36,1) 620ms both;
-}
-.intro-lockup {
-  display: flex; align-items: center; gap: 22px; color: var(--ink);
-  font-family: var(--fd); font-size: clamp(48px,9vw,86px);
-}
-.intro-lockup img {
-  width: clamp(64px,12vw,104px);
-  animation: mark-in 300ms cubic-bezier(.22,1,.36,1) both;
-}
-.intro-lockup span {
-  animation: word-in 400ms cubic-bezier(.22,1,.36,1) 180ms both;
-}
-.hero-in {
-  animation: hero-enter 450ms cubic-bezier(.22,1,.36,1) 500ms both;
-}
-@keyframes mark-in {
-  from { opacity: 0; transform: translateY(10px) scale(.94); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes word-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes intro-out { to { opacity: 0; visibility: hidden; } }
-@keyframes hero-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .site-intro { display: none; }
-  .hero-in { animation: none; }
-}
-</style>
+<link rel="stylesheet" href="/intro.css">
 </head>
 <body>
 <div class="site-intro" aria-hidden="true">

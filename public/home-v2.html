@@ -22,8 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
-<link rel="stylesheet" href="/voo.css">
-<script src="/voo.js" data-voo="visao"></script>
+<link rel="stylesheet" href="/intro.css">
 <style>
 /* ============================================================
    Landing pública, v2. Tokens, .rv, .contour, .idx/.irow, .blk e o
@@ -281,12 +280,6 @@ footer.site .credit i{font-family:var(--fd);font-style:italic;font-size:13px}
 footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-height:0;
   line-height:1.2}
 
-/* ---------- abertura (voo.js): refazer a visão geral ---------- */
-.voo-again{display:none;margin-top:18px;font:inherit;font-size:13px;color:var(--ink-2);background:none;
-  border:0;padding:4px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-.voo-ok .voo-again{display:inline-block}
-.voo-again:hover{color:var(--wine)}
-
 /* ---------- movimento reduzido ----------
    Tudo no estado final, sem marquee, sem faixa e sem transições. O !important
    vence o --p inline que o JS escreve em cada .rv. */
@@ -295,11 +288,16 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   .m-track,.strip-track{animation:none!important}
   .burger i,.mosaic .m img,.filt button,.irow{transition:none}
   .mosaic .m:hover img{transform:none}
-  .voo-again{display:none!important}
 }
 </style>
 </head>
 <body>
+<div class="site-intro" aria-hidden="true">
+  <div class="intro-lockup">
+    <img src="/assets/logo-mark.png" alt="">
+    <span>LEPV</span>
+  </div>
+</div>
 
 <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
 
@@ -348,7 +346,6 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
         <a class="btn btn-p" href="/login.html#solicitar"><span class="ar">→</span>Quero ser membro</a>
         <a class="btn btn-g" href="#agenda">Ver agenda</a>
       </div>
-      <button class="voo-again" type="button">Ver o Rio do alto de novo</button>
     </div>
   </div>
 </header>
@@ -493,12 +490,6 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
   LEPVArt.panOnScroll(document.getElementById('hero-photo'),
     {fromY: 10, toY: 92, fromX: 54, toX: 40, container: document.getElementById('hero')});
   LEPVArt.reveal();
-
-  /* ---------------- abertura (voo.js) ---------------- */
-  document.querySelector('.voo-again').addEventListener('click', function () {
-    window.scrollTo(0, 0);
-    LEPVVoo.start('visao');
-  });
 
   /* ---------------- marquee de logos ---------------- */
   // sharpi/segura têm fundo opaco, viram wordmark
