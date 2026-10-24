@@ -738,7 +738,7 @@
       h('label.field', h('span', 'Modalidade'), h('select', { name: 'kind' },
         h('option', { value: 'sponsor', selected: o.kind === 'sponsor' }, 'Patrocinador'),
         h('option', { value: 'supporter', selected: o.kind === 'supporter' }, 'Apoiador'))),
-      h('label.check', h('input', { type: 'checkbox', name: 'active', checked: o.active }), h('span', 'Aparece no formulário público')),
+      h('label.check', h('input', { type: 'checkbox', name: 'active', checked: o.active }), h('span', 'Organização ativa (aparece no formulário; patrocinador ativo exporta contatos)')),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();

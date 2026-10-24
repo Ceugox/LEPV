@@ -16,7 +16,13 @@
         if (!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
         if (!d.objectStoreNames.contains('ops')) d.createObjectStore('ops', { keyPath: 'opId' });
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        const d = req.result;
+        // Outra aba pedindo para apagar o banco: fecha na hora, para a remoção
+        // não ficar "adiada" e acontecer mais tarde em cima de leituras novas.
+        d.onversionchange = () => { d.close(); dbp = null; };
+        resolve(d);
+      };
       req.onerror = () => reject(req.error);
     });
     return dbp;
@@ -45,9 +51,10 @@
   // null = não deu para ler a fila (não é o mesmo que "vazia").
   async function pendingCount() { try { return (await listOps()).length; } catch (e) { return null; } }
 
-  // Troca de pessoa, logout ou fim da autorização: nada fica para o próximo.
-  // Devolve true só se o banco foi de fato apagado (bloqueado por outra aba
-  // aberta ou erro = false, e quem chamou avisa).
+  // Apaga tudo deste aparelho (cópia, credencial e fila). Quem chama decide
+  // quando: leituras pendentes NÃO são apagadas sem confirmação (sair pede
+  // segundo clique; abrir a tela nunca apaga fila). Devolve true só se o banco
+  // foi de fato apagado (bloqueado por outra aba ou erro = false).
   async function wipe() {
     try { if (dbp) (await dbp).close(); } catch (e) { /* segue */ }
     dbp = null;

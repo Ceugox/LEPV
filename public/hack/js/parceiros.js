@@ -8,6 +8,7 @@
   let orgs = { sponsor: [], supporter: [] };
 
   function fillOrgs(kind) {
+    if (loadError) return;
     const sel = clear($('org-select'));
     const list = orgs[kind] || [];
     sel.disabled = !list.length;
@@ -15,11 +16,17 @@
     list.forEach((o) => sel.appendChild(h('option', { value: o.id }, o.name)));
   }
 
+  let loadError = '';
   api('/hack/api/partners/orgs', { allow401: true }).then((r) => {
     orgs = r;
     const k = form.querySelector('input[name=kind]:checked');
     if (k) fillOrgs(k.value);
-  }).catch(() => {});
+  }).catch((e) => {
+    // Falha de rede não pode parecer "nenhuma organização cadastrada".
+    loadError = 'Não consegui carregar a lista de organizações (' + e.message + '). Recarregue a página.';
+    $('parceiro-erro').textContent = loadError;
+    $('parceiro-erro').hidden = false;
+  });
 
   form.addEventListener('change', (ev) => { if (ev.target.name === 'kind') fillOrgs(ev.target.value); });
 

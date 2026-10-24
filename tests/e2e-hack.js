@@ -552,6 +552,16 @@ test("avisos: bloquear tira as notificações do aparelho", async () => {
   eq((await S.people.julia.post("/hack/api/access/consume", { token: l.data.url.split("#t=")[1] })).status, 200);
 });
 
+test("avisos: sair apaga a inscrição de push do aparelho no servidor", async () => {
+  const c = await enterAs("carla@ex.com");
+  eq((await c.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("carla-celular") })).status, 200);
+  eq((await c.post("/hack/api/access/logout", { endpoint: FAKE_SUB("carla-celular").endpoint })).status, 200);
+  const r = await S.admin.post("/hack/api/admin/announcements", { title: "Depois do logout", body: "Teste.", audiences: ["participant"], urgent: true });
+  eq(r.status, 200);
+  await new Promise((res) => setTimeout(res, 800));
+  eq(pushes().filter((x) => x.payload.title === "Depois do logout" && x.endpoint === FAKE_SUB("carla-celular").endpoint).length, 0);
+});
+
 test("avisos: push urgente chega ao aparelho inscrito", async () => {
   eq((await S.people.ana.post("/hack/api/push/subscribe", { subscription: { endpoint: "javascript:alert(1)", keys: {} } })).status, 400);
   eq((await S.people.ana.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("ana") })).status, 200);
@@ -813,6 +823,10 @@ test("resultado: travado fecha a banca; só depois de revelar o pódio fica púb
   eq(pub.data.podium[0].position, 1);
   assert(!JSON.stringify(pub.data).includes("score"), "sem nota no público");
   eq((await ev({ action: "lockResults", lock: false })).status, 409, "revelado não destrava");
+  eq((await ev({ action: "lockResults", lock: true })).status, 409, "nem re-trava");
+  eq((await ev({ action: "podium", podiumSize: 1 })).status, 409, "pódio revelado não muda de tamanho");
+  eq((await ev({ action: "tiebreak", id: S.crit[1].id })).status, 409, "desempate travado");
+  eq((await S.admin.post("/hack/api/admin/teams/" + S.alfa.id + "/merge", { otherId: S.gama.id })).status, 409, "equipes congeladas");
 });
 
 test("entrega: depois do prazo a equipe não edita mais", async () => {

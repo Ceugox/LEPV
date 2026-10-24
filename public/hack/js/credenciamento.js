@@ -43,12 +43,18 @@
     refreshStats();
   }
 
-  const day = () => $('dia').value;
+  // Num dia do evento o dia é sempre o de hoje (relógio de Brasília), mesmo
+  // com a tela aberta desde ontem; fora do evento, o do seletor (ensaio).
+  let dayLocked = false;
+  const brtToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  const day = () => (dayLocked ? brtToday() : $('dia').value);
+  // O que vai para o servidor: nada quando travado (ele usa o dia dele).
+  const dayParam = () => (dayLocked ? undefined : day());
 
   // ---------- leitura (online com queda para offline) ----------
   async function handleCode(code) {
     try {
-      const r = await api('/hack/api/checkin/scan', { method: 'POST', body: { code, day: day() } });
+      const r = await api('/hack/api/checkin/scan', { method: 'POST', timeoutMs: 6000, body: { code, day: dayParam() } });
       showServer(r);
     } catch (e) {
       // Sem rede ou servidor fora (502/503/504): segue pela cópia do aparelho.
@@ -73,9 +79,18 @@
     }
   }
 
+  // Pode ler offline? Devolve a mensagem de recusa, ou null.
+  function offlineBlocked() {
+    if (!setup) return 'Este aparelho não está preparado para offline.';
+    if (otherOwner) return syncBlocked;
+    if (expired || Date.parse(setup.expiresAt) <= Date.now()) return 'Autorização deste aparelho expirou. Conecte à internet e prepare de novo.';
+    return null;
+  }
+
   async function handleOfflineInner(code) {
     if (!code.startsWith(PREFIX)) return show('err', 'QR inválido', ['Não é um ingresso deste hackathon.']);
-    if (expired || Date.parse(setup.expiresAt) <= Date.now()) return show('err', 'Autorização expirada', ['Conecte à internet e prepare de novo.']);
+    const why = offlineBlocked();
+    if (why) return show('err', 'Offline indisponível', [why]);
     const hsh = await OFF.sha256Hex(code.slice(PREFIX.length));
     const t = setup.snapshot.tickets.find((x) => x.h === hsh);
     if (!t) return show('err', 'QR desconhecido', ['Não está na cópia deste aparelho. Pode ser inscrição recente: sincronize quando a rede voltar.']);
@@ -106,7 +121,7 @@
     try {
       // allow401: recusa do aparelho não pode virar redirecionamento em loop
       // para o login a cada 20s — a fila ficaria parada sem ninguém ver.
-      const r = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, body: {
+      const r = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, timeoutMs: 20000, body: {
         deviceId: setup.deviceId, deviceToken: setup.deviceToken,
         ops: ops.map((o) => ({ opId: o.opId, h: o.h, personId: o.personId, day: o.day, at: o.at })),
       } });
@@ -118,15 +133,19 @@
       r.results.filter((x) => x.checkin).forEach((x) => setup.snapshot.checkins.push({ personId: x.personId, day: x.checkin.day, at: x.checkin.at }));
       await OFF.set('setup', setup);
       if (refused.length) {
-        // Quem entrou offline mas não podia: alerta inequívoco, com nome.
-        show('err', refused.length + ' leitura(s) recusada(s)', refused.map((x) => (x.name || 'Pessoa desconhecida') + ' — ' + REFUSED[x.status]));
-        refused.forEach((x) => remember({ name: x.name, label: 'Recusado: ' + REFUSED[x.status] }));
+        // Quem entrou offline mas não podia: alerta inequívoco, com nome e o
+        // motivo do servidor, guardado numa lista que a próxima leitura não apaga.
+        const lines = refused.map((x) => (x.name || 'Pessoa desconhecida') + ' — ' + REFUSED[x.status] + (x.reason ? ' (' + x.reason + ')' : ''));
+        show('err', refused.length + ' leitura(s) recusada(s)', lines);
+        setup.refused = (setup.refused || []).concat(lines.map((l) => ({ line: l, at: new Date().toISOString() }))).slice(-50);
+        await OFF.set('setup', setup);
+        renderRefused();
       }
       toast(ok.length + ' sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + (refused.length ? ' · ' + refused.length + ' recusada(s)' : '') + '.', refused.length > 0);
       refreshStats();
     } catch (e) {
       if (e.offline) { if (manual) toast('Ainda sem internet.', true); }
-      else if (e.status === 401 && /^device_/.test(e.code || '')) {
+      else if ((e.status === 401 || e.status === 403) && /^device_/.test(e.code || '')) {
         syncBlocked = e.message + ' As leituras continuam guardadas: prepare o aparelho de novo para enviá-las.';
         show('err', 'Aparelho sem autorização', [syncBlocked]);
       } else if (e.status === 401) {
@@ -137,6 +156,12 @@
       syncing = false;
       refreshPending();
     }
+  }
+
+  function renderRefused() {
+    const list = (setup && setup.refused) || [];
+    $('refused-card').hidden = !list.length;
+    fill($('refused'), list.slice().reverse().map((x) => h('li', h('div.list__main', h('b', x.line), h('span', time(x.at))))));
   }
 
   async function refreshPending() {
@@ -226,8 +251,14 @@
   }
   async function decodeFrame(v) {
     if (detector) {
-      const codes = await detector.detect(v).catch(() => []);
-      return codes.length ? codes[0].rawValue : null;
+      try {
+        const codes = await detector.detect(v);
+        return codes.length ? codes[0].rawValue : null;
+      } catch (e) {
+        // Detector nativo quebrado neste aparelho: passa a usar o jsQR.
+        detector = null;
+        if (!window.jsQR) $('cam-msg').textContent = 'Este navegador não decodifica QR. Use a busca manual.';
+      }
     }
     if (!window.jsQR || !v.videoWidth) return null;
     const c = $('canvas');
@@ -284,7 +315,7 @@
     if (q.length < 2) return;
     let people;
     try {
-      people = (await api('/hack/api/checkin/search?q=' + encodeURIComponent(q) + '&day=' + day())).people;
+      people = (await api('/hack/api/checkin/search?q=' + encodeURIComponent(q) + (dayLocked ? '' : '&day=' + day()), { timeoutMs: 6000 })).people;
     } catch (e) {
       const down = e.offline || (e.status >= 502 && e.status <= 504);
       if (!(down && setup && !otherOwner)) { toast(e.message, true); return; }
@@ -301,13 +332,15 @@
 
   async function admitManual(p) {
     try {
-      const r = await api('/hack/api/checkin/person/' + p.id, { method: 'POST', body: { day: day() } });
+      const r = await api('/hack/api/checkin/person/' + p.id, { method: 'POST', timeoutMs: 6000, body: { day: dayParam() } });
       showServer(r);
       runSearch();
     } catch (e) {
       const down = e.offline || (e.status >= 502 && e.status <= 504);
       if (!(down && setup && !otherOwner)) { toast(e.message, true); return; }
       try {
+        const why = offlineBlocked();
+        if (why) return show('err', 'Offline indisponível', [why]);
         const t = setup.snapshot.tickets.find((x) => x.id === p.id);
         if (!t || t.status !== 'valid') return show('err', 'Não liberado', describe(t));
         const { server, local } = await localCheckins();
@@ -333,18 +366,8 @@
     } catch (e) { /* offline: mantém o último */ }
   }
 
-  $('sair').addEventListener('click', async () => {
-    const n = await OFF.pendingCount();
-    if ((n === null || n > 0) && !confirmLeave(n === null ? 'Algumas' : n)) return;
-    window.Hack.logout();
-  });
-  let leaveArmed = 0;
-  function confirmLeave(n) {
-    if (Date.now() - leaveArmed < 5000) return true;
-    leaveArmed = Date.now();
-    toast(n + ' leitura(s) ainda não sincronizada(s) serão apagadas. Sincronize antes, ou clique em Sair de novo para descartar.', true);
-    return false;
-  }
+  // Sair: Hack.logout já pede confirmação se houver leitura não sincronizada.
+  $('sair').addEventListener('click', () => window.Hack.logout());
 
   (async function init() {
     setNet();
@@ -367,7 +390,7 @@
     if (setup && me && setup.personId !== me.id) {
       if (pending === 0) {
         // Cópia de outra pessoa, sem nada pendente: some.
-        await OFF.wipe();
+        if (!(await OFF.wipe())) $('off-msg').textContent = 'Não consegui apagar a cópia offline anterior (feche outras abas do portal e recarregue).';
         setup = null;
       } else {
         // Fila de outra pessoa: só ela consegue enviar. Fica guardada e o
@@ -380,7 +403,10 @@
       // Vencido: a fila ainda sobe (o servidor aceita o que foi lido antes do
       // vencimento); novas leituras offline exigem preparar de novo.
       expired = true;
-      if (pending === 0) { await OFF.wipe(); setup = null; }
+      if (pending === 0) {
+        if (!(await OFF.wipe())) $('off-msg').textContent = 'Não consegui apagar a cópia vencida (feche outras abas do portal e recarregue).';
+        setup = null;
+      }
     }
     let days = ['2026-10-30', '2026-10-31'];
     // Offline: o dia sai do relógio do aparelho, no fuso de Brasília.
@@ -396,6 +422,18 @@
     fill($('dia'), days.map((d) => h('option', { value: d, selected: d === def }, dayLabel(d))));
     // No dia do evento não se escolhe dia: é o de hoje (o servidor também impõe).
     $('dia').disabled = locked;
+    dayLocked = locked;
+    // Tela aberta de um dia para o outro: o seletor acompanha o relógio.
+    setInterval(() => {
+      const t = brtToday();
+      if (days.includes(t) && $('dia').value !== t) {
+        $('dia').value = t;
+        dayLocked = true;
+        $('dia').disabled = true;
+        refreshStats();
+      }
+    }, 60000);
+    renderRefused();
     $('dia').addEventListener('change', refreshStats);
     if (setup) {
       $('off-msg').textContent = 'Aparelho preparado: ' + setup.snapshot.tickets.length + ' ingressos na cópia local.';

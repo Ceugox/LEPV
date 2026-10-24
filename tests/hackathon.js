@@ -12,7 +12,8 @@ const A = require("../lib/hackathon/announcements");
 const TM = require("../lib/hackathon/teams");
 const EV = require("../lib/hackathon/evaluation");
 const { createDelivery, MAX_ATTEMPTS } = require("../lib/hackathon/delivery");
-const { publicBaseFor, rateLimiter, networkOutcome } = require("../lib/hackathon/util");
+const { publicBaseFor, rateLimiter, networkOutcome, route, setReporter, HackError } = require("../lib/hackathon/util");
+const { createPush } = require("../lib/hackathon/push");
 const { sendAccessLink } = require("../lib/hackathon/routes/access");
 const PT = require("../lib/hackathon/partners");
 const K = require("../lib/hackathon/admission");
@@ -955,6 +956,54 @@ test("parceiros: trocar a modalidade da organização troca o papel dos represen
   const { person } = PT.decideRequest(s, r.id, true, "dir", T0);
   PT.updateOrg(s, teachy.id, { kind: "supporter" });
   assert.deepStrictEqual(person.roles, ["supporter"]);
+});
+
+// ---------- revisão 6 ----------
+test("parceiros: representante removido perde o link ainda não usado; org inativa não ganha representante", () => {
+  const { s, teachy } = partnerState();
+  const r = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  const { person } = PT.decideRequest(s, r.id, true, "dir", T0);
+  const raw = issueLoginToken(s, person.id, T0);
+  PT.removeRepresentative(s, person.id, later(1));
+  assert.throws(() => consumeLoginToken(s, raw, later(2)), /Link inválido/);
+  const r2 = PT.createRequest(s, reqBody({ orgId: teachy.id, email: "outra@teachy.com" }), T0);
+  PT.updateOrg(s, teachy.id, { active: false });
+  assert.throws(() => PT.decideRequest(s, r2.id, true, "dir", T0), /desativada/);
+});
+test("push: chave VAPID inválida desliga o push sem derrubar o boot", () => {
+  const save = [process.env.HACK_VAPID_PUBLIC_KEY, process.env.HACK_VAPID_PRIVATE_KEY, process.env.HACK_PUSH_OUTBOX];
+  process.env.HACK_VAPID_PUBLIC_KEY = "nao-e-chave";
+  process.env.HACK_VAPID_PRIVATE_KEY = "tambem-nao";
+  delete process.env.HACK_PUSH_OUTBOX;
+  const orig = console.error;
+  console.error = () => {};
+  try {
+    const p = createPush();
+    eq1(p.enabled(), false);
+    eq1(p.publicKey(), "");
+  } finally {
+    console.error = orig;
+    [process.env.HACK_VAPID_PUBLIC_KEY, process.env.HACK_VAPID_PRIVATE_KEY, process.env.HACK_PUSH_OUTBOX] = save;
+    for (const k of ["HACK_VAPID_PUBLIC_KEY", "HACK_VAPID_PRIVATE_KEY", "HACK_PUSH_OUTBOX"]) if (process.env[k] === "undefined") delete process.env[k];
+  }
+});
+test("rotas: 500 vai para o registro de falhas; erro esperado não", async () => {
+  const seen = [];
+  setReporter((scope, err) => seen.push([scope, err.message]));
+  const fake = () => {
+    const res = { code: 0, body: null, headersSent: false, status(c) { this.code = c; return this; }, json(b) { this.body = b; } };
+    return res;
+  };
+  const r1 = fake();
+  await new Promise((done) => { route(() => { throw new Error("disco cheio"); })({ method: "GET", path: "/x" }, Object.assign(r1, { json(b) { this.body = b; done(); } })); });
+  eq1(r1.code, 500);
+  eq1(seen.length, 1);
+  eq1(seen[0][1], "disco cheio");
+  const r2 = fake();
+  await new Promise((done) => { route(() => { throw new HackError(409, "x", "conflito"); })({ method: "GET", path: "/y" }, Object.assign(r2, { json(b) { this.body = b; done(); } })); });
+  eq1(r2.code, 409);
+  eq1(seen.length, 1, "HackError não é falha do sistema");
+  setReporter(() => {});
 });
 
 (async () => {

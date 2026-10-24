@@ -16,6 +16,14 @@
       init.body = opts.body;
       if (opts.contentType) init.headers['Content-Type'] = opts.contentType;
     }
+    // Tempo-limite opcional: Wi-Fi sem internet deixa o fetch pendurado, e no
+    // credenciamento isso precisa virar "offline", não uma tela congelada.
+    let timer = null;
+    if (opts.timeoutMs && typeof AbortController !== 'undefined') {
+      const ac = new AbortController();
+      init.signal = ac.signal;
+      timer = setTimeout(() => ac.abort(), opts.timeoutMs);
+    }
     let res;
     try {
       res = await fetch(path, init);
@@ -23,10 +31,19 @@
       const err = new Error('Sem conexão. Confira a internet e tente de novo.');
       err.offline = true;
       throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
     let data = null;
     const ct = res.headers.get('content-type') || '';
     if (ct.includes('application/json')) data = await res.json().catch(() => null);
+    // 200 que não é JSON da API (portal cativo de Wi-Fi devolvendo HTML) é
+    // falta de internet, não resposta do servidor.
+    if (res.ok && !data && path.indexOf('/hack/api/') === 0) {
+      const err = new Error('A rede respondeu, mas não é a plataforma (Wi-Fi pedindo login?).');
+      err.offline = true;
+      throw err;
+    }
     if (res.status === 401 && !opts.allow401) {
       location.href = '/hack/acesso';
       const err = new Error('Sessão expirada.');
@@ -125,7 +142,17 @@
 
   // Só sai de verdade se o servidor encerrou a sessão: num aparelho
   // compartilhado, "Sair" que falhou em silêncio deixaria a conta aberta.
+  // Leituras offline ainda não enviadas pedem confirmação (segundo clique).
+  let logoutArmed = 0;
   async function logout() {
+    if (window.HackOffline) {
+      const n = await window.HackOffline.pendingCount();
+      if ((n === null || n > 0) && Date.now() - logoutArmed > 5000) {
+        logoutArmed = Date.now();
+        toast((n === null ? 'Pode haver' : n) + ' leitura(s) de credenciamento não sincronizada(s) neste aparelho serão apagadas. Sincronize antes, ou clique em Sair de novo para descartar.', true);
+        return;
+      }
+    }
     // Notificações deste aparelho não seguem para a próxima pessoa que usar:
     // o servidor apaga a inscrição pelo endpoint e o navegador cancela a dele.
     let endpoint = '';

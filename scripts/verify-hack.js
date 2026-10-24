@@ -197,6 +197,42 @@ async function contextWithLink(browser, mode, token) {
     await ctx.close();
   }
 
+  // Credenciamento offline num navegador de verdade: prepara o aparelho, corta
+  // a rede, registra pela busca manual (cópia local), volta a rede e sincroniza.
+  if (process.env.LEPV_INSCRICAO_TOKEN) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.request.post(BASE + '/api/login', { data: { order: 1, password: ADMIN_PASS } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e.message)));
+    console.log('\n[credenciamento offline]');
+    await page.goto(BASE + '/hack/credenciamento', { waitUntil: 'load' });
+    await page.waitForFunction(() => document.getElementById('dia').options.length > 0, null, { timeout: 8000 });
+    // Dia de ensaio: o 31/10 (a participante de verificação não tem entrada nele).
+    await page.selectOption('#dia', '2026-10-31').catch(() => {});
+    await page.click('#prep');
+    await page.waitForFunction(() => /ingressos/.test(document.getElementById('off-msg').textContent), null, { timeout: 8000 });
+    check(true, 'aparelho preparado para offline');
+    await ctx.setOffline(true);
+    await page.fill('#busca', 'Participante Verifica');
+    await page.waitForFunction(() => document.querySelectorAll('#busca-res li button').length > 0, null, { timeout: 8000 }).catch(() => {});
+    const btn = await page.$('#busca-res li button');
+    check(Boolean(btn), 'busca manual funciona offline (cópia local)');
+    if (btn) {
+      await btn.click();
+      await page.waitForFunction(() => document.getElementById('result').className.includes('result--'), null, { timeout: 5000 }).catch(() => {});
+      const res = await page.evaluate(() => ({ cls: document.getElementById('result').className, pend: document.getElementById('pend').textContent }));
+      check(/result--pending|result--dup/.test(res.cls), 'registro offline fica "sincronização pendente"', res.cls);
+      await ctx.setOffline(false);
+      await page.click('#sync');
+      await page.waitForFunction(() => /Nada pendente/.test(document.getElementById('pend').textContent), null, { timeout: 15000 }).catch(() => {});
+      const after = await page.evaluate(() => document.getElementById('pend').textContent);
+      check(/Nada pendente/.test(after), 'fila sincronizou ao voltar a rede', after.slice(0, 80));
+    }
+    check(errors.length === 0, 'sem erro de JS no credenciamento', errors.join(' | ') || undefined);
+    await ctx.close();
+  }
+
   // Countdown com relógio simulado (15h de Brasília = 18h UTC): antes do
   // início mostra a conta certa; depois, só a frase de início.
   {
