@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organização · 1º Hackathon LEPV</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+</head>
+<body class="app">
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="app-top">
+  <div class="app-top__media" aria-hidden="true"><img src="/hack/img/sala-vermelha.jpg" alt="" width="2400" height="1600"></div>
+  <div class="app-top__bar">
+    <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+    <div class="app-top__who">
+      <span class="app-top__name" id="who"></span>
+      <a class="btn btn--glass btn--sm" href="/hack/portal">Portal</a>
+      <button class="btn btn--ghost btn--sm" type="button" id="sair">Sair</button>
+    </div>
+  </div>
+  <div class="app-top__title">
+    <p class="eyebrow">1º Hackathon LEPV · organização</p>
+    <h1>Painel da<br><em>organização.</em></h1>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Seções da organização">
+  <div class="tabs__in" role="tablist">
+    <button class="tab" type="button" role="tab" data-tab="pessoas" data-perm="manage">Pessoas</button>
+    <button class="tab" type="button" role="tab" data-tab="programacao" data-perm="manage">Programação</button>
+  </div>
+</nav>
+
+<main class="app-main" id="conteudo">
+  <section class="panel" data-panel="pessoas" aria-label="Pessoas" hidden>
+    <div class="row" style="margin-bottom:16px">
+      <label class="field" style="flex:1 1 240px"><span>Buscar</span><input id="busca" type="search" placeholder="Nome, e-mail ou telefone"></label>
+      <label class="field" style="flex:0 1 220px"><span>Filtrar</span>
+        <select id="filtro">
+          <option value="">Todos</option>
+          <option value="participant">Participantes</option>
+          <option value="waitlist">Lista de espera</option>
+          <option value="judge">Jurados</option>
+          <option value="staff">Staff</option>
+          <option value="sponsor">Patrocinadores</option>
+          <option value="supporter">Apoiadores</option>
+          <option value="nolink">Sem link enviado</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn btn--red btn--sm" type="button" id="add-pessoa">Adicionar jurado ou staff</button>
+      <button class="btn btn--ghost btn--sm" type="button" id="lote">Enviar links por e-mail…</button>
+      <span class="spacer"></span>
+      <span class="muted small" id="contagem"></span>
+    </div>
+    <p class="muted small" id="email-status"></p>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="lista-pessoas"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="programacao" aria-label="Programação" hidden>
+    <div class="row" style="margin-bottom:16px"><button class="btn btn--red btn--sm" type="button" id="add-atividade">Adicionar atividade</button></div>
+    <div class="grid grid--2" id="prog-grid"></div>
+  </section>
+</main>
+
+<dialog class="dlg" id="dlg"><div class="dlg__in" id="dlg-in"></div></dialog>
+
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/org.js"></script>
+</body>
+</html>

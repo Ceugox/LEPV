@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acesso · 1º Hackathon LEPV</title>
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<link rel="manifest" href="/hack/manifest.webmanifest">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+</head>
+<body class="app">
+<main class="gate" id="conteudo">
+  <div class="gate__media" aria-hidden="true"><img src="/hack/img/pao-acucar-noite.jpg" alt="" width="2400" height="1350"></div>
+  <div class="gate__card glass">
+    <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+
+    <div id="entrando" hidden>
+      <p class="sec-title" style="margin-top:24px">Entrando<em>…</em></p>
+      <p class="muted" id="entrando-msg" role="status">Conferindo seu link.</p>
+    </div>
+
+    <div id="pedir">
+      <p class="eyebrow" style="margin-top:24px">1º Hackathon LEPV</p>
+      <h1 class="sec-title">Seu<br><em>acesso.</em></h1>
+      <p class="muted" style="margin:16px 0 22px">Informe o e-mail que você usou na inscrição (ou o que a organização cadastrou). Mandamos um link pessoal, de uso único, que vale por 7 dias.</p>
+      <form class="form" id="form-pedir" novalidate>
+        <label class="field"><span>E-mail</span><input type="email" name="email" autocomplete="email" inputmode="email" required></label>
+        <p class="muted small" id="erro-link" role="alert" hidden></p>
+        <button class="btn btn--red" type="submit">Receber link de acesso <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="muted small" id="pedir-ok" role="status" hidden></p>
+      <p class="muted small" style="margin-top:22px">Ainda não se inscreveu? <a href="/hack/inscricao">Faça sua inscrição</a>.</p>
+    </div>
+  </div>
+</main>
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/acesso.js"></script>
+</body>
+</html>

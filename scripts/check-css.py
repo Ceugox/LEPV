@@ -31,6 +31,7 @@ ALVOS = [
     os.path.join("public", "inscricao.html"),
     os.path.join("public", "presenca.html"),
     os.path.join("public", "hack", "hack.css"),
+    os.path.join("public", "hack", "app.css"),
 ]
 
 problemas = 0

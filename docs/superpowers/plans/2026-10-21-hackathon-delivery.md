@@ -8,6 +8,16 @@
 
 **Tech Stack:** Node.js, Express, HTML, CSS, JavaScript, `express-session`, `qrcode`, volume persistente; Web Push, IndexedDB e scanner de QR mediante validação em aparelhos. Nenhum novo framework foi escolhido.
 
+## Revisão 2 (24/10/2026) — layout real e ordem vigente
+
+Prevalece sobre os nomes de arquivo e a ordem das entregas abaixo, que eram propostas de 21/10.
+
+- Composição: `lib/hackathon/index.js` (`registerHackathonRoutes`, store, relógio `HACK_NOW`, ator da requisição). Rotas por domínio em `lib/hackathon/routes/<domínio>.js`, todas recebendo o mesmo `ctx`. Não criar `routes.js`.
+- Regras puras: `store.js`, `people.js`, `access.js`, `event.js`, `program.js`, `mail.js`, `util.js` (e, a seguir, `announcements.js`, `teams.js`, `submissions.js`, `evaluation.js`, `partners.js`, `admission.js`).
+- Front: `public/hack/{index,acesso,portal,organizacao,em-breve}.html`, `hack.css` (LP e tokens), `app.css` (telas de uso), `js/hack-app.js` (base comum), `js/{landing,acesso,portal,org}.js`, `sw.js`, `manifest.webmanifest`.
+- Testes: `tests/hackathon.js` (unidade) e `tests/e2e-hack.js` (jornada com servidor e outbox de e-mail), ambos no `npm test`; `scripts/verify-hack.js` no `npm run verify` e no CI.
+- Ordem: LP (no ar, PR #6) → acesso e portal → avisos → equipes → entrega e avaliação → parceiros → credenciamento offline.
+
 ## Global Constraints
 
 - Especificação: `docs/superpowers/specs/2026-10-21-hackathon-platform-design.md`.
