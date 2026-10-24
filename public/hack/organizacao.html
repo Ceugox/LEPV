@@ -34,6 +34,8 @@
 <nav class="tabs" aria-label="Seções da organização">
   <div class="tabs__in" role="tablist">
     <button class="tab" type="button" role="tab" data-tab="pessoas" data-perm="manage">Pessoas</button>
+    <button class="tab" type="button" role="tab" data-tab="avisos" data-perm="comms">Avisos</button>
+    <button class="tab" type="button" role="tab" data-tab="whatsapp" data-perm="comms">WhatsApp</button>
     <button class="tab" type="button" role="tab" data-tab="programacao" data-perm="manage">Programação</button>
   </div>
 </nav>
@@ -63,6 +65,41 @@
     </div>
     <p class="muted small" id="email-status"></p>
     <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="lista-pessoas"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="avisos" aria-label="Avisos" hidden>
+    <div class="grid grid--2">
+      <form class="card form" id="form-aviso" novalidate>
+        <p class="card__k">Novo aviso</p>
+        <label class="field"><span>Título</span><input name="title" maxlength="120" required></label>
+        <label class="field"><span>Texto</span><textarea name="body" maxlength="2000" required></textarea></label>
+        <fieldset class="stack" style="border:0;padding:0;margin:0">
+          <legend class="card__k">Para quem</legend>
+          <label class="check"><input type="checkbox" name="aud" value="all"><span>Todos</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="participant" checked><span>Participantes</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="judge"><span>Jurados</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="sponsor"><span>Patrocinadores</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="supporter"><span>Apoiadores</span></label>
+        </fieldset>
+        <fieldset class="stack" style="border:0;padding:0;margin:0">
+          <legend class="card__k">Canais além da central do portal</legend>
+          <label class="check"><input type="checkbox" name="ch" value="push"><span>Notificação no celular <small id="ch-push"></small></span></label>
+          <label class="check"><input type="checkbox" name="ch" value="email"><span>E-mail <small id="ch-email"></small></span></label>
+          <label class="check"><input type="checkbox" name="ch" value="whatsapp"><span>WhatsApp (envio assistido)</span></label>
+        </fieldset>
+        <label class="check"><input type="checkbox" name="urgent"><span>Urgente (marca notificação no celular)</span></label>
+        <label class="field"><span>Agendar para (horário de Brasília) — vazio publica agora</span><input type="datetime-local" name="when"></label>
+        <p class="muted small" id="alcance" role="status"></p>
+        <div class="row"><button class="btn btn--red btn--sm" type="submit">Publicar</button></div>
+      </form>
+      <div class="stack" id="avisos-admin"></div>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="whatsapp" aria-label="WhatsApp" hidden>
+    <p class="muted" style="margin-top:0">Envio assistido: cada botão abre a conversa com a mensagem pronta. Envie e marque como enviado — abrir a conversa não conta como entrega.</p>
+    <div class="row" style="margin-bottom:12px"><label class="check"><input type="checkbox" id="wa-pend" checked><span>Só pendentes</span></label></div>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="wa-list"></ul></div>
   </section>
 
   <section class="panel" data-panel="programacao" aria-label="Programação" hidden>

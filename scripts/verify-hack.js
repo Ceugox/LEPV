@@ -19,8 +19,8 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
 const PAGES = ['/hack/', '/hack/?inscricoes=encerradas', '/hack/acesso', '/hack/parceiros'];
 // Telas logadas; a aba entra pelo hash.
 const APP_PAGES = [
-  '/hack/portal#inicio', '/hack/portal#agenda',
-  '/hack/organizacao#pessoas', '/hack/organizacao#programacao',
+  '/hack/portal#inicio', '/hack/portal#avisos', '/hack/portal#agenda',
+  '/hack/organizacao#pessoas', '/hack/organizacao#avisos', '/hack/organizacao#whatsapp', '/hack/organizacao#programacao',
 ];
 const MODES = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, reducedMotion: 'no-preference' },
@@ -64,6 +64,13 @@ async function measure(page) {
 (async () => {
   if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
   const browser = await chromium.launch();
+  // Google Fonts às vezes leva segundos e segura o evento load: a verificação
+  // ficava intermitente por causa da rede, não da página. Aqui as fontes
+  // chegam vazias (cai no fallback); nada medido depende da fonte carregada.
+  const offlineFonts = (ctx) => ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) =>
+    r.fulfill({ status: 200, contentType: r.request().url().includes('googleapis') ? 'text/css' : 'font/woff2', body: '' }));
+  const _newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts) => { const c = await _newContext(opts); await offlineFonts(c); return c; };
   for (const mode of MODES) {
     // Páginas públicas sem sessão (logado, /hack/acesso já pula para o portal);
     // telas de uso num contexto com a diretoria logada.

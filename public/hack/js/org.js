@@ -22,10 +22,14 @@
   async function loadPeople() {
     const r = await api('/hack/api/admin/people');
     Object.assign(state, { people: r.people, orgs: r.orgs, emailEnabled: r.emailEnabled });
-    $('email-status').textContent = r.emailEnabled
-      ? ''
-      : 'Envio de e-mail ainda não configurado (RESEND_API_KEY). Use “Link” e mande pelo WhatsApp.';
+    const b = r.bulk || {};
+    $('email-status').textContent = !r.emailEnabled
+      ? 'Envio de e-mail ainda não configurado (RESEND_API_KEY). Use “Link” e mande pelo WhatsApp.'
+      : b.total
+        ? (b.running ? 'Envio em lote: ' : 'Último envio em lote: ') + b.done + ' de ' + b.total + (b.failed ? ' · ' + b.failed + ' falha(s), veja “Falha no e-mail” na lista' : '')
+        : '';
     renderPeople();
+    if (b.running) setTimeout(() => loadPeople().catch(() => {}), 3000);
   }
 
   function linkBadge(p) {
@@ -36,6 +40,8 @@
     if (p.lastLinkAt) return h('span.badge', 'Link gerado');
     return h('span.badge.badge--warn', 'Sem link');
   }
+
+  const canAccess = (p) => !p.disabled && (p.roles.length > 0 || p.signupStatus === 'waitlist');
 
   function matches(p, q, f) {
     if (f === 'waitlist' && p.signupStatus !== 'waitlist') return false;
@@ -65,9 +71,10 @@
           p.roles.map((r) => h('span.badge', ROLE[r] || r)),
           p.signupStatus === 'waitlist' ? h('span.badge.badge--warn', 'Lista de espera') : null,
           p.signupStatus === 'removed' ? h('span.badge.badge--err', 'Inscrição cancelada') : null,
-          p.roles.length ? linkBadge(p) : null),
+          p.disabled ? h('span.badge.badge--err', 'Bloqueado') : null,
+          canAccess(p) ? linkBadge(p) : null),
         h('div.row',
-          p.roles.length ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => linkDialog(p) }, 'Link') : null,
+          canAccess(p) ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => linkDialog(p) }, 'Link') : null,
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => editDialog(p) }, 'Editar'))
       ));
     });
@@ -90,7 +97,7 @@
           r.email ? h('p.small', 'E-mail: ' + ({ sent: 'enviado', outbox: 'gravado (teste)', unconfigured: 'não configurado', failed: 'falhou', unknown: 'incerto' }[r.email.status] || r.email.status)) : null,
           h('p.muted.small', 'Gerar outro link invalida este.')
         );
-        loadPeople();
+        await loadPeople();
       } catch (e) { toast(e.message, true); }
     };
     openDialog('Link de ' + p.name.split(' ')[0],
@@ -123,15 +130,18 @@
       ev.preventDefault();
       const f = ev.target;
       try {
+        // Só manda o contato que mudou: o que a diretoria toca fica protegido
+        // contra a inscrição, então não marcar à toa.
+        const changed = (k) => (f[k].value.trim() !== (p[k] || '') ? f[k].value.trim() : undefined);
         await api('/hack/api/admin/people/' + p.id, { method: 'PATCH', body: {
-          name: f.name.value, email: f.email.value || undefined, phone: f.phone.value,
+          name: changed('name'), email: changed('email') || undefined, phone: changed('phone'),
           roles: { judge: f.judge.checked, staff: f.staff.checked },
           staffPerms: { comms: f.comms.checked, checkin: f.checkin.checked },
           disabled: f.disabled.checked,
         } });
         dlg.close();
         toast('Salvo.');
-        loadPeople();
+        await loadPeople();
       } catch (e) { toast(e.message, true); }
     });
     openDialog('Editar ' + p.name.split(' ')[0], form);
@@ -155,7 +165,7 @@
         await api('/hack/api/admin/people', { method: 'POST', body: { name: f.name.value, email: f.email.value, phone: f.phone.value, affiliation: f.affiliation.value, roles } });
         dlg.close();
         toast('Adicionado. Agora gere ou envie o link.');
-        loadPeople();
+        await loadPeople();
       } catch (e) { toast(e.message, true); }
     });
     openDialog('Adicionar jurado ou staff', form);
@@ -174,7 +184,7 @@
         const r = await api('/hack/api/admin/links/bulk', { method: 'POST', body: { role: sel.value, force: force.checked } });
         dlg.close();
         toast(r.queued + ' e-mail(s) na fila. A lista atualiza o status conforme saem.');
-        setTimeout(loadPeople, 4000);
+        await loadPeople();
       } catch (e) { toast(e.message, true); }
     });
     openDialog('Enviar links por e-mail', h('p.muted', 'Por padrão, só para quem ainda não recebeu nenhum link.'), form);
@@ -218,7 +228,7 @@
       h('div.row',
         h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'),
         a.id ? h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
-          try { await api('/hack/api/admin/program/' + a.id, { method: 'DELETE' }); dlg.close(); loadProgram(); }
+          try { await api('/hack/api/admin/program/' + a.id, { method: 'DELETE' }); dlg.close(); await loadProgram(); }
           catch (e) { toast(e.message, true); }
         } }, 'Excluir') : null));
     form.addEventListener('submit', async (ev) => {
@@ -232,15 +242,177 @@
       try {
         await api('/hack/api/admin/program' + (a.id ? '/' + a.id : ''), { method: a.id ? 'PATCH' : 'POST', body });
         dlg.close();
-        loadProgram();
+        await loadProgram();
       } catch (e) { toast(e.message, true); }
     });
     openDialog(a.id ? 'Editar atividade' : 'Nova atividade', form);
   }
   $('add-atividade').addEventListener('click', () => activityDialog(null));
 
+  // ---------- avisos ----------
+  const STATUS = { published: ['Publicado', 'ok'], scheduled: ['Agendado', ''], overdue: ['Vencido: decidir', 'warn'], cancelled: ['Cancelado', 'err'], draft: ['Rascunho', ''] };
+  const AUD = { participant: 'Participantes', judge: 'Jurados', sponsor: 'Patrocinadores', supporter: 'Apoiadores' };
+  const CH = { email: 'E-mail', push: 'Push', whatsapp: 'WhatsApp' };
+  const DST = { sent: 'enviado', pending: 'pendente', failed: 'falhou', unknown: 'incerto', unavailable: 'indisponível', skipped: 'pulado' };
+  const formAviso = $('form-aviso');
+  // datetime-local é "parede": interpretado sempre como horário de Brasília.
+  const brt = (v) => (v ? v + ':00-03:00' : null);
+  const toLocalInput = (iso) => (iso ? new Date(Date.parse(iso) - 3 * 3600000).toISOString().slice(0, 16) : '');
+
+  const audiencesOf = (form) => Array.from(form.querySelectorAll('input[name=aud]:checked')).map((i) => i.value).filter((v) => v !== 'all');
+  function channelsOf(form) {
+    const c = {};
+    form.querySelectorAll('input[name=ch]').forEach((i) => { c[i.value] = i.checked; });
+    return c;
+  }
+
+  let previewTimer;
+  function preview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(async () => {
+      const aud = audiencesOf(formAviso);
+      if (!aud.length) { $('alcance').textContent = 'Escolha pelo menos um público.'; return; }
+      try {
+        const r = await api('/hack/api/admin/announcements/preview', { method: 'POST', body: { audiences: aud } });
+        $('alcance').textContent = 'Alcance: ' + r.people + ' pessoa(s) na central · ' + r.push + ' com push ativo · ' +
+          r.email + ' com e-mail · ' + r.whatsapp + ' com WhatsApp. Quem tem dois papéis recebe uma vez.';
+      } catch (e) { $('alcance').textContent = e.message; }
+    }, 250);
+  }
+  formAviso.addEventListener('change', (ev) => {
+    const t = ev.target;
+    if (t.name === 'aud' && t.value === 'all') {
+      formAviso.querySelectorAll('input[name=aud]').forEach((i) => { i.checked = t.checked; });
+    } else if (t.name === 'aud' && !t.checked) {
+      formAviso.querySelector('input[name=aud][value=all]').checked = false;
+    }
+    if (t.name === 'urgent' && t.checked) formAviso.querySelector('input[name=ch][value=push]').checked = true;
+    if (t.name === 'aud') preview();
+  });
+
+  // Confirmação sem window.confirm (trava automação e é ruim no celular): o
+  // primeiro clique arma, o segundo em até 5s confirma.
+  let armed = null;
+  function confirmTwice(msg) {
+    if (armed && armed.msg === msg && Date.now() - armed.at < 5000) { armed = null; return true; }
+    armed = { msg, at: Date.now() };
+    toast(msg + ' Clique de novo para confirmar.');
+    return false;
+  }
+
+  formAviso.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    const btn = f.querySelector('button[type=submit]');
+    const body = {
+      title: f.title.value, body: f.body.value, audiences: audiencesOf(f), channels: channelsOf(f),
+      urgent: f.urgent.checked, scheduledAt: brt(f.when.value),
+    };
+    if (!body.scheduledAt && !confirmTwice('Publicar agora para ' + body.audiences.map((a) => AUD[a] || a).join(', ') + '?')) return;
+    btn.disabled = true;
+    try {
+      await api('/hack/api/admin/announcements', { method: 'POST', body });
+      toast(body.scheduledAt ? 'Aviso agendado.' : 'Aviso publicado.');
+      f.reset();
+      formAviso.querySelector('input[name=aud][value=participant]').checked = true;
+      preview();
+      await loadAvisos();
+    } catch (e) { toast(e.message, true); }
+    finally { btn.disabled = false; }
+  });
+
+  function statsLine(stats) {
+    return Object.keys(stats).map((ch) => CH[ch] + ': ' +
+      Object.keys(stats[ch]).map((k) => stats[ch][k] + ' ' + (DST[k] || k)).join(', ')).join(' · ');
+  }
+
+  async function avisoAction(url, okMsg) {
+    try { await api(url, { method: 'POST' }); if (okMsg) toast(okMsg); await loadAvisos(); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  async function loadAvisos() {
+    const r = await api('/hack/api/admin/announcements');
+    $('ch-push').textContent = r.channels.push ? '' : '(indisponível: chaves VAPID não configuradas)';
+    $('ch-email').textContent = r.channels.email ? '' : '(indisponível: RESEND_API_KEY não configurada)';
+    const box = clear($('avisos-admin'));
+    if (!r.announcements.length) box.appendChild(h('p.empty', 'Nenhum aviso ainda.'));
+    r.announcements.forEach((a) => {
+      const st = STATUS[a.status] || [a.status, ''];
+      const when = a.publishedAt ? 'Publicado ' + window.Hack.dayTime(a.publishedAt) : a.scheduledAt ? 'Agendado para ' + window.Hack.dayTime(a.scheduledAt) : '';
+      const actions = h('div.row');
+      if (['scheduled', 'overdue'].includes(a.status)) {
+        actions.append(
+          h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => {
+            if (confirmTwice('Publicar agora “' + a.title + '”?')) avisoAction('/hack/api/admin/announcements/' + a.id + '/publish', 'Publicado.');
+          } }, 'Publicar agora'),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => editAviso(a) }, 'Editar'),
+          h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: () => {
+            if (confirmTwice('Cancelar “' + a.title + '”?')) avisoAction('/hack/api/admin/announcements/' + a.id + '/cancel', 'Cancelado.');
+          } }, 'Cancelar'));
+      }
+      box.appendChild(h('article.card' + (a.urgent ? '.card--red' : ''),
+        h('div.row', { style: 'margin-bottom:8px' },
+          h('span.badge' + (st[1] ? '.badge--' + st[1] : ''), st[0]),
+          a.urgent ? h('span.badge.badge--red', 'Urgente') : null,
+          h('span.muted.small', when)),
+        h('h3.card__title', { style: 'font-size:24px' }, a.title),
+        h('p', { style: 'white-space:pre-line' }, a.body),
+        h('p.muted.small', 'Para: ' + a.audiences.map((x) => AUD[x] || x).join(', ') + ' · Canais: central' +
+          Object.keys(a.channels).filter((c) => a.channels[c]).map((c) => ', ' + CH[c]).join('') +
+          (a.author ? ' · por ' + a.author : a.seeded ? ' · pré-agendado na especificação' : '')),
+        a.status === 'published' ? h('p.small', a.recipientCount + ' destinatário(s). ' + statsLine(a.stats)) : null,
+        a.status === 'overdue' ? h('p.small', 'O servidor estava fora do ar no horário. Publique agora, mude o horário ou cancele.') : null,
+        actions));
+    });
+  }
+
+  function editAviso(a) {
+    const form = h('form.form',
+      h('label.field', h('span', 'Título'), h('input', { name: 'title', value: a.title, required: true })),
+      h('label.field', h('span', 'Texto'), h('textarea', { name: 'body', required: true }, a.body)),
+      h('label.field', h('span', 'Agendar para (Brasília)'), h('input', { name: 'when', type: 'datetime-local', value: toLocalInput(a.scheduledAt), required: true })),
+      h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      try {
+        await api('/hack/api/admin/announcements/' + a.id, { method: 'PATCH', body: {
+          title: f.title.value, body: f.body.value, audiences: a.audiences, channels: a.channels, urgent: a.urgent, scheduledAt: brt(f.when.value),
+        } });
+        dlg.close();
+        await loadAvisos();
+      } catch (e) { toast(e.message, true); }
+    });
+    openDialog('Editar aviso', form);
+  }
+
+  // ---------- WhatsApp assistido ----------
+  async function loadWhats() {
+    const r = await api('/hack/api/admin/whatsapp');
+    const onlyPending = $('wa-pend').checked;
+    const list = clear($('wa-list'));
+    const items = r.items.filter((x) => !onlyPending || x.status === 'pending');
+    if (!items.length) list.appendChild(h('li', h('p.muted', onlyPending ? 'Nada pendente.' : 'Nenhum envio por WhatsApp ainda.')));
+    items.forEach((x) => {
+      list.appendChild(h('li',
+        h('div.list__main', h('b', x.person.name), h('span', x.announcement.title + ' · ' + (x.person.phone || 'sem telefone'))),
+        h('span.badge' + (x.status === 'sent' ? '.badge--ok' : x.status === 'pending' ? '.badge--warn' : ''), DST[x.status] || x.status),
+        h('div.row',
+          x.waUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.waUrl, target: '_blank', rel: 'noopener' }, 'Abrir conversa') : h('span.muted.small', 'Telefone inválido'),
+          x.status !== 'sent' ? h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => markDelivery(x.id, 'sent') }, 'Marcar enviado') : null,
+          x.status === 'pending' ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => markDelivery(x.id, 'skipped') }, 'Pular') : null,
+          x.status !== 'pending' ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => markDelivery(x.id, 'pending') }, 'Voltar a pendente') : null)));
+    });
+  }
+  async function markDelivery(id, status) {
+    try { await api('/hack/api/admin/deliveries/' + id, { method: 'POST', body: { status } }); await loadWhats(); }
+    catch (e) { toast(e.message, true); }
+  }
+  $('wa-pend').addEventListener('change', () => loadWhats().catch((e) => toast(e.message, true)));
+
   // ---------- carga ----------
-  const loaders = { pessoas: loadPeople, programacao: loadProgram };
+  const loaders = { pessoas: loadPeople, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });

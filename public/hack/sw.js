@@ -5,9 +5,9 @@
 // entra no cache: é privado por sessão e sobreviveria à troca de pessoa no
 // aparelho. Os dados offline do credenciamento ficam no IndexedDB da página,
 // não aqui.
-var CACHE = 'lepv-hack-v1';
+var CACHE = 'lepv-hack-v2';
 var SHELL = [
-  '/hack/portal', '/hack/acesso', '/hack/credenciamento',
+  '/hack/portal', '/hack/acesso',
   '/hack/hack.css', '/hack/app.css',
   '/hack/js/hack-app.js', '/hack/js/portal.js',
   '/hack/img/logo-mark-white.png', '/hack/img/pao-acucar-noite.jpg',
@@ -49,6 +49,37 @@ self.addEventListener('fetch', function (e) {
       return res;
     }).catch(function () {
       return caches.match(req, { ignoreSearch: true }).then(function (hit) { return hit || Response.error(); });
+    })
+  );
+});
+
+// ---------- notificações ----------
+// O servidor manda { title, body, url, tag }. Sem payload legível, ainda
+// assim mostra algo: o navegador exige notificação visível a cada push.
+self.addEventListener('push', function (e) {
+  var data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) { data = { body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(data.title || '1º Hackathon LEPV', {
+    body: data.body || 'Novo aviso no portal.',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag || 'hack-aviso',
+    data: { url: data.url || '/hack/portal#avisos' },
+  }));
+});
+
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || '/hack/portal#avisos';
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].url.indexOf('/hack/') !== -1 && 'focus' in list[i]) {
+          list[i].navigate(url);
+          return list[i].focus();
+        }
+      }
+      return self.clients.openWindow(url);
     })
   );
 });

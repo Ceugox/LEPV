@@ -36,6 +36,7 @@
 <nav class="tabs" aria-label="Seções do portal">
   <div class="tabs__in" role="tablist">
     <button class="tab" type="button" role="tab" data-tab="inicio">Início</button>
+    <button class="tab" type="button" role="tab" data-tab="avisos">Avisos <span class="tab__n" id="n-avisos" hidden></span></button>
     <button class="tab" type="button" role="tab" data-tab="agenda">Agenda e locais</button>
   </div>
 </nav>
@@ -43,6 +44,15 @@
 <main class="app-main" id="conteudo">
   <section class="panel" data-panel="inicio" aria-label="Início">
     <div class="grid grid--2" id="inicio-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="avisos" aria-label="Avisos" hidden>
+    <div class="card" id="push-card" hidden style="margin-bottom:18px">
+      <p class="card__k">Notificações neste aparelho</p>
+      <p id="push-msg" class="muted"></p>
+      <div class="row"><button class="btn btn--red btn--sm" type="button" id="push-on" hidden>Ativar notificações</button>
+      <button class="btn btn--ghost btn--sm" type="button" id="push-off" hidden>Desativar neste aparelho</button></div>
+    </div>
+    <div class="stack" id="avisos-list"></div>
   </section>
   <section class="panel" data-panel="agenda" aria-label="Agenda e locais" hidden>
     <div class="grid grid--2" id="agenda-grid"></div>

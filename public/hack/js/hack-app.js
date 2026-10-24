@@ -29,7 +29,9 @@
     if (ct.includes('application/json')) data = await res.json().catch(() => null);
     if (res.status === 401 && !opts.allow401) {
       location.href = '/hack/acesso';
-      throw new Error('Sessão expirada.');
+      const err = new Error('Sessão expirada.');
+      err.status = 401;
+      throw err;
     }
     if (!res.ok) {
       const err = new Error((data && data.message) || 'Algo deu errado (' + res.status + ').');
@@ -119,8 +121,11 @@
     return { show: (n) => show(n || location.hash.slice(1)) };
   }
 
+  // Só sai de verdade se o servidor encerrou a sessão: num aparelho
+  // compartilhado, "Sair" que falhou em silêncio deixaria a conta aberta.
   async function logout() {
-    try { await api('/hack/api/access/logout', { method: 'POST', allow401: true }); } catch (e) { /* segue */ }
+    try { await api('/hack/api/access/logout', { method: 'POST', allow401: true }); }
+    catch (e) { toast('Não foi possível sair: ' + e.message, true); return; }
     try {
       // Dados locais do credenciamento e do portal não sobrevivem à troca de pessoa.
       Object.keys(localStorage).filter((k) => k.indexOf('hack:') === 0).forEach((k) => localStorage.removeItem(k));

@@ -19,11 +19,13 @@ const MEMBER_PASS = "teste-membro-hack";
 
 let volumeDir;
 let outbox;
+let pushOutbox;
 let server;
 
 function setupVolume() {
   volumeDir = fs.mkdtempSync(path.join(os.tmpdir(), "lepv-hack-e2e-"));
   outbox = path.join(volumeDir, "outbox");
+  pushOutbox = path.join(volumeDir, "push-outbox");
   const seed = JSON.parse(fs.readFileSync(path.join(ROOT, "data", "members.json"), "utf8"));
   fs.writeFileSync(
     path.join(volumeDir, "signups.json"),
@@ -53,6 +55,7 @@ function startServer(extraEnv) {
         HACK_EMAIL_OUTBOX: outbox,
         RESEND_API_KEY: "",
         HACK_PUBLIC_URL: "https://lepv.example",
+        HACK_PUSH_OUTBOX: pushOutbox,
         ...(extraEnv || {}),
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -80,8 +83,9 @@ function stopServer() {
 }
 
 async function restartServer(extraEnv) {
+  const exited = new Promise((r) => server.once("exit", r));
   stopServer();
-  await new Promise((r) => server.once("exit", r));
+  await exited;
   await startServer(extraEnv);
 }
 
@@ -145,6 +149,15 @@ async function waitFor(fn, ms) {
     await new Promise((r) => setTimeout(r, 50));
   }
 }
+
+function pushes() {
+  if (!fs.existsSync(pushOutbox)) return [];
+  return fs.readdirSync(pushOutbox).sort().map((f) => JSON.parse(fs.readFileSync(path.join(pushOutbox, f), "utf8")));
+}
+const FAKE_SUB = (n) => ({
+  endpoint: "https://push.example.com/send/" + n + "-aaaaaaaaaaaaaaaaaaaa",
+  keys: { p256dh: "B" + "a".repeat(86), auth: "c".repeat(22) },
+});
 
 // ---------- estado compartilhado da jornada ----------
 const S = { admin: null, signupToken: null, people: {} };
@@ -302,6 +315,205 @@ test("programação: semente oficial e edição pela diretoria", async () => {
   eq(ok.status, 200);
   eq((await S.admin.del("/hack/api/admin/program/" + ok.data.activity.id)).status, 200);
   eq((await S.people.ana.post("/hack/api/admin/program", { day: "2026-10-30", start: "18:00", title: "x" })).status, 403);
+});
+
+// ================= módulo 2: achados da revisão =================
+
+test("permissões: participante e jurado não geram link, não editam, não revogam nem disparam lote", async () => {
+  const target = S.people.ids["carla@ex.com"];
+  for (const c of [S.people.ana, S.people.julia]) {
+    eq((await c.post("/hack/api/admin/people/" + target + "/link", { send: "none" })).status, 403, "link");
+    eq((await c.patch("/hack/api/admin/people/" + target, { name: "Hackeada da Silva" })).status, 403, "patch");
+    eq((await c.post("/hack/api/admin/people/" + target + "/revoke")).status, 403, "revoke");
+    eq((await c.post("/hack/api/admin/links/bulk", { role: "participant" })).status, 403, "lote");
+  }
+});
+
+test("segurança: inscrição com e-mail de staff não troca o telefone do link de WhatsApp", async () => {
+  const r = await S.admin.post("/hack/api/admin/people", { name: "Sofia Staff", email: "sofia@ex.com", phone: "21977776666", roles: ["staff"] });
+  eq(r.status, 200);
+  const sid = r.data.person.id;
+  const atk = await client().post("/api/event-signup/" + S.signupToken, {
+    name: "Invasor Silva", email: "sofia@ex.com", phone: "21900000000", vinculo: "FGV", temGrupo: "Não", awareLocation: true, awareTime: true,
+  });
+  eq(atk.status, 200);
+  const list = await S.admin.get("/hack/api/admin/people");
+  const sofia = list.data.people.find((p) => p.id === sid);
+  eq(sofia.phone, "21977776666", "telefone cadastrado pela diretoria");
+  eq(sofia.name, "Sofia Staff");
+  const l = await S.admin.post("/hack/api/admin/people/" + sid + "/link", { send: "none" });
+  assert(l.data.whatsappUrl.startsWith("https://wa.me/5521977776666"), "WhatsApp vai para a Sofia: " + l.data.whatsappUrl);
+});
+
+test("organização: bloqueado continua na lista e pode ser desbloqueado", async () => {
+  const id = S.people.ids["davi@ex.com"];
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { disabled: true })).status, 200);
+  let list = await S.admin.get("/hack/api/admin/people");
+  eq(list.data.people.find((p) => p.id === id).disabled, true);
+  eq((await S.admin.post("/hack/api/admin/people/" + id + "/link", { send: "none" })).status, 404, "bloqueado não recebe link");
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { disabled: false })).status, 200);
+  list = await S.admin.get("/hack/api/admin/people");
+  eq(list.data.people.find((p) => p.id === id).disabled, false);
+  eq((await S.admin.post("/hack/api/admin/people/" + id + "/link", { send: "none" })).status, 200);
+});
+
+test("organização: trocar o e-mail revoga o link já mandado", async () => {
+  const id = S.people.ids["carla@ex.com"];
+  const l = await S.admin.post("/hack/api/admin/people/" + id + "/link", { send: "none" });
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { email: "carla.nova@ex.com" })).status, 200);
+  eq((await client().post("/hack/api/access/consume", { token: l.data.url.split("#t=")[1] })).status, 401);
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { email: "carla@ex.com" })).status, 200);
+});
+
+test("acesso: lista de espera recebe link e vê a própria condição", async () => {
+  const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
+  // Confirmados até aqui: os 5 da jornada + a inscrição do teste de segurança.
+  eq((await S.admin.patch("/api/events/" + ev.id, { capacity: 6 })).status, 200);
+  const r = await client().post("/api/event-signup/" + S.signupToken, {
+    name: "Wagner Espera", email: "wagner@ex.com", phone: "21999990009", vinculo: "FGV", temGrupo: "Não", awareLocation: true, awareTime: true,
+  });
+  eq(r.status, 200);
+  assert(/fila de espera/i.test(r.data.message), "entrou na fila: " + r.data.message);
+  const c = await enterAs("wagner@ex.com");
+  const me = await c.get("/hack/api/me");
+  eq(me.data.me.signupStatus, "waitlist");
+  eq(me.data.me.roles.includes("participant"), false);
+  eq((await S.admin.patch("/api/events/" + ev.id, { capacity: "" })).status, 200);
+});
+
+test("acesso: sair encerra a sessão; /session diz isso sem 401", async () => {
+  const c = await enterAs("elisa@ex.com");
+  eq((await c.get("/hack/api/session")).data.authenticated, true);
+  eq((await c.post("/hack/api/access/logout")).status, 200);
+  eq((await c.get("/hack/api/me")).status, 401);
+  const s2 = await c.get("/hack/api/session");
+  eq(s2.status, 200);
+  eq(s2.data.authenticated, false);
+});
+
+test("acesso: pedido de link responde igual e na hora para e-mail cadastrado ou não", async () => {
+  const t0 = Date.now();
+  const a = await client().post("/hack/api/access/request", { email: "fantasma@ex.com" });
+  const t1 = Date.now();
+  const b = await client().post("/hack/api/access/request", { email: "bruno@ex.com" });
+  const t2 = Date.now();
+  eq(a.status, 200);
+  eq(JSON.stringify(a.data), JSON.stringify(b.data));
+  assert(t1 - t0 < 1000 && t2 - t1 < 1000, "resposta imediata");
+  assert(await waitFor(() => lastLinkFor("bruno@ex.com")), "e-mail do Bruno saiu depois da resposta");
+  eq(mails().filter((m) => m.to === "fantasma@ex.com").length, 0);
+});
+
+// ================= módulo 3: avisos =================
+
+test("avisos: participante não acessa a composição", async () => {
+  eq((await S.people.ana.get("/hack/api/admin/announcements")).status, 403);
+  eq((await S.people.ana.post("/hack/api/admin/announcements", { title: "Falso aviso", body: "x x x", audiences: ["all"] })).status, 403);
+  eq((await S.people.ana.get("/hack/api/admin/whatsapp")).status, 403);
+});
+
+test("avisos: alcance conta pessoas uma vez mesmo com dois papéis", async () => {
+  eq((await S.admin.patch("/hack/api/admin/people/" + S.people.ids["carla@ex.com"], { roles: { judge: true } })).status, 200);
+  const r = await S.admin.post("/hack/api/admin/announcements/preview", { audiences: ["participant", "judge"] });
+  eq(r.status, 200);
+  const people = (await S.admin.get("/hack/api/admin/people")).data.people
+    .filter((p) => !p.disabled && (p.roles.includes("participant") || p.roles.includes("judge")));
+  eq(r.data.people, people.length);
+});
+
+test("avisos: publicar agora chega só ao público, com um e-mail por pessoa", async () => {
+  const r = await S.admin.post("/hack/api/admin/announcements", {
+    title: "Wi-Fi da FGV", body: "Rede LEPV-HACK, senha no crachá.", audiences: ["participant", "judge"],
+    channels: { email: true, whatsapp: true },
+  });
+  eq(r.status, 200);
+  eq(r.data.announcement.status, "published");
+  const ana = await S.people.ana.get("/hack/api/announcements");
+  const item = ana.data.announcements.find((a) => a.title === "Wi-Fi da FGV");
+  assert(item && !item.read, "Ana vê como não lido");
+  assert(ana.data.unread >= 1);
+  eq((await S.people.ana.post("/hack/api/announcements/read-all")).status, 200);
+  eq((await S.people.ana.get("/hack/api/announcements")).data.unread, 0);
+  await waitFor(() => mails().some((m) => m.to === "carla@ex.com" && /Wi-Fi/.test(m.subject)), 5000);
+  eq(mails().filter((m) => m.to === "carla@ex.com" && /Wi-Fi/.test(m.subject)).length, 1, "Carla (participante e jurada) recebe um e-mail");
+  S.wifiId = r.data.announcement.id;
+});
+
+test("avisos: patrocinador não vê aviso de participantes, nem pela API direta", async () => {
+  const r = await S.admin.post("/hack/api/admin/people", { name: "Paula Patrocínio", email: "paula@ex.com", roles: ["staff"] });
+  const pid = r.data.person.id;
+  eq((await S.admin.patch("/hack/api/admin/people/" + pid, { roles: { staff: false } })).status, 200);
+  // sem papel nenhum: não entra
+  const l = await S.admin.post("/hack/api/admin/people/" + pid + "/link", { send: "none" });
+  eq(l.status, 404);
+  const julia = await S.people.julia.get("/hack/api/announcements");
+  assert(julia.data.announcements.some((a) => a.id === S.wifiId), "jurada vê aviso para jurados");
+  eq((await S.people.julia.post("/hack/api/announcements/" + "n000000000000" + "/read")).status, 404);
+});
+
+test("avisos: fila de WhatsApp assistido, marcada à mão", async () => {
+  const r = await S.admin.get("/hack/api/admin/whatsapp");
+  eq(r.status, 200);
+  const mine = r.data.items.filter((x) => x.announcement.id === S.wifiId);
+  assert(mine.length >= 3, "um por pessoa com telefone");
+  assert(mine.every((x) => x.status === "pending"), "nada marcado sozinho");
+  assert(mine[0].waUrl.startsWith("https://wa.me/55"), "atalho wa.me");
+  eq((await S.admin.post("/hack/api/admin/deliveries/" + mine[0].id, { status: "sent" })).status, 200);
+  const again = await S.admin.get("/hack/api/admin/whatsapp");
+  eq(again.data.items.find((x) => x.id === mine[0].id).status, "sent");
+});
+
+test("avisos: push urgente chega ao aparelho inscrito", async () => {
+  eq((await S.people.ana.post("/hack/api/push/subscribe", { subscription: { endpoint: "javascript:alert(1)", keys: {} } })).status, 400);
+  eq((await S.people.ana.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("ana") })).status, 200);
+  const r = await S.admin.post("/hack/api/admin/announcements", { title: "Mudança de sala", body: "Auditório 2.", audiences: ["participant"], urgent: true });
+  eq(r.status, 200);
+  eq(r.data.announcement.channels.push, true, "urgente marca push");
+  const hit = await waitFor(() => pushes().find((x) => x.payload.title === "Mudança de sala"), 5000);
+  assert(hit, "push gravado no outbox");
+  eq(hit.endpoint, FAKE_SUB("ana").endpoint);
+  eq(hit.urgent, true);
+});
+
+test("avisos: agendador com relógio simulado publica na hora e não republica após reinício", async () => {
+  await restartServer({ HACK_NOW: "2026-10-30T18:00:20Z" });
+  await new Promise((r) => setTimeout(r, 300));
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+  let list = (await S.admin.get("/hack/api/admin/announcements")).data.announcements;
+  const first = list.filter((a) => a.title === "O hackathon começou!");
+  eq(first.length, 1);
+  eq(first[0].status, "published");
+  eq(first[0].publishedAt, "2026-10-30T18:00:20.000Z");
+  const second = list.find((a) => a.title === "Bom dia, Instituto 12!");
+  eq(second.status, "scheduled");
+  const ana = await enterAs("ana@ex.com");
+  assert((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "O hackathon começou!"), "Ana vê o aviso");
+  const pushedBefore = pushes().filter((x) => x.payload.title === "O hackathon começou!").length;
+  await restartServer({ HACK_NOW: "2026-10-30T18:02:00Z" });
+  await new Promise((r) => setTimeout(r, 500));
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+  list = (await S.admin.get("/hack/api/admin/announcements")).data.announcements;
+  eq(list.filter((a) => a.title === "O hackathon começou!" && a.status === "published").length, 1, "uma publicação só");
+  eq(pushes().filter((x) => x.payload.title === "O hackathon começou!").length, pushedBefore, "sem push repetido");
+});
+
+test("avisos: servidor fora do ar no horário deixa o aviso vencido para a organização decidir", async () => {
+  await restartServer({ HACK_NOW: "2026-10-31T11:30:00Z" });
+  await new Promise((r) => setTimeout(r, 300));
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+  const list = (await S.admin.get("/hack/api/admin/announcements")).data.announcements;
+  const second = list.find((a) => a.title === "Bom dia, Instituto 12!");
+  eq(second.status, "overdue");
+  const ana = await enterAs("ana@ex.com");
+  eq((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "Bom dia, Instituto 12!"), false);
+  eq((await S.admin.post("/hack/api/admin/announcements/" + second.id + "/publish")).status, 200);
+  assert((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "Bom dia, Instituto 12!"), "publicado pela organização");
+  await restartServer();
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
 });
 
 // ================= execução =================
