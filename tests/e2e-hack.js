@@ -318,6 +318,11 @@ test("programação: semente oficial e edição pela diretoria", async () => {
   const ok = await S.admin.post("/hack/api/admin/program", { day: "2026-10-30", start: "18:00", end: "18:30", title: "Mentoria" });
   eq(ok.status, 200);
   eq((await S.admin.del("/hack/api/admin/program/" + ok.data.activity.id)).status, 200);
+  // Endereço da FGV confirmado depois: a diretoria edita e o portal mostra.
+  eq((await S.admin.put("/hack/api/admin/venues/2026-10-30", { name: "FGV", address: "Praia de Botafogo, 190", mapUrl: "javascript:alert(1)" })).status, 400);
+  eq((await S.admin.put("/hack/api/admin/venues/2026-10-30", { name: "FGV", address: "Praia de Botafogo, 190", mapUrl: "https://maps.example/fgv" })).status, 200);
+  eq((await client().get("/hack/api/program")).data.venues["2026-10-30"].address, "Praia de Botafogo, 190");
+  eq((await S.people.ana.put("/hack/api/admin/venues/2026-10-30", { name: "X" })).status, 403);
   eq((await S.people.ana.post("/hack/api/admin/program", { day: "2026-10-30", start: "18:00", title: "x" })).status, 403);
 });
 

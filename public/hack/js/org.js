@@ -202,15 +202,40 @@
     const r = await api('/hack/api/admin/program');
     state.program = r.program;
     state.orgs = r.orgs;
+    state.venues = r.venues;
     renderProgram();
+  }
+
+  function venueDialog(day) {
+    const v = state.venues[day] || {};
+    const form = h('form.form',
+      h('label.field', h('span', 'Nome do local'), h('input', { name: 'name', value: v.name || '', required: true, maxlength: 60 })),
+      h('label.field', h('span', 'Endereço'), h('input', { name: 'address', value: v.address || '', maxlength: 160 })),
+      h('label.field', h('span', 'Link do mapa (https://…)'), h('input', { name: 'mapUrl', type: 'url', value: v.mapUrl || '' })),
+      h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar local'));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      try {
+        await api('/hack/api/admin/venues/' + day, { method: 'PUT', body: { name: f.name.value, address: f.address.value, mapUrl: f.mapUrl.value } });
+        dlg.close();
+        toast('Local atualizado: o portal já mostra.');
+        await loadProgram();
+      } catch (e) { toast(e.message, true); }
+    });
+    openDialog('Local de ' + dayLabel(day), form);
   }
 
   function renderProgram() {
     const g = clear($('prog-grid'));
     const days = Array.from(new Set(state.program.map((a) => a.day))).sort();
     days.forEach((day) => {
+      const v = (state.venues || {})[day] || {};
       g.appendChild(h('article.card',
         h('p.card__k', dayLabel(day)),
+        h('div.row', { style: 'margin-bottom:6px' },
+          h('div.list__main', h('b', v.name || 'Local'), h('span', v.address || 'Sem endereço')),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => venueDialog(day) }, 'Editar local')),
         h('ul.list', state.program.filter((a) => a.day === day).map((a) => h('li',
           h('div.list__main', h('b', hm(a.start) + (a.end ? '–' + hm(a.end) : '') + ' · ' + a.title),
             h('span', [a.place, a.orgs.map((o) => o.name).join(', ')].filter(Boolean).join(' · '))),
