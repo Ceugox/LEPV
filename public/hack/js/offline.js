@@ -6,6 +6,7 @@
   'use strict';
   const DB = 'lepv-hack';
   let dbp = null;
+  let wipeDeferred = false; // remoção pendente: não gravar mais nada
 
   function db() {
     if (dbp) return dbp;
@@ -45,7 +46,10 @@
   const get = (k) => tx('kv', 'readonly', (st) => reqP(st.get(k)));
   const set = (k, v) => tx('kv', 'readwrite', (st) => { st.put(v, k); });
 
-  async function addOp(op) { await tx('ops', 'readwrite', (st) => { st.put(op); }); }
+  async function addOp(op) {
+    if (wipeDeferred) throw new Error('a cópia deste aparelho está sendo apagada; feche as outras abas do portal e recarregue');
+    await tx('ops', 'readwrite', (st) => { st.put(op); });
+  }
   async function listOps() { return tx('ops', 'readonly', (st) => reqP(st.getAll())); }
   async function removeOps(ids) { await tx('ops', 'readwrite', (st) => { ids.forEach((i) => st.delete(i)); }); }
   // null = não deu para ler a fila (não é o mesmo que "vazia").
@@ -61,9 +65,11 @@
     return new Promise((resolve) => {
       let r;
       try { r = indexedDB.deleteDatabase(DB); } catch (e) { resolve(false); return; }
-      r.onsuccess = () => resolve(true);
+      r.onsuccess = () => { wipeDeferred = false; resolve(true); };
       r.onerror = () => resolve(false);
-      r.onblocked = () => resolve(false);
+      // Bloqueado não é cancelado: o navegador apaga quando a outra aba fechar.
+      // Até lá, nada novo pode ir para o banco (sumiria junto).
+      r.onblocked = () => { wipeDeferred = true; resolve(false); };
     });
   }
 
@@ -78,5 +84,5 @@
     return Array.from(a).map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
-  window.HackOffline = { get, set, addOp, listOps, removeOps, pendingCount, wipe, sha256Hex, newOpId };
+  window.HackOffline = { isWipeDeferred: () => wipeDeferred, get, set, addOp, listOps, removeOps, pendingCount, wipe, sha256Hex, newOpId };
 })();

@@ -33,8 +33,20 @@
     fill($('hist'), history.map((x) => h('li', h('div.list__main', h('b', x.name || '—'), h('span', x.label)))));
   }
 
+  // Presença confirmada online entra na cópia local: se a rede cair logo
+  // depois, o mesmo QR não é aceito de novo offline.
+  function rememberServerCheckin(r) {
+    if (!setup || !r.person || !r.checkin) return;
+    const c = { personId: r.person.id, day: r.checkin.day, at: r.checkin.at };
+    if (!setup.snapshot.checkins.some((x) => x.personId === c.personId && x.day === c.day)) {
+      setup.snapshot.checkins.push(c);
+      OFF.set('setup', setup).catch(() => {});
+    }
+  }
+
   function showServer(r) {
     const name = r.person ? r.person.name : null;
+    if (r.status === 'ok' || r.status === 'duplicate') rememberServerCheckin(r);
     if (r.status === 'ok') { show('ok', 'Entrada liberada', describe(r.person)); remember({ name, label: 'Entrou ' + time(r.checkin.at) }); }
     else if (r.status === 'duplicate') { show('dup', 'Já registrado', describe(r.person).concat('Entrada às ' + time(r.checkin.at) + (r.checkin.by ? ' por ' + r.checkin.by : ''))); remember({ name, label: 'Repetido' }); }
     else if (r.status === 'waitlist') { show('err', 'Lista de espera', describe(r.person).concat('Inscrição ainda não confirmada: fale com a diretoria.')); remember({ name, label: 'Lista de espera' }); }
@@ -110,7 +122,7 @@
   // só "ok" conta como sincronizado; recusas aparecem com nome e motivo.
   let syncing = false;
   let syncBlocked = ''; // motivo para parar a sincronização automática
-  const REFUSED = { blocked: 'acesso bloqueado', waitlist: 'lista de espera', invalid: 'QR inválido', rejected: 'leitura inválida' };
+  const REFUSED = { blocked: 'acesso bloqueado', waitlist: 'lista de espera', invalid: 'QR inválido', rejected: 'leitura inválida', undone: 'entrada desfeita pela organização' };
   async function sync(manual) {
     if (!setup || syncing || otherOwner) return;
     if (syncBlocked && !manual) return;
@@ -121,12 +133,18 @@
     try {
       // allow401: recusa do aparelho não pode virar redirecionamento em loop
       // para o login a cada 20s — a fila ficaria parada sem ninguém ver.
-      const r = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, timeoutMs: 20000, body: {
-        deviceId: setup.deviceId, deviceToken: setup.deviceToken,
-        ops: ops.map((o) => ({ opId: o.opId, h: o.h, personId: o.personId, day: o.day, at: o.at })),
-      } });
+      // Em lotes: o servidor aceita corpo JSON de até 100 KB, e uma fila de
+      // centenas de leituras numa requisição só viraria 413 para sempre.
+      const r = { results: [] };
+      for (let i = 0; i < ops.length; i += 200) {
+        const part = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, timeoutMs: 20000, body: {
+          deviceId: setup.deviceId, deviceToken: setup.deviceToken,
+          ops: ops.slice(i, i + 200).map((o) => ({ opId: o.opId, h: o.h, personId: o.personId, day: o.day, at: o.at })),
+        } });
+        await OFF.removeOps(part.results.map((x) => x.opId));
+        r.results = r.results.concat(part.results);
+      }
       syncBlocked = '';
-      await OFF.removeOps(r.results.map((x) => x.opId));
       const ok = r.results.filter((x) => x.status === 'ok');
       const dups = r.results.filter((x) => x.status === 'duplicate');
       const refused = r.results.filter((x) => REFUSED[x.status]);

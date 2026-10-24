@@ -208,26 +208,34 @@ async function contextWithLink(browser, mode, token) {
     console.log('\n[credenciamento offline]');
     await page.goto(BASE + '/hack/credenciamento', { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('dia').options.length > 0, null, { timeout: 8000 });
-    // Dia de ensaio: o 31/10 (a participante de verificação não tem entrada nele).
-    await page.selectOption('#dia', '2026-10-31').catch(() => {});
+    // Ponto de partida conhecido: a participante de verificação sem entrada em
+    // 31/10 (rodadas anteriores podem ter registrado; a diretoria desfaz).
+    const found = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=2026-10-31')).json();
+    for (const p of found.people || []) {
+      if (p.checkin) await ctx.request.delete(BASE + '/hack/api/checkin/' + p.checkin.id);
+    }
+    await page.selectOption('#dia', '2026-10-31');
     await page.click('#prep');
-    await page.waitForFunction(() => /ingressos/.test(document.getElementById('off-msg').textContent), null, { timeout: 8000 });
-    check(true, 'aparelho preparado para offline');
+    const prepared = await page.waitForFunction(() => /ingressos/.test(document.getElementById('off-msg').textContent), null, { timeout: 8000 }).then(() => true, () => false);
+    check(prepared, 'aparelho preparado para offline');
     await ctx.setOffline(true);
     await page.fill('#busca', 'Participante Verifica');
-    await page.waitForFunction(() => document.querySelectorAll('#busca-res li button').length > 0, null, { timeout: 8000 }).catch(() => {});
+    await page.waitForFunction(() => document.querySelectorAll('#busca-res li button').length > 0, null, { timeout: 8000 }).catch(() => null);
     const btn = await page.$('#busca-res li button');
     check(Boolean(btn), 'busca manual funciona offline (cópia local)');
     if (btn) {
       await btn.click();
-      await page.waitForFunction(() => document.getElementById('result').className.includes('result--'), null, { timeout: 5000 }).catch(() => {});
+      await page.waitForFunction(() => document.getElementById('result').className.includes('result--'), null, { timeout: 5000 }).catch(() => null);
       const res = await page.evaluate(() => ({ cls: document.getElementById('result').className, pend: document.getElementById('pend').textContent }));
-      check(/result--pending|result--dup/.test(res.cls), 'registro offline fica "sincronização pendente"', res.cls);
+      check(/result--pending/.test(res.cls), 'registro offline fica "sincronização pendente"', res.cls);
+      check(/1 leitura/.test(res.pend), 'uma leitura na fila', res.pend.slice(0, 60));
       await ctx.setOffline(false);
       await page.click('#sync');
-      await page.waitForFunction(() => /Nada pendente/.test(document.getElementById('pend').textContent), null, { timeout: 15000 }).catch(() => {});
+      await page.waitForFunction(() => /Nada pendente/.test(document.getElementById('pend').textContent), null, { timeout: 15000 }).catch(() => null);
       const after = await page.evaluate(() => document.getElementById('pend').textContent);
       check(/Nada pendente/.test(after), 'fila sincronizou ao voltar a rede', after.slice(0, 80));
+      const server = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=2026-10-31')).json();
+      check((server.people || []).some((p) => p.checkin && p.checkin.source !== 'online'), 'servidor registrou a entrada vinda do offline');
     }
     check(errors.length === 0, 'sem erro de JS no credenciamento', errors.join(' | ') || undefined);
     await ctx.close();

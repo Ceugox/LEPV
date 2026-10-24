@@ -897,9 +897,10 @@ test("credenciamento: desfeita, a presença não volta pela mesma operação", (
   const r = K.syncOps(s, device, staff.id, [op], T0);
   K.undo(s, r[0].checkin.id);
   eq1(s.checkins.length, 0);
+  // Resposta perdida + reenvio depois do desfazer: não recria a presença.
   const again = K.syncOps(s, device, staff.id, [op], later(10));
-  eq1(again[0].status, "ok");
-  eq1(s.checkins.length, 1, "registrada de novo de verdade, não o ok antigo do cache");
+  eq1(again[0].status, "undone");
+  eq1(s.checkins.length, 0);
 });
 test("parceiros: nome único também ao editar; pendentes nunca somem no teto", () => {
   const { s, teachy, apoio } = partnerState();
@@ -1004,6 +1005,15 @@ test("rotas: 500 vai para o registro de falhas; erro esperado não", async () =>
   eq1(r2.code, 409);
   eq1(seen.length, 1, "HackError não é falha do sistema");
   setReporter(() => {});
+});
+
+test("credenciamento: leitura offline às 23h30 de sexta (Brasília) é da sexta", () => {
+  const { s, ana, staff } = admState();
+  const now = new Date("2026-10-31T12:00:00Z");
+  const { device } = K.prepareDevice(s, staff.id, "cel", now);
+  // 02h30 UTC de sábado = 23h30 de sexta em Brasília.
+  K.syncOps(s, device, staff.id, [{ opId: "op-iiiiiiii9", personId: ana.id, day: "2026-10-31", at: "2026-10-31T02:30:00Z" }], now);
+  eq1(s.checkins[0].day, "2026-10-30");
 });
 
 (async () => {

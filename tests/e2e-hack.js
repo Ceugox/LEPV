@@ -983,6 +983,24 @@ test("credenciamento: offline sincroniza sem duplicar, com aparelho revogável",
   assert(devs.find((d) => d.id === p1.data.deviceId).lastSyncAt, "última sincronização registrada");
 });
 
+test("credenciamento: no dia do evento o servidor impõe o dia de hoje; snapshot exige o aparelho", async () => {
+  await restartServer({ HACK_NOW: "2026-10-31T12:00:00Z" });
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+  const st = await S.admin.get("/hack/api/checkin/status");
+  eq(st.data.dayLocked, true);
+  eq(st.data.defaultDay, "2026-10-31");
+  eq((await S.admin.post("/hack/api/checkin/scan", { code: qrOf("elisa@ex.com"), day: "2026-10-30" })).status, 400, "sexta no sábado");
+  const r = await S.admin.post("/hack/api/checkin/scan", { code: qrOf("elisa@ex.com") });
+  eq(r.data.checkin.day, "2026-10-31");
+  const p = await S.admin.post("/hack/api/checkin/prepare", {});
+  eq((await S.admin.post("/hack/api/checkin/snapshot", { deviceId: p.data.deviceId, deviceToken: "errado" })).status, 401);
+  eq((await S.admin.post("/hack/api/checkin/snapshot", { deviceId: p.data.deviceId, deviceToken: p.data.deviceToken })).status, 200);
+  await restartServer();
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+});
+
 test("credenciamento: staff só com a permissão marcada", async () => {
   const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
   const link = async () => (await S.admin.post("/hack/api/admin/people/" + sofia.id + "/link", { send: "none" })).data.url.split("#t=")[1];
