@@ -143,7 +143,15 @@
       // Dados locais do credenciamento e do portal não sobrevivem à troca de pessoa.
       Object.keys(localStorage).filter((k) => k.indexOf('hack:') === 0).forEach((k) => localStorage.removeItem(k));
     } catch (e) { /* armazenamento bloqueado */ }
-    if (window.HackOffline && window.HackOffline.wipe) { try { await window.HackOffline.wipe(); } catch (e) { /* segue */ } }
+    if (window.HackOffline && window.HackOffline.wipe) {
+      let ok = false;
+      try { ok = await window.HackOffline.wipe(); } catch (e) { ok = false; }
+      if (!ok) {
+        // Nomes e hashes ficariam no aparelho: a pessoa precisa saber.
+        toast('Não consegui apagar os dados offline deste aparelho. Feche as outras abas do portal e saia de novo.', true);
+        return;
+      }
+    }
     location.href = '/hack/';
   }
 

@@ -61,6 +61,15 @@
   }
 
   async function handleOffline(code) {
+    try {
+      await handleOfflineInner(code);
+    } catch (e) {
+      // IndexedDB ou crypto.subtle indisponível: diz o que fazer.
+      show('err', 'Armazenamento offline indisponível', ['Não deu para guardar a leitura neste aparelho (' + (e.message || e) + '). Anote o nome e registre quando a rede voltar.']);
+    }
+  }
+
+  async function handleOfflineInner(code) {
     if (!code.startsWith(PREFIX)) return show('err', 'QR inválido', ['Não é um ingresso deste hackathon.']);
     if (Date.parse(setup.expiresAt) <= Date.now()) return show('err', 'Autorização expirada', ['Conecte à internet e prepare de novo.']);
     const hsh = await OFF.sha256Hex(code.slice(PREFIX.length));
@@ -78,29 +87,48 @@
   }
 
   // ---------- sincronização ----------
+  // Sincronização. Cada resultado sai da fila (o servidor já decidiu), mas
+  // só "ok" conta como sincronizado; recusas aparecem com nome e motivo.
   let syncing = false;
+  let syncBlocked = ''; // motivo para parar a sincronização automática
+  const REFUSED = { blocked: 'acesso bloqueado', waitlist: 'lista de espera', invalid: 'QR inválido', rejected: 'leitura inválida' };
   async function sync(manual) {
     if (!setup || syncing) return;
-    const ops = await OFF.listOps();
+    if (syncBlocked && !manual) return;
+    let ops;
+    try { ops = await OFF.listOps(); } catch (e) { toast('Não consegui ler as leituras guardadas neste aparelho.', true); return; }
     if (!ops.length) { if (manual) toast('Nada pendente.'); return; }
     syncing = true;
     try {
-      const r = await api('/hack/api/checkin/sync', { method: 'POST', body: {
+      // allow401: recusa do aparelho não pode virar redirecionamento em loop
+      // para o login a cada 20s — a fila ficaria parada sem ninguém ver.
+      const r = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, body: {
         deviceId: setup.deviceId, deviceToken: setup.deviceToken,
-        ops: ops.map((o) => ({ opId: o.opId, h: o.h, day: o.day, at: o.at })),
+        ops: ops.map((o) => ({ opId: o.opId, h: o.h, personId: o.personId, day: o.day, at: o.at })),
       } });
-      const done = r.results.filter((x) => x.status !== 'rejected').map((x) => x.opId);
-      await OFF.removeOps(done);
-      // Leitura offline que outro aparelho já tinha registrado: avisa.
+      syncBlocked = '';
+      await OFF.removeOps(r.results.map((x) => x.opId));
+      const ok = r.results.filter((x) => x.status === 'ok');
       const dups = r.results.filter((x) => x.status === 'duplicate');
+      const refused = r.results.filter((x) => REFUSED[x.status]);
       r.results.filter((x) => x.checkin).forEach((x) => setup.snapshot.checkins.push({ personId: x.personId, day: x.checkin.day, at: x.checkin.at }));
       await OFF.set('setup', setup);
-      toast(done.length + ' leitura(s) sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + '.');
+      if (refused.length) {
+        // Quem entrou offline mas não podia: alerta inequívoco, com nome.
+        show('err', refused.length + ' leitura(s) recusada(s)', refused.map((x) => (x.name || 'Pessoa desconhecida') + ' — ' + REFUSED[x.status]));
+        refused.forEach((x) => remember({ name: x.name, label: 'Recusado: ' + REFUSED[x.status] }));
+      }
+      toast(ok.length + ' sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + (refused.length ? ' · ' + refused.length + ' recusada(s)' : '') + '.', refused.length > 0);
       refreshStats();
     } catch (e) {
       if (e.offline) { if (manual) toast('Ainda sem internet.', true); }
-      else if (e.status === 401 && /aparelho|device/i.test(e.message)) { toast(e.message, true); }
-      else toast(e.message, true);
+      else if (e.status === 401 && /^device_/.test(e.code || '')) {
+        syncBlocked = e.message + ' As leituras continuam guardadas: prepare o aparelho de novo para enviá-las.';
+        show('err', 'Aparelho sem autorização', [syncBlocked]);
+      } else if (e.status === 401) {
+        syncBlocked = 'Sua sessão expirou: entre de novo (as leituras continuam guardadas).';
+        show('err', 'Sessão expirada', [syncBlocked]);
+      } else toast(e.message, true);
     } finally {
       syncing = false;
       refreshPending();
@@ -109,16 +137,31 @@
 
   async function refreshPending() {
     const n = await OFF.pendingCount();
-    $('pend').textContent = setup
-      ? (n ? n + ' leitura(s) aguardando sincronização.' : 'Nada pendente.') + ' Autorização até ' + window.Hack.dayTime(setup.expiresAt) + '.'
-      : '';
+    const what = n === null ? 'Não consegui ler a fila deste aparelho.' : n ? n + ' leitura(s) aguardando sincronização.' : 'Nada pendente.';
+    $('pend').textContent = setup ? what + ' Autorização até ' + window.Hack.dayTime(setup.expiresAt) + '.' + (syncBlocked ? ' ' + syncBlocked : '') : '';
     $('sync').hidden = !setup;
   }
 
   $('prep').addEventListener('click', async () => {
     try {
+      // Já preparado: só atualiza a cópia, com a mesma credencial. Aparelho
+      // novo só na primeira vez ou se a autorização antiga não vale mais.
+      if (setup && !syncBlocked) {
+        try {
+          const snap = await api('/hack/api/checkin/snapshot', { method: 'POST', allow401: true, body: { deviceId: setup.deviceId, deviceToken: setup.deviceToken } });
+          setup.snapshot = snap.snapshot;
+          await OFF.set('setup', setup);
+          $('off-msg').textContent = 'Cópia atualizada: ' + snap.snapshot.tickets.length + ' ingressos.';
+          toast('Cópia atualizada.');
+          refreshPending();
+          return;
+        } catch (e) {
+          if (!(e.status === 401 && /^device_/.test(e.code || ''))) throw e;
+        }
+      }
       const r = await api('/hack/api/checkin/prepare', { method: 'POST', body: { label: navigator.userAgent.slice(0, 60) } });
       setup = { personId: r.operatorId, deviceId: r.deviceId, deviceToken: r.deviceToken, expiresAt: r.expiresAt, snapshot: r.snapshot };
+      syncBlocked = '';
       await OFF.set('setup', setup);
       $('off-msg').textContent = 'Aparelho preparado: ' + r.snapshot.tickets.length + ' ingressos na cópia local.';
       $('prep').textContent = 'Atualizar cópia';
@@ -192,18 +235,29 @@
   }
   async function loop() {
     if (!stream) return;
-    if (!busy) {
-      const code = await decodeFrame($('video'));
-      // A mesma pessoa diante da câmera não vira dez leituras.
-      if (code && !(code === lastCode && Date.now() - lastAt < 4000)) {
-        lastCode = code;
-        lastAt = Date.now();
-        busy = true;
-        await handleCode(code);
-        setTimeout(() => { busy = false; }, 1200);
+    try {
+      if (!busy) {
+        const code = await decodeFrame($('video'));
+        // A mesma pessoa diante da câmera não vira dez leituras.
+        if (code && !(code === lastCode && Date.now() - lastAt < 4000)) {
+          lastCode = code;
+          lastAt = Date.now();
+          busy = true;
+          try {
+            await handleCode(code);
+          } catch (e) {
+            show('err', 'Erro na leitura', [e.message || 'Falha inesperada. Use a busca manual.']);
+          } finally {
+            setTimeout(() => { busy = false; }, 1200);
+          }
+        }
       }
+    } catch (e) {
+      $('cam-msg').textContent = 'Falha ao decodificar a imagem: ' + (e.message || e);
+    } finally {
+      // Nunca deixa de agendar a próxima volta: câmera parada em silêncio é o pior caso.
+      setTimeout(loop, 180);
     }
-    setTimeout(loop, 180);
   }
   $('cam-on').addEventListener('click', startCam);
   $('cam-off').addEventListener('click', stopCam);
@@ -267,7 +321,7 @@
 
   $('sair').addEventListener('click', async () => {
     const n = await OFF.pendingCount();
-    if (n && !confirmLeave(n)) return;
+    if ((n === null || n > 0) && !confirmLeave(n === null ? 'Algumas' : n)) return;
     window.Hack.logout();
   });
   let leaveArmed = 0;
@@ -295,13 +349,19 @@
       setup = null;
     }
     let days = ['2026-10-30', '2026-10-31'];
-    let def = days[0];
+    // Offline: o dia sai do relógio do aparelho, no fuso de Brasília.
+    const localToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    let def = days.includes(localToday) ? localToday : days[0];
+    let locked = days.includes(localToday);
     try {
       const st = await api('/hack/api/checkin/status');
       days = st.days;
       def = st.defaultDay;
+      locked = st.dayLocked;
     } catch (e) { /* offline */ }
     fill($('dia'), days.map((d) => h('option', { value: d, selected: d === def }, dayLabel(d))));
+    // No dia do evento não se escolhe dia: é o de hoje (o servidor também impõe).
+    $('dia').disabled = locked;
     $('dia').addEventListener('change', refreshStats);
     if (setup) {
       $('off-msg').textContent = 'Aparelho preparado: ' + setup.snapshot.tickets.length + ' ingressos na cópia local.';

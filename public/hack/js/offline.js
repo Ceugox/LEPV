@@ -42,15 +42,21 @@
   async function addOp(op) { await tx('ops', 'readwrite', (st) => { st.put(op); }); }
   async function listOps() { return tx('ops', 'readonly', (st) => reqP(st.getAll())); }
   async function removeOps(ids) { await tx('ops', 'readwrite', (st) => { ids.forEach((i) => st.delete(i)); }); }
-  async function pendingCount() { try { return (await listOps()).length; } catch (e) { return 0; } }
+  // null = não deu para ler a fila (não é o mesmo que "vazia").
+  async function pendingCount() { try { return (await listOps()).length; } catch (e) { return null; } }
 
   // Troca de pessoa, logout ou fim da autorização: nada fica para o próximo.
+  // Devolve true só se o banco foi de fato apagado (bloqueado por outra aba
+  // aberta ou erro = false, e quem chamou avisa).
   async function wipe() {
     try { if (dbp) (await dbp).close(); } catch (e) { /* segue */ }
     dbp = null;
-    await new Promise((resolve) => {
-      const r = indexedDB.deleteDatabase(DB);
-      r.onsuccess = r.onerror = r.onblocked = () => resolve();
+    return new Promise((resolve) => {
+      let r;
+      try { r = indexedDB.deleteDatabase(DB); } catch (e) { resolve(false); return; }
+      r.onsuccess = () => resolve(true);
+      r.onerror = () => resolve(false);
+      r.onblocked = () => resolve(false);
     });
   }
 

@@ -871,6 +871,43 @@ test("credenciamento: horário da leitura offline nunca fica no futuro", () => {
   eq1(s.checkins[0].at, T0.toISOString());
 });
 
+// ---------- revisão 4 ----------
+test("credenciamento: no dia do evento só vale o dia de hoje", () => {
+  const sat = new Date("2026-10-31T12:00:00Z"); // 9h de Brasília, sábado
+  eq1(K.resolveDay("", sat), "2026-10-31");
+  eq1(K.resolveDay("2026-10-31", sat), "2026-10-31");
+  assert.throws(() => K.resolveDay("2026-10-30", sat), /Hoje é 31\/10/);
+  eq1(K.resolveDay("2026-10-31", T0), "2026-10-31", "fora do evento (ensaio) escolhe");
+});
+test("credenciamento: leitura offline usa o dia em que foi feita, não o do seletor", () => {
+  const { s, ana, staff } = admState();
+  const sat = new Date("2026-10-31T15:00:00Z");
+  const { device } = K.prepareDevice(s, staff.id, "cel", sat);
+  const r = K.syncOps(s, device, staff.id, [{ opId: "op-dddddddd4", personId: ana.id, day: "2026-10-30", at: "2026-10-31T12:30:00Z" }], sat);
+  eq1(r[0].status, "ok");
+  eq1(s.checkins[0].day, "2026-10-31");
+});
+test("credenciamento: desfeita, a presença não volta pela mesma operação", () => {
+  const { s, ana, staff } = admState();
+  const { device } = K.prepareDevice(s, staff.id, "cel", T0);
+  const op = { opId: "op-eeeeeeee5", personId: ana.id, day: DAY1, at: T0.toISOString() };
+  const r = K.syncOps(s, device, staff.id, [op], T0);
+  K.undo(s, r[0].checkin.id);
+  eq1(s.checkins.length, 0);
+  const again = K.syncOps(s, device, staff.id, [op], later(10));
+  eq1(again[0].status, "ok");
+  eq1(s.checkins.length, 1, "registrada de novo de verdade, não o ok antigo do cache");
+});
+test("parceiros: nome único também ao editar; pendentes nunca somem no teto", () => {
+  const { s, teachy, apoio } = partnerState();
+  assert.throws(() => PT.updateOrg(s, apoio.id, { name: "teachy" }), /Já existe/);
+  for (let i = 0; i < 520; i++) {
+    const r = PT.createRequest(s, { kind: "sponsor", orgId: teachy.id, name: "Pessoa Teste" + i, email: "p" + i + "@ex.com" }, T0);
+    if (i < 30) PT.decideRequest(s, r.id, false, "dir", T0);
+  }
+  eq1(s.partnerRequests.filter((x) => x.status === "pending").length, 490, "todo pendente fica");
+});
+
 (async () => {
   for (const t of tests) {
     try {

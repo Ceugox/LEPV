@@ -443,6 +443,9 @@ test("permissões: toda rota da organização recusa anônimo (401) e participan
     ["GET", "/hack/api/admin/partners"], ["POST", "/hack/api/admin/partners/orgs"], ["PATCH", "/hack/api/admin/partners/orgs/x"],
     ["POST", "/hack/api/admin/partners/requests/x"], ["DELETE", "/hack/api/admin/partners/representatives/x"],
     ["GET", "/hack/api/admin/devices"], ["POST", "/hack/api/admin/devices/x/revoke"], ["DELETE", "/hack/api/checkin/x"],
+    ["GET", "/hack/api/checkin/status"], ["POST", "/hack/api/checkin/scan"], ["GET", "/hack/api/checkin/search?q=ana"],
+    ["POST", "/hack/api/checkin/person/x"], ["POST", "/hack/api/checkin/prepare"], ["POST", "/hack/api/checkin/snapshot"],
+    ["POST", "/hack/api/checkin/sync"], ["PUT", "/hack/api/admin/venues/2026-10-30"],
     ["PUT", "/hack/api/admin/submissions/x"], ["DELETE", "/hack/api/admin/submissions/x"],
   ];
   const anon = client();
@@ -682,6 +685,15 @@ test("equipes: depois do prazo de entrega a composição congela (só a diretori
   const ana = await enterAs("ana@ex.com");
   eq((await ana.post("/hack/api/team/leave")).status, 409);
   eq((await ana.get("/hack/api/team")).data.locked, true);
+  // Prorrogação só da Alfa: ela volta a editar a entrega; as outras não.
+  eq((await S.admin.patch("/hack/api/admin/teams/" + S.alfa.id, { deadlineOverride: "2026-10-31T16:30:00Z" })).status, 200);
+  eq((await ana.get("/hack/api/team")).data.locked, false);
+  const sub = await ana.get("/hack/api/team/submission");
+  eq(sub.data.open, true);
+  eq(sub.data.deadline, "2026-10-31T16:30:00.000Z");
+  eq((await ana.put("/hack/api/team/submission", { description: "dentro da prorrogação" })).status, 200);
+  eq((await S.admin.patch("/hack/api/admin/teams/" + S.alfa.id, { deadlineOverride: null })).status, 200);
+  eq((await ana.get("/hack/api/team")).data.locked, true);
   const beta = (await S.admin.get("/hack/api/admin/teams")).data.teams.find((t) => t.id === S.beta.id);
   const add = await S.admin.patch("/hack/api/admin/teams/" + S.beta.id, { removeMember: beta.members[0].id });
   eq(add.status, 200, "diretoria ainda ajusta");
@@ -736,6 +748,15 @@ test("avaliação: segunda equipe, critérios travados antes de abrir", async ()
   eq((await S.admin.patch("/hack/api/admin/teams/" + S.gama.id, { confirm: true })).status, 200);
   eq((await S.c.davi.put("/hack/api/team/submission", { repoUrl: "https://github.com/lepv/gama" })).status, 200);
   eq((await uploadSlides(S.c.davi, PDF)).status, 200);
+  // Diretoria corrige a entrega e remove só os slides: deixa de estar completa.
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { description: "corrigido pela organização" })).status, 200);
+  eq((await S.admin.del("/hack/api/admin/submissions/" + S.gama.id + "?only=slides")).status, 200);
+  let gs = (await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id);
+  eq(gs.complete, false);
+  eq(gs.description, "corrigido pela organização");
+  eq((await uploadSlides(S.c.davi, PDF)).status, 200);
+  gs = (await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id);
+  eq(gs.complete, true);
 
   const ev = (body) => S.admin.post("/hack/api/admin/evaluation", body);
   eq((await ev({ action: "open", open: true })).status, 409, "sem critérios travados");
@@ -876,6 +897,10 @@ test("parceiros: exportação só para patrocinador, só de quem autorizou, regi
   eq(seen.includes(a2.data.announcement.id), true);
   eq((await S.c.rita.post("/hack/api/announcements/" + a1.data.announcement.id + "/read")).status, 404, "nem pela API direta");
   eq((await S.c.ana.get("/hack/api/announcements")).data.announcements.some((x) => x.id === a2.data.announcement.id), false);
+  eq((await S.admin.patch("/hack/api/admin/partners/orgs/" + S.orgs.teachy.id, { active: false })).status, 200);
+  eq((await S.c.rita.get("/hack/api/partner/export.csv")).status, 403, "organização desativada");
+  eq((await S.c.rita.get("/hack/api/partner")).data.canExport, false);
+  eq((await S.admin.patch("/hack/api/admin/partners/orgs/" + S.orgs.teachy.id, { active: true })).status, 200);
   const log = (await S.admin.get("/hack/api/admin/partners")).data.exports;
   eq(log.length, 1);
   eq(log[0].person, "Rita Rep");
