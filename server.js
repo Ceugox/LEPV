@@ -6,6 +6,7 @@ const session = require("express-session");
 const bcrypt = require("bcryptjs");
 const ical = require("./lib/ical.js");
 const { trustProxy } = require("./lib/client-ip.js");
+const { registerHackathonRoutes } = require("./lib/hackathon");
 const QRCode = require("qrcode");
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -3524,6 +3525,8 @@ app.get("/api/board/meetings/:id.ics", requireDirectorApi, (req, res) => {
   if (!meeting.date || !meeting.time) return res.status(400).json({ error: "no_date", message: "Encontro sem data não vira arquivo de calendário." });
   sendIcs(res, "lepv-" + meeting.id + ".ics", ical.singleEvent(meeting, { ownerNames: boardOwnerNames(boardRoster()) }));
 });
+
+registerHackathonRoutes(app, { publicDir: PUBLIC_DIR, readEventsStore, todayBR });
 
 app.use(express.static(PUBLIC_DIR, { index: false }));
 

@@ -169,6 +169,9 @@ jobs:
       - name: Centro de gastos
         run: npm run verify:reimbursements
 
+      - name: Plataforma do hackathon (/hack)
+        run: npm run verify:hack
+
       # ---- autópsia: só quando algo acima falhou ----
       - name: Screenshots e console das páginas
         if: failure()
