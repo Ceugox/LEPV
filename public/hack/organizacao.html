@@ -34,6 +34,9 @@
 <nav class="tabs" aria-label="Seções da organização">
   <div class="tabs__in" role="tablist">
     <button class="tab" type="button" role="tab" data-tab="pessoas" data-perm="manage">Pessoas</button>
+    <button class="tab" type="button" role="tab" data-tab="equipes" data-perm="manage">Equipes</button>
+    <button class="tab" type="button" role="tab" data-tab="entregas" data-perm="manage">Entregas</button>
+    <button class="tab" type="button" role="tab" data-tab="avaliacao" data-perm="manage">Avaliação</button>
     <button class="tab" type="button" role="tab" data-tab="avisos" data-perm="comms">Avisos</button>
     <button class="tab" type="button" role="tab" data-tab="whatsapp" data-perm="comms">WhatsApp</button>
     <button class="tab" type="button" role="tab" data-tab="programacao" data-perm="manage">Programação</button>
@@ -65,6 +68,61 @@
     </div>
     <p class="muted small" id="email-status"></p>
     <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="lista-pessoas"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="equipes" aria-label="Equipes" hidden>
+    <div class="row" style="margin-bottom:16px">
+      <button class="btn btn--red btn--sm" type="button" id="add-team">Montar equipe</button>
+      <span class="spacer"></span><span class="muted small" id="teams-sum"></span>
+    </div>
+    <div class="grid grid--3" id="teams-grid"></div>
+    <h2 class="sec-h">Sem equipe</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="solo-list"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="entregas" aria-label="Entregas" hidden>
+    <form class="card form" id="form-deadline" style="margin-bottom:18px">
+      <p class="card__k">Prazo de entrega</p>
+      <div class="row">
+        <label class="field" style="flex:1 1 240px"><span>Data e hora (Brasília)</span><input type="datetime-local" id="deadline-in" required></label>
+        <button class="btn btn--red btn--sm" type="submit" style="align-self:flex-end">Salvar prazo</button>
+      </div>
+      <p class="muted small" id="subs-sum"></p>
+    </form>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="subs-list"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="avaliacao" aria-label="Avaliação" hidden>
+    <div class="grid grid--2">
+      <article class="card">
+        <p class="card__k">Critérios</p>
+        <ul class="list" id="crit-list"></ul>
+        <div class="row" style="margin-top:12px">
+          <button class="btn btn--ghost btn--sm" type="button" id="add-crit">Adicionar critério</button>
+          <button class="btn btn--red btn--sm" type="button" id="lock-crit">Travar critérios</button>
+        </div>
+      </article>
+      <article class="card">
+        <p class="card__k">Andamento</p>
+        <div class="row" id="eval-status" style="margin-bottom:14px"></div>
+        <div class="row">
+          <button class="btn btn--red btn--sm" type="button" id="toggle-open">Abrir avaliação</button>
+          <button class="btn btn--ghost btn--sm" type="button" id="phase-btn">Abrir fase final</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn--ghost btn--sm" type="button" id="lock-results">Travar resultado</button>
+          <button class="btn btn--red btn--sm" type="button" id="reveal">Revelar resultado</button>
+        </div>
+        <form class="row" id="form-podium" style="margin-top:12px">
+          <label class="field" style="flex:0 1 160px"><span>Tamanho do pódio</span><input type="number" id="podium-in" min="1" max="10"></label>
+          <button class="btn btn--ghost btn--sm" type="submit" style="align-self:flex-end">Salvar</button>
+        </form>
+      </article>
+    </div>
+    <h2 class="sec-h">Banca</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="judges-list"></ul></div>
+    <h2 class="sec-h">Ranking (só a organização vê)</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="rank-body"></ul></div>
   </section>
 
   <section class="panel" data-panel="avisos" aria-label="Avisos" hidden>

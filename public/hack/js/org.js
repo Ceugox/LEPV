@@ -2,7 +2,7 @@
    permissão dela (data-perm); o servidor confere de novo em cada chamada. */
 (function () {
   'use strict';
-  const { api, h, clear, toast, dayLabel, hm, copy } = window.Hack;
+  const { api, h, clear, fill, toast, dayLabel, hm, copy } = window.Hack;
   const $ = (id) => document.getElementById(id);
   const state = { me: null, perms: {}, people: [], orgs: [], emailEnabled: false, program: [] };
   const ROLE = { participant: 'Participante', judge: 'Jurado', staff: 'Staff', sponsor: 'Patrocinador', supporter: 'Apoiador' };
@@ -87,7 +87,7 @@
     const gen = async (send) => {
       try {
         const r = await api('/hack/api/admin/people/' + p.id + '/link', { method: 'POST', body: { send } });
-        clear(out).append(
+        fill(out,
           h('label.field', h('span', 'Link pessoal (vale 7 dias, uso único)'),
             h('div.copy', h('input', { value: r.url, readonly: true, 'aria-label': 'Link de acesso' }),
               h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => copy(r.url) }, 'Copiar'))),
@@ -106,7 +106,10 @@
         h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => gen('none') }, 'Gerar link'),
         state.emailEnabled && p.email ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => gen('email') }, 'Enviar por e-mail') : null,
         h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
-          try { await api('/hack/api/admin/people/' + p.id + '/revoke', { method: 'POST' }); toast('Desconectado de todos os aparelhos.'); }
+          try {
+            const r = await api('/hack/api/admin/people/' + p.id + '/revoke', { method: 'POST' });
+            toast(r.warning || 'Desconectado de todos os aparelhos.', Boolean(r.warning));
+          }
           catch (e) { toast(e.message, true); }
         } }, 'Desconectar')),
       out);
@@ -362,9 +365,34 @@
           Object.keys(a.channels).filter((c) => a.channels[c]).map((c) => ', ' + CH[c]).join('') +
           (a.author ? ' · por ' + a.author : a.seeded ? ' · pré-agendado na especificação' : '')),
         a.status === 'published' ? h('p.small', a.recipientCount + ' destinatário(s). ' + statsLine(a.stats)) : null,
+        a.status === 'published' && hasProblems(a.stats)
+          ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => failuresDialog(a) }, 'Ver falhas de envio') : null,
         a.status === 'overdue' ? h('p.small', 'O servidor estava fora do ar no horário. Publique agora, mude o horário ou cancele.') : null,
         actions));
     });
+  }
+
+  const hasProblems = (stats) => ['email', 'push'].some((ch) => stats[ch] && Object.keys(stats[ch]).some((k) => k !== 'sent'));
+
+  async function failuresDialog(a) {
+    let r;
+    try { r = await api('/hack/api/admin/announcements/' + a.id + '/deliveries'); } catch (e) { toast(e.message, true); return; }
+    const list = h('ul.list', r.items.length ? r.items.map((d) => h('li',
+      h('div.list__main', h('b', d.person + ' · ' + CH[d.channel]), h('span', (DST[d.status] || d.status) + (d.attempts ? ' · ' + d.attempts + ' tentativa(s)' : '') + (d.error ? ' · ' + d.error : ''))),
+      ['failed', 'unknown', 'unavailable', 'skipped'].includes(d.status) ? h('div.row',
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => markDelivery2(d.id, 'pending', a) }, 'Reenviar'),
+        d.status !== 'skipped' ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => markDelivery2(d.id, 'skipped', a) }, 'Descartar') : null) : null))
+      : h('li', h('p.muted', 'Nada pendente.')));
+    openDialog('Envios de “' + a.title + '”', h('p.muted.small', '“Incerto” = o provedor não respondeu a tempo; pode ter chegado. Reenviar pode duplicar.'), list);
+  }
+  async function markDelivery2(id, status, a) {
+    try {
+      await api('/hack/api/admin/deliveries/' + id, { method: 'POST', body: { status } });
+      toast(status === 'pending' ? 'Na fila de novo.' : 'Descartado.');
+      dlg.close();
+      await loadAvisos();
+      failuresDialog(a);
+    } catch (e) { toast(e.message, true); }
   }
 
   function editAviso(a) {
@@ -411,8 +439,224 @@
   }
   $('wa-pend').addEventListener('change', () => loadWhats().catch((e) => toast(e.message, true)));
 
+  // ---------- equipes ----------
+  state.teams = [];
+  state.solo = [];
+  async function loadTeams() {
+    const r = await api('/hack/api/admin/teams');
+    state.teams = r.teams;
+    state.solo = r.solo;
+    const confirmed = r.teams.filter((t) => t.status === 'confirmed').length;
+    $('teams-sum').textContent = r.teams.length + ' equipe(s), ' + confirmed + ' confirmada(s) · ' + r.solo.length + ' participante(s) sem equipe';
+    const g = clear($('teams-grid'));
+    if (!r.teams.length) g.appendChild(h('p.empty', 'Nenhuma equipe ainda.'));
+    r.teams.forEach((t) => {
+      g.appendChild(h('article.card' + (t.status === 'confirmed' ? '' : '.card--red'),
+        h('div.row', { style: 'margin-bottom:8px' },
+          t.status === 'confirmed' ? h('span.badge.badge--ok', 'Confirmada') : h('span.badge.badge--warn', 'Em formação'),
+          h('span.muted.small', t.size + '/4 · código ' + t.code)),
+        h('h3.card__title', t.name),
+        h('ul.list', t.members.map((m) => h('li',
+          h('div.list__main', h('b', m.name + (m.owner ? ' · criou' : '')), h('span', [m.email, m.phone].filter(Boolean).join(' · '))),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { removeMember: m.id }, 'Removido.') }, 'Tirar')))),
+        h('div.row', { style: 'margin-top:12px' },
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamDialog(t) }, 'Ajustar'),
+          t.status === 'confirmed'
+            ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: false }, 'Voltou para formação.') }, 'Desconfirmar')
+            : h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: true }, 'Confirmada.') }, 'Confirmar'))));
+    });
+    const solo = clear($('solo-list'));
+    if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
+    r.solo.forEach((p) => solo.appendChild(h('li',
+      h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
+      h('div.row', p.hasGroup ? h('span.badge', 'Disse que tem grupo') : null, p.published ? h('span.badge.badge--ok', 'Perfil visível') : null))));
+  }
+
+  async function teamPatch(id, body, ok) {
+    try { await api('/hack/api/admin/teams/' + id, { method: 'PATCH', body }); if (ok) toast(ok); await loadTeams(); }
+    catch (e) { toast(e.message, true); }
+  }
+
+  const soloOptions = () => state.solo.map((p) => h('option', { value: p.id }, p.name + (p.hasGroup ? ' (tem grupo)' : '')));
+
+  function teamDialog(t) {
+    const rename = h('form.form', h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: t.name, required: true })),
+      h('button.btn.btn--ghost.btn--sm', { type: 'submit' }, 'Renomear'));
+    rename.addEventListener('submit', (ev) => { ev.preventDefault(); dlg.close(); teamPatch(t.id, { name: ev.target.name.value }, 'Renomeada.'); });
+    const add = h('form.form', h('label.field', h('span', 'Adicionar participante sem equipe'), h('select', { name: 'who' }, soloOptions())),
+      h('button.btn.btn--ghost.btn--sm', { type: 'submit', disabled: !state.solo.length || t.size >= 4 }, 'Adicionar'));
+    add.addEventListener('submit', (ev) => { ev.preventDefault(); dlg.close(); teamPatch(t.id, { addMember: ev.target.who.value }, 'Adicionado.'); });
+    const others = state.teams.filter((x) => x.id !== t.id && x.size + t.size <= 4);
+    const merge = h('form.form', h('label.field', h('span', 'Juntar outra equipe nesta (até 4 pessoas)'),
+      h('select', { name: 'other' }, others.map((x) => h('option', { value: x.id }, x.name + ' (' + x.size + ')')))),
+      h('button.btn.btn--ghost.btn--sm', { type: 'submit', disabled: !others.length }, 'Juntar'));
+    merge.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      try { await api('/hack/api/admin/teams/' + t.id + '/merge', { method: 'POST', body: { otherId: ev.target.other.value } }); dlg.close(); toast('Equipes juntadas.'); await loadTeams(); }
+      catch (e) { toast(e.message, true); }
+    });
+    const del = h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
+      try { await api('/hack/api/admin/teams/' + t.id, { method: 'DELETE' }); dlg.close(); toast('Equipe desfeita.'); await loadTeams(); }
+      catch (e) { toast(e.message, true); }
+    } }, 'Desfazer equipe');
+    openDialog('Ajustar ' + t.name, rename, add, merge, h('div.row', { style: 'margin-top:12px' }, del));
+  }
+
+  $('add-team').addEventListener('click', () => {
+    const sel = h('select', { name: 'who', multiple: true, size: Math.min(8, Math.max(3, state.solo.length)), style: 'min-height:140px' }, soloOptions());
+    const form = h('form.form',
+      h('label.field', h('span', 'Nome da equipe'), h('input', { name: 'name', required: true })),
+      h('label.field', h('span', 'Integrantes (segure Ctrl/⌘ para escolher vários; até 4)'), sel),
+      h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Criar equipe'));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const ids = Array.from(sel.selectedOptions).map((o) => o.value);
+      try { await api('/hack/api/admin/teams', { method: 'POST', body: { name: ev.target.name.value, memberIds: ids } }); dlg.close(); toast('Equipe criada.'); await loadTeams(); }
+      catch (e) { toast(e.message, true); }
+    });
+    openDialog('Nova equipe', form);
+  });
+
+  // ---------- entregas ----------
+  async function loadSubs() {
+    const r = await api('/hack/api/admin/submissions');
+    $('deadline-in').value = toLocalInput(r.deadline);
+    const done = r.submissions.filter((x) => x.complete).length;
+    $('subs-sum').textContent = done + ' de ' + r.submissions.length + ' equipe(s) com entrega completa · prazo ' + window.Hack.dayTime(r.deadline) + (r.open ? ' (aberto)' : ' (travado)');
+    const list = clear($('subs-list'));
+    if (!r.submissions.length) list.appendChild(h('li', h('p.muted', 'Nenhuma equipe ainda.')));
+    r.submissions.forEach((x) => list.appendChild(h('li',
+      h('div.list__main', h('b', x.team.name + (x.projectName ? ' · ' + x.projectName : '')),
+        h('span', x.updatedAt ? 'Atualizada ' + window.Hack.dayTime(x.updatedAt) + (x.updatedBy ? ' por ' + x.updatedBy : '') : 'Nada entregue')),
+      h('div.row',
+        x.team.status === 'confirmed' ? null : h('span.badge.badge--warn', 'Equipe não confirmada'),
+        x.complete ? h('span.badge.badge--ok', 'Completa') : h('span.badge.badge--warn', 'Incompleta'),
+        x.repoUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.repoUrl, target: '_blank', rel: 'noopener' }, 'Repo') : null,
+        x.slides ? h('a.btn.btn--ghost.btn--sm', { href: x.slides.url, target: '_blank', rel: 'noopener' }, 'Slides') : null,
+        x.videoUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.videoUrl, target: '_blank', rel: 'noopener' }, 'Vídeo') : null))));
+  }
+  $('form-deadline').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api('/hack/api/admin/config/deadline', { method: 'PUT', body: { submissionDeadline: brt($('deadline-in').value) } });
+      toast('Prazo atualizado.');
+      await loadSubs();
+    } catch (e) { toast(e.message, true); }
+  });
+
+  // ---------- avaliação ----------
+  let evalState = null;
+  async function evalAction(body, ok) {
+    try {
+      evalState = await api('/hack/api/admin/evaluation', { method: 'POST', body });
+      if (ok) toast(ok);
+      renderEval();
+    } catch (e) { toast(e.message, true); }
+  }
+  async function loadEval() {
+    evalState = await api('/hack/api/admin/evaluation');
+    renderEval();
+  }
+  const fmt = (n) => (n === null || n === undefined ? '—' : n.toFixed(1));
+
+  function renderEval() {
+    const d = evalState;
+    const c = d.config;
+    const crit = clear($('crit-list'));
+    if (!c.criteria.length) crit.appendChild(h('li', h('p.muted', 'Nenhum critério ainda. Eles são definidos pela organização ao final.')));
+    c.criteria.forEach((x) => crit.appendChild(h('li',
+      h('div.list__main', h('b', x.name + ' · peso ' + x.weight + ' · 1 a ' + x.scaleMax + (c.tiebreakCriterionId === x.id ? ' · desempate' : '')), x.description ? h('span', x.description) : null),
+      c.criteriaLocked
+        ? (c.tiebreakCriterionId !== x.id && !c.resultsLocked ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => evalAction({ action: 'tiebreak', id: x.id }, 'Critério de desempate definido.') }, 'Usar no desempate') : null)
+        : h('div.row',
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => critDialog(x) }, 'Editar'),
+          h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: () => evalAction({ action: 'removeCriterion', id: x.id }) }, 'Excluir')))));
+    $('add-crit').hidden = c.criteriaLocked;
+    $('lock-crit').textContent = c.criteriaLocked ? 'Destravar critérios' : 'Travar critérios';
+    $('lock-crit').disabled = c.resultsLocked;
+
+    const st = $('eval-status');
+    fill(st,
+      h('span.badge' + (c.open ? '.badge--ok' : ''), c.open ? 'Avaliação aberta' : 'Avaliação fechada'),
+      h('span.badge', c.phase === 'final' ? 'Fase final' : 'Fase única'),
+      c.resultsLocked ? h('span.badge.badge--red', 'Resultado travado') : null,
+      c.revealedAt ? h('span.badge.badge--ok', 'Revelado ' + window.Hack.dayTime(c.revealedAt)) : null,
+      h('span.muted.small', d.evaluableCount + ' equipe(s) em avaliação'));
+    $('toggle-open').textContent = c.open ? 'Fechar avaliação' : 'Abrir avaliação';
+    $('toggle-open').disabled = !c.criteriaLocked || c.resultsLocked;
+    $('phase-btn').textContent = c.phase === 'final' ? 'Voltar para fase única' : 'Abrir fase final (finalistas)';
+    $('phase-btn').disabled = c.resultsLocked;
+    $('lock-results').textContent = c.resultsLocked ? 'Destravar resultado' : 'Travar resultado';
+    $('lock-results').disabled = Boolean(c.revealedAt);
+    $('reveal').disabled = !c.resultsLocked || Boolean(c.revealedAt);
+    $('podium-in').value = c.podiumSize;
+
+    const jl = clear($('judges-list'));
+    if (!d.judges.length) jl.appendChild(h('li', h('p.muted', 'Nenhum jurado cadastrado (aba Pessoas).')));
+    d.judges.forEach((j) => jl.appendChild(h('li',
+      h('div.list__main', h('b', j.name), h('span', j.conflicts.length ? j.conflicts.length + ' impedimento(s)' : 'Sem impedimentos')),
+      h('span.badge' + (j.done === j.total && j.total ? '.badge--ok' : '.badge--warn'), j.done + '/' + j.total))));
+
+    const tb = clear($('rank-body'));
+    if (!d.ranking.length) tb.appendChild(h('li', h('p.muted', 'Sem equipes confirmadas.')));
+    d.ranking.forEach((r) => tb.appendChild(h('li',
+      h('span.card__big', { style: 'font-size:34px;min-width:56px' }, r.position ? r.position + 'º' : '—'),
+      h('div.list__main', h('b', r.name), h('span',
+        'Nota ' + fmt(r.score) + ' · desempate ' + fmt(r.tiebreak) + ' · ' + r.judges + '/' + r.eligibleJudges + ' jurado(s)' +
+        (c.phase === 'final' && r.finalist ? ' · final (fase única: ' + fmt(r.main.score) + ')' : '') + (r.complete ? '' : ' · entrega incompleta'))),
+      h('label.check', { style: 'min-height:44px' },
+        h('input', { type: 'checkbox', checked: r.finalist, disabled: c.resultsLocked, onchange: (ev) => {
+          const ids = c.finalists.filter((x) => x !== r.teamId).concat(ev.target.checked ? [r.teamId] : []);
+          evalAction({ action: 'finalists', teamIds: ids });
+        } }), h('span', 'Finalista')))));
+  }
+
+  function critDialog(x) {
+    x = x || { name: '', description: '', weight: 1, scaleMax: 5 };
+    const form = h('form.form',
+      h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: x.name, required: true, maxlength: 60 })),
+      h('label.field', h('span', 'Descrição para a banca'), h('textarea', { name: 'description', maxlength: 300 }, x.description)),
+      h('div.form-grid',
+        h('label.field', h('span', 'Peso'), h('input', { name: 'weight', type: 'number', min: '0.1', max: '10', step: '0.1', value: x.weight })),
+        h('label.field', h('span', 'Escala'), h('select', { name: 'scaleMax' },
+          h('option', { value: 5, selected: x.scaleMax === 5 }, '1 a 5'), h('option', { value: 10, selected: x.scaleMax === 10 }, '1 a 10')))),
+      h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      dlg.close();
+      evalAction({ action: x.id ? 'updateCriterion' : 'addCriterion', id: x.id, name: f.name.value, description: f.description.value, weight: Number(f.weight.value), scaleMax: Number(f.scaleMax.value) }, 'Critério salvo.');
+    });
+    openDialog(x.id ? 'Editar critério' : 'Novo critério', form);
+  }
+  $('add-crit').addEventListener('click', () => critDialog(null));
+  $('lock-crit').addEventListener('click', () => {
+    const lock = !evalState.config.criteriaLocked;
+    if (lock && !confirmTwice('Travar os critérios? Depois da primeira nota eles não mudam mais.')) return;
+    evalAction({ action: 'lockCriteria', lock }, lock ? 'Critérios travados.' : 'Critérios destravados.');
+  });
+  $('toggle-open').addEventListener('click', () => evalAction({ action: 'open', open: !evalState.config.open }, evalState.config.open ? 'Avaliação fechada.' : 'Avaliação aberta para a banca.'));
+  $('phase-btn').addEventListener('click', () => {
+    const toFinal = evalState.config.phase !== 'final';
+    if (toFinal && !confirmTwice('Abrir a fase final? Os jurados passam a avaliar só as finalistas.')) return;
+    evalAction({ action: 'phase', phase: toFinal ? 'final' : 'main' }, toFinal ? 'Fase final aberta.' : 'Voltou para a fase única.');
+  });
+  $('lock-results').addEventListener('click', () => {
+    const lock = !evalState.config.resultsLocked;
+    if (lock && !confirmTwice('Travar o resultado? A banca não consegue mais mudar notas.')) return;
+    evalAction({ action: 'lockResults', lock }, lock ? 'Resultado travado.' : 'Resultado destravado.');
+  });
+  $('reveal').addEventListener('click', () => {
+    if (!confirmTwice('Revelar o resultado? O pódio aparece no portal de todo mundo.')) return;
+    evalAction({ action: 'reveal' }, 'Resultado revelado.');
+  });
+  $('form-podium').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    evalAction({ action: 'podium', podiumSize: Number($('podium-in').value) }, 'Pódio atualizado.');
+  });
+
   // ---------- carga ----------
-  const loaders = { pessoas: loadPeople, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });

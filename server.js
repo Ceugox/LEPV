@@ -3534,10 +3534,13 @@ registerHackathonRoutes(app, {
   readEventsStore,
   todayBR,
   // Membro da liga logado no site, com papel atual (não o do login).
+  // Quem ainda precisa trocar a senha provisória não passa daqui, como no resto do site.
   liveMember: (req) => {
     const u = req.session && req.session.user ? liveRole(req) : null;
-    return u ? { order: u.order, name: u.name, director: isDirectorRole(u) } : null;
+    if (!u || u.mustChangePassword) return null;
+    return { order: u.order, name: u.name, director: isDirectorRole(u) };
   },
+  recordFailure,
 });
 
 app.use(express.static(PUBLIC_DIR, { index: false }));

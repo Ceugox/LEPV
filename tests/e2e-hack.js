@@ -15,6 +15,7 @@ const ROOT = path.join(__dirname, "..");
 const PORT = 4900 + (process.pid % 90);
 const BASE = "http://127.0.0.1:" + PORT;
 const ADMIN_PASS = "teste-superadmin-hack";
+const BASE_NOW = "2026-10-24T15:00:00Z";
 const MEMBER_PASS = "teste-membro-hack";
 
 let volumeDir;
@@ -56,6 +57,9 @@ function startServer(extraEnv) {
         RESEND_API_KEY: "",
         HACK_PUBLIC_URL: "https://lepv.example",
         HACK_PUSH_OUTBOX: pushOutbox,
+        // Relógio fixo antes do evento: a suíte não pode mudar de resultado
+        // quando o calendário real passar pelos horários agendados (30/10).
+        HACK_NOW: BASE_NOW,
         ...(extraEnv || {}),
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -91,8 +95,8 @@ async function restartServer(extraEnv) {
 
 function client() {
   let cookie = "";
-  async function req(method, url, body) {
-    const opts = { method, headers: {}, redirect: "manual" };
+  async function req(method, url, body, extraHeaders) {
+    const opts = { method, headers: Object.assign({}, extraHeaders || {}), redirect: "manual" };
     if (cookie) opts.headers.Cookie = cookie;
     if (body !== undefined) {
       if (Buffer.isBuffer(body)) {
@@ -404,6 +408,48 @@ test("acesso: pedido de link responde igual e na hora para e-mail cadastrado ou 
   eq(mails().filter((m) => m.to === "fantasma@ex.com").length, 0);
 });
 
+test("segurança: diretoria cadastra jurado com e-mail já inscrito — o contato da diretoria vale", async () => {
+  const atk = await client().post("/api/event-signup/" + S.signupToken, {
+    name: "Falso Jurado", email: "jurado2@ex.com", phone: "21900000000", vinculo: "FGV", temGrupo: "Não", awareLocation: true, awareTime: true,
+  });
+  eq(atk.status, 200);
+  const r = await S.admin.post("/hack/api/admin/people", { name: "Jorge Jurado", email: "jurado2@ex.com", phone: "21955554444", roles: ["judge"] });
+  eq(r.status, 200);
+  eq(r.data.person.phone, "21955554444");
+  eq(r.data.person.name, "Jorge Jurado");
+  const l = await S.admin.post("/hack/api/admin/people/" + r.data.person.id + "/link", { send: "none" });
+  assert(l.data.whatsappUrl.startsWith("https://wa.me/5521955554444"), "WhatsApp do jurado: " + l.data.whatsappUrl);
+  // a próxima sincronização não devolve o telefone da inscrição
+  await S.admin.get("/hack/api/admin/people");
+  const again = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.id === r.data.person.id);
+  eq(again.phone, "21955554444");
+});
+
+test("permissões: toda rota da organização recusa anônimo (401) e participante (403)", async () => {
+  const id = S.people.ids["carla@ex.com"];
+  const routes = [
+    ["GET", "/hack/api/admin/people"], ["POST", "/hack/api/admin/people"], ["PATCH", "/hack/api/admin/people/" + id],
+    ["POST", "/hack/api/admin/people/" + id + "/link"], ["POST", "/hack/api/admin/people/" + id + "/revoke"],
+    ["POST", "/hack/api/admin/links/bulk"], ["GET", "/hack/api/admin/program"], ["POST", "/hack/api/admin/program"],
+    ["GET", "/hack/api/admin/announcements"], ["POST", "/hack/api/admin/announcements"], ["POST", "/hack/api/admin/announcements/preview"],
+    ["GET", "/hack/api/admin/whatsapp"], ["POST", "/hack/api/admin/deliveries/x"],
+    ["GET", "/hack/api/admin/teams"], ["POST", "/hack/api/admin/teams"], ["GET", "/hack/api/admin/submissions"],
+    ["PUT", "/hack/api/admin/config/deadline"], ["GET", "/hack/api/admin/evaluation"], ["POST", "/hack/api/admin/evaluation"],
+  ];
+  const anon = client();
+  for (const [m, u] of routes) {
+    const body = m === "GET" ? undefined : {};
+    eq((await anon.raw(m, u, body)).status, 401, "anônimo " + m + " " + u);
+    eq((await S.people.ana.raw(m, u, body)).status, 403, "participante " + m + " " + u);
+  }
+});
+
+test("acesso: pedido de link tem limite por e-mail (429)", async () => {
+  const c = client();
+  for (let i = 0; i < 3; i++) eq((await c.post("/hack/api/access/request", { email: "limite@ex.com" })).status, 200);
+  eq((await c.post("/hack/api/access/request", { email: "limite@ex.com" })).status, 429);
+});
+
 // ================= módulo 3: avisos =================
 
 test("avisos: participante não acessa a composição", async () => {
@@ -463,6 +509,31 @@ test("avisos: fila de WhatsApp assistido, marcada à mão", async () => {
   eq(again.data.items.find((x) => x.id === mine[0].id).status, "sent");
 });
 
+test("avisos: no máximo 5 aparelhos por pessoa recebem push", async () => {
+  for (let i = 0; i < 6; i++) eq((await S.people.julia.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("julia" + i) })).status, 200);
+  const r = await S.admin.post("/hack/api/admin/announcements", { title: "Banca às 14h", body: "Sala 3.", audiences: ["judge"], urgent: true });
+  eq(r.status, 200);
+  await waitFor(() => pushes().filter((x) => x.payload.title === "Banca às 14h").length >= 5, 5000);
+  await new Promise((res) => setTimeout(res, 300));
+  const juliaPushes = pushes().filter((x) => x.payload.title === "Banca às 14h" && /julia/.test(x.endpoint));
+  eq(juliaPushes.length, 5);
+  assert(!juliaPushes.some((x) => x.endpoint === FAKE_SUB("julia0").endpoint), "o mais antigo saiu");
+});
+
+test("avisos: bloquear tira as notificações do aparelho", async () => {
+  const jid = S.people.ids["julia@ex.com"];
+  eq((await S.admin.patch("/hack/api/admin/people/" + jid, { disabled: true })).status, 200);
+  eq((await S.people.julia.get("/hack/api/me")).status, 401);
+  const r = await S.admin.post("/hack/api/admin/announcements", { title: "Pós-bloqueio", body: "Teste.", audiences: ["judge"], urgent: true });
+  eq(r.status, 200);
+  await new Promise((res) => setTimeout(res, 800));
+  eq(pushes().filter((x) => x.payload.title === "Pós-bloqueio").length, 0);
+  eq((await S.admin.patch("/hack/api/admin/people/" + jid, { disabled: false })).status, 200);
+  const l = await S.admin.post("/hack/api/admin/people/" + jid + "/link", { send: "none" });
+  S.people.julia = client();
+  eq((await S.people.julia.post("/hack/api/access/consume", { token: l.data.url.split("#t=")[1] })).status, 200);
+});
+
 test("avisos: push urgente chega ao aparelho inscrito", async () => {
   eq((await S.people.ana.post("/hack/api/push/subscribe", { subscription: { endpoint: "javascript:alert(1)", keys: {} } })).status, 400);
   eq((await S.people.ana.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("ana") })).status, 200);
@@ -511,6 +582,204 @@ test("avisos: servidor fora do ar no horário deixa o aviso vencido para a organ
   eq((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "Bom dia, Instituto 12!"), false);
   eq((await S.admin.post("/hack/api/admin/announcements/" + second.id + "/publish")).status, 200);
   assert((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "Bom dia, Instituto 12!"), "publicado pela organização");
+  await restartServer();
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+});
+
+// ================= módulo 4: equipes =================
+
+test("equipes: só participantes; jurada e quem está na fila não formam equipe", async () => {
+  S.c = {};
+  for (const e of ["ana", "bruno", "carla", "davi", "elisa", "wagner"]) S.c[e] = await enterAs(e + "@ex.com");
+  S.c.julia = await enterAs("julia@ex.com");
+  // (o Wagner saiu da fila quando a capacidade voltou a ser livre)
+  eq((await S.c.julia.post("/hack/api/team", { name: "Banca" })).status, 403, "jurada");
+  eq((await S.c.julia.get("/hack/api/team/discover")).status, 403, "jurada não usa a descoberta");
+  eq((await S.c.ana.get("/hack/api/admin/teams")).status, 403, "participante não vê o painel");
+});
+
+test("equipes: cria, entra por código; quem declarou grupo não usa a descoberta", async () => {
+  const r = await S.c.ana.post("/hack/api/team", { name: "Alfa" });
+  eq(r.status, 200, JSON.stringify(r.data));
+  S.alfa = r.data.team;
+  assert(/^[A-Z2-9]{6}$/.test(S.alfa.code), "código de 6");
+  eq((await S.c.bruno.get("/hack/api/team/discover")).status, 403, "bruno tem grupo");
+  const j = await S.c.bruno.post("/hack/api/team/join", { code: S.alfa.code.toLowerCase() });
+  eq(j.status, 200);
+  eq(j.data.team.size, 2);
+});
+
+test("equipes: convite só para perfil visível e sem grupo; aceito vira integrante", async () => {
+  const elisaId = (await S.c.elisa.get("/hack/api/me")).data.me.id;
+  eq((await S.c.ana.post("/hack/api/team/invite", { personId: elisaId })).status, 409, "perfil escondido");
+  const brunoId = (await S.c.bruno.get("/hack/api/me")).data.me.id;
+  eq((await S.c.ana.post("/hack/api/team/invite", { personId: brunoId })).status, 409, "quem tem grupo não recebe convite");
+  eq((await S.c.elisa.put("/hack/api/team/profile", { published: true, bio: "Dados", skills: "python, sql" })).status, 200);
+  const disc = await S.c.ana.get("/hack/api/team/discover");
+  assert(disc.data.people.some((p) => p.id === elisaId), "Elisa aparece na descoberta");
+  assert(!disc.data.people.some((p) => p.id === brunoId), "Bruno não aparece");
+  eq((await S.c.ana.post("/hack/api/team/invite", { personId: elisaId })).status, 200);
+  const inv = (await S.c.elisa.get("/hack/api/team")).data.invites[0];
+  eq(inv.kind, "invite");
+  eq((await S.c.elisa.post("/hack/api/team/invites/" + inv.id, { accept: true })).status, 200);
+  eq((await S.c.ana.get("/hack/api/team")).data.team.size, 3);
+});
+
+test("equipes: pedido aceito por integrante lota a equipe; código não passa de 4", async () => {
+  eq((await S.c.carla.put("/hack/api/team/profile", { published: true, skills: ["design"] })).status, 200);
+  eq((await S.c.carla.post("/hack/api/team/request", { teamId: S.alfa.id })).status, 200);
+  const req = (await S.c.bruno.get("/hack/api/team")).data.requests.find((r) => r.kind === "request");
+  assert(req, "Bruno (integrante) vê o pedido");
+  eq((await S.c.carla.post("/hack/api/team/invites/" + req.id, { accept: true })).status, 403, "quem pediu não aprova o próprio pedido");
+  eq((await S.c.bruno.post("/hack/api/team/invites/" + req.id, { accept: true })).status, 200);
+  eq((await S.c.davi.post("/hack/api/team/join", { code: S.alfa.code })).status, 409, "equipe cheia");
+  const conf = await S.c.ana.patch("/hack/api/team", { confirm: true });
+  eq(conf.status, 200);
+  eq(conf.data.team.status, "confirmed");
+});
+
+test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", async () => {
+  const r = await S.admin.get("/hack/api/admin/teams");
+  eq(r.status, 200);
+  const alfa = r.data.teams.find((t) => t.id === S.alfa.id);
+  eq(alfa.size, 4);
+  assert(alfa.members.every((m) => m.email), "contatos para a organização");
+  const davi = r.data.solo.find((p) => p.email === "davi@ex.com");
+  assert(davi, "Davi sem equipe");
+  const c = await S.admin.post("/hack/api/admin/teams", { name: "Beta", memberIds: [davi.id] });
+  eq(c.status, 200);
+  S.beta = c.data.team;
+  eq((await S.admin.post("/hack/api/admin/teams/" + S.beta.id + "/merge", { otherId: S.alfa.id })).status, 409, "passaria de 4");
+});
+
+test("equipes: depois do prazo de entrega a composição congela (só a diretoria mexe)", async () => {
+  // Prazo: 31/10 13h de Brasília = 16h UTC.
+  await restartServer({ HACK_NOW: "2026-10-31T16:05:00Z" });
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+  const ana = await enterAs("ana@ex.com");
+  eq((await ana.post("/hack/api/team/leave")).status, 409);
+  eq((await ana.get("/hack/api/team")).data.locked, true);
+  const beta = (await S.admin.get("/hack/api/admin/teams")).data.teams.find((t) => t.id === S.beta.id);
+  const add = await S.admin.patch("/hack/api/admin/teams/" + S.beta.id, { removeMember: beta.members[0].id });
+  eq(add.status, 200, "diretoria ainda ajusta");
+  await restartServer();
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+});
+
+// ================= módulo 5: entrega e avaliação =================
+const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
+
+async function uploadSlides(c, buf, name) {
+  return c.raw("POST", "/hack/api/team/submission/slides", buf, { "X-File-Name": name || "pitch.pdf" });
+}
+
+test("entrega: equipe confirmada entrega repositório e PDF; links e arquivo são validados", async () => {
+  // Sessões não sobrevivem aos reinícios dos testes anteriores (SIGKILL).
+  S.c.ana = await enterAs("ana@ex.com");
+  S.c.julia = await enterAs("julia@ex.com");
+  let r = await S.c.ana.get("/hack/api/team/submission");
+  eq(r.status, 200);
+  eq(r.data.submission.complete, false);
+  eq((await S.c.ana.put("/hack/api/team/submission", { repoUrl: "javascript:alert(1)" })).status, 400);
+  eq((await S.c.ana.put("/hack/api/team/submission", { projectName: "Teachy+", repoUrl: "https://github.com/lepv/alfa", description: "Tutor de IA" })).status, 200);
+  eq((await uploadSlides(S.c.ana, Buffer.from("<html>nope</html>"))).status, 400, "não é PDF");
+  const up = await uploadSlides(S.c.ana, PDF);
+  eq(up.status, 200, JSON.stringify(up.data));
+  eq(up.data.submission.complete, true);
+  const big = Buffer.concat([PDF, Buffer.alloc(21 * 1024 * 1024)]);
+  eq((await uploadSlides(S.c.ana, big)).status, 413, "acima de 20 MB");
+  S.c.davi = await enterAs("davi@ex.com");
+  eq((await S.c.davi.put("/hack/api/team/submission", { repoUrl: "https://github.com/x/y" })).status, 404, "sem equipe");
+});
+
+test("entrega: slides só para a equipe e a organização antes do prazo/abertura", async () => {
+  const url = "/hack/api/submissions/" + S.alfa.id + "/slides";
+  const own = await S.c.ana.get(url);
+  eq(own.status, 200);
+  eq(own.headers.get("content-type"), "application/pdf");
+  eq((await S.c.davi.get(url)).status, 403, "outro participante");
+  eq((await S.c.julia.get(url)).status, 403, "jurada antes da abertura");
+  eq((await S.admin.get(url)).status, 200);
+});
+
+test("avaliação: segunda equipe, critérios travados antes de abrir", async () => {
+  const solo = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  const davi = solo.find((p) => p.email === "davi@ex.com");
+  const wagner = solo.find((p) => p.email === "wagner@ex.com");
+  const g = await S.admin.post("/hack/api/admin/teams", { name: "Gama", memberIds: [davi.id, wagner.id] });
+  eq(g.status, 200);
+  S.gama = g.data.team;
+  eq((await S.admin.patch("/hack/api/admin/teams/" + S.gama.id, { confirm: true })).status, 200);
+  eq((await S.c.davi.put("/hack/api/team/submission", { repoUrl: "https://github.com/lepv/gama" })).status, 200);
+  eq((await uploadSlides(S.c.davi, PDF)).status, 200);
+
+  const ev = (body) => S.admin.post("/hack/api/admin/evaluation", body);
+  eq((await ev({ action: "open", open: true })).status, 409, "sem critérios travados");
+  eq((await ev({ action: "addCriterion", name: "Aderência ao desafio", weight: 2 })).status, 200);
+  const r = await ev({ action: "addCriterion", name: "Execução técnica", weight: 1, scaleMax: 10 });
+  eq(r.status, 200);
+  S.crit = r.data.config.criteria;
+  eq((await ev({ action: "lockCriteria", lock: true })).status, 200);
+  eq((await ev({ action: "addCriterion", name: "Pitch" })).status, 409, "travados");
+  const j = await S.c.julia.get("/hack/api/judge");
+  eq(j.data.open, false);
+  eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, { values: {} })).status, 409, "fechada");
+  eq((await ev({ action: "open", open: true })).status, 200);
+});
+
+const score = (a, b) => ({ values: { [S.crit[0].id]: a, [S.crit[1].id]: b } });
+
+test("avaliação: jurados dão nota, cada um vê só a sua; impedido não pontua", async () => {
+  const j = await S.c.julia.get("/hack/api/judge");
+  eq(j.status, 200);
+  eq(j.data.teams.length, 2);
+  eq(j.data.criteria.length, 2);
+  eq((await S.c.julia.get("/hack/api/submissions/" + S.alfa.id + "/slides")).status, 200, "com a avaliação aberta a banca vê os slides");
+  eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, score(6, 5))).status, 400, "fora da escala");
+  eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, Object.assign(score(5, 10), { comment: "ótimo pitch" }))).status, 200);
+  eq((await S.c.julia.put("/hack/api/judge/scores/" + S.gama.id, score(3, 6))).status, 200);
+  const jorge = await enterAs("jurado2@ex.com");
+  eq((await jorge.post("/hack/api/judge/conflicts/" + S.alfa.id, { conflict: true })).status, 200);
+  eq((await jorge.put("/hack/api/judge/scores/" + S.alfa.id, score(1, 1))).status, 409, "impedido");
+  eq((await jorge.put("/hack/api/judge/scores/" + S.gama.id, Object.assign(score(4, 8), { comment: "segredo-do-jorge" }))).status, 200);
+  const view = await S.c.julia.get("/hack/api/judge");
+  assert(!JSON.stringify(view.data).includes("segredo-do-jorge"), "nota de outro jurado não vaza");
+  eq((await S.c.ana.get("/hack/api/judge")).status, 403);
+  const rk = (await S.admin.get("/hack/api/admin/evaluation")).data.ranking;
+  eq(rk[0].teamId, S.alfa.id);
+  eq(rk[0].score, 100);
+  eq(rk[0].judges, 1);
+  eq(rk[0].eligibleJudges, 1, "impedido não conta");
+  eq(rk[1].teamId, S.gama.id);
+  eq(rk[1].judges, 2);
+});
+
+test("resultado: travado fecha a banca; só depois de revelar o pódio fica público, sem notas", async () => {
+  eq((await client().get("/hack/api/results")).data.podium, null);
+  const ev = (body) => S.admin.post("/hack/api/admin/evaluation", body);
+  eq((await ev({ action: "reveal" })).status, 409, "trave antes");
+  eq((await ev({ action: "lockResults", lock: true })).status, 200);
+  eq((await S.c.julia.put("/hack/api/judge/scores/" + S.gama.id, score(5, 10))).status, 409);
+  eq((await ev({ action: "reveal" })).status, 200);
+  const pub = await client().get("/hack/api/results");
+  eq(pub.data.podium[0].name, "Alfa");
+  eq(pub.data.podium[0].position, 1);
+  assert(!JSON.stringify(pub.data).includes("score"), "sem nota no público");
+  eq((await ev({ action: "lockResults", lock: false })).status, 409, "revelado não destrava");
+});
+
+test("entrega: depois do prazo a equipe não edita mais", async () => {
+  await restartServer({ HACK_NOW: "2026-10-31T16:01:00Z" });
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+  const ana = await enterAs("ana@ex.com");
+  const r = await ana.get("/hack/api/team/submission");
+  eq(r.data.open, false);
+  eq((await ana.put("/hack/api/team/submission", { description: "tarde demais" })).status, 409);
+  eq((await uploadSlides(ana, PDF)).status, 409);
   await restartServer();
   S.admin = client();
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);

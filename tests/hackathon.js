@@ -9,6 +9,11 @@ const { syncParticipants, newPerson } = require("../lib/hackathon/people");
 const { issueLoginToken, consumeLoginToken, unconsumeLoginToken, revokeOtherTokens, revokeAllTokens, resolveActor, ensureActorPerson, perms } = require("../lib/hackathon/access");
 const { sha256 } = require("../lib/hackathon/store");
 const A = require("../lib/hackathon/announcements");
+const TM = require("../lib/hackathon/teams");
+const EV = require("../lib/hackathon/evaluation");
+const { createDelivery, MAX_ATTEMPTS } = require("../lib/hackathon/delivery");
+const { publicBaseFor, rateLimiter, networkOutcome } = require("../lib/hackathon/util");
+const { sendAccessLink } = require("../lib/hackathon/routes/access");
 const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
 
 const results = { pass: 0, fail: 0 };
@@ -286,6 +291,386 @@ test("avisos: semente só para participantes, sem e-mail, sem duplicar", () => {
   });
   A.seedAnnouncements(s);
   eq1(s.announcements.length, 2);
+});
+
+// ---------- equipes ----------
+function teamState(n, extra) {
+  const s = emptyState();
+  const ps = [];
+  for (let i = 0; i < n; i++) {
+    const p = newPerson(Object.assign({ name: "P" + i, roles: ["participant"], profile: { published: true, bio: "", skills: [], interests: [] } }, extra && extra(i)));
+    s.people.push(p);
+    ps.push(p);
+  }
+  return { s, ps };
+}
+
+test("equipes: confirmação só com 2 a 4 (1, 2, 4 e 5)", () => {
+  const { s, ps } = teamState(6);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  assert.throws(() => TM.confirm(s, t, T0), /2 a 4/);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  eq1(TM.confirm(s, t, T0).status, "confirmed");
+  TM.joinByCode(s, ps[2].id, t.code.toLowerCase(), T0);
+  TM.joinByCode(s, ps[3].id, t.code, T0);
+  eq1(TM.confirm(s, t, T0).members.length, 4);
+  assert.throws(() => TM.joinByCode(s, ps[4].id, t.code, T0), /4 pessoas/);
+});
+test("equipes: uma equipe por pessoa", () => {
+  const { s, ps } = teamState(3);
+  TM.createTeam(s, ps[0].id, "Alfa", T0);
+  const b = TM.createTeam(s, ps[1].id, "Beta", T0);
+  assert.throws(() => TM.joinByCode(s, ps[0].id, b.code, T0), /outra equipe/);
+  assert.throws(() => TM.createTeam(s, ps[0].id, "Gama", T0), /já está/);
+  assert.throws(() => TM.createTeam(s, ps[2].id, "alfa", T0), /mesmo nome|nome/);
+});
+test("equipes: duas aceitações para a última vaga — só uma entra", () => {
+  const { s, ps } = teamState(6);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  TM.joinByCode(s, ps[2].id, t.code, T0);
+  const i1 = TM.invite(s, t, ps[0].id, ps[3].id, T0);
+  const i2 = TM.invite(s, t, ps[0].id, ps[4].id, T0);
+  TM.decide(s, i1.id, ps[3].id, true, T0);
+  eq1(t.members.length, 4);
+  eq1(s.invites.find((i) => i.id === i2.id).status, "cancelled", "equipe cheia cancela os outros convites");
+  assert.throws(() => TM.decide(s, i2.id, ps[4].id, true, T0), /não encontrado/);
+});
+test("equipes: aceitar convite de duas equipes — a segunda é recusada pelo sistema", () => {
+  const { s, ps } = teamState(3);
+  const a = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  const b = TM.createTeam(s, ps[1].id, "Beta", T0);
+  const ia = TM.invite(s, a, ps[0].id, ps[2].id, T0);
+  const ib = TM.invite(s, b, ps[1].id, ps[2].id, T0);
+  TM.decide(s, ia.id, ps[2].id, true, T0);
+  eq1(s.invites.find((i) => i.id === ib.id).status, "cancelled");
+  assert.throws(() => TM.decide(s, ib.id, ps[2].id, true, T0), /não encontrado/);
+  eq1(TM.teamOf(s, ps[2].id).id, a.id);
+});
+test("equipes: quem declarou grupo não é descoberto nem convidado, mas entra por código", () => {
+  const { s, ps } = teamState(2, (i) => (i === 1 ? { hasGroup: true } : {}));
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  eq1(TM.discoverable(s, ps[1]), false);
+  assert.throws(() => TM.invite(s, t, ps[0].id, ps[1].id, T0), /disponível/);
+  assert.throws(() => TM.request(s, t, ps[1].id, T0), /código/);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  eq1(t.members.length, 2);
+});
+test("equipes: perfil escondido não é descoberto; pedido decidido por membro da equipe", () => {
+  const { s, ps } = teamState(3, (i) => (i === 2 ? { profile: { published: false, skills: [] } } : {}));
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  eq1(TM.discoverable(s, ps[2]), false);
+  const r = TM.request(s, t, ps[1].id, T0);
+  assert.throws(() => TM.decide(s, r.id, ps[1].id, true, T0), /não pode/);
+  TM.decide(s, r.id, ps[0].id, true, T0);
+  eq1(t.members.length, 2);
+});
+test("equipes: saída abaixo de 2 desconfirma; vazia some; dono passa adiante", () => {
+  const { s, ps } = teamState(2);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  TM.confirm(s, t, T0);
+  TM.leave(s, t, ps[0].id, T0);
+  eq1(t.status, "forming");
+  eq1(t.ownerId, ps[1].id);
+  TM.leave(s, t, ps[1].id, T0);
+  eq1(s.teams.length, 0);
+});
+test("equipes: não participante não entra; diretoria junta equipes até 4", () => {
+  const { s, ps } = teamState(5);
+  const judge = newPerson({ roles: ["judge"] });
+  s.people.push(judge);
+  assert.throws(() => TM.createTeam(s, judge.id, "Banca", T0), /participantes/);
+  const a = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, a.code, T0);
+  const b = TM.createTeam(s, ps[2].id, "Beta", T0);
+  TM.joinByCode(s, ps[3].id, b.code, T0);
+  const c = TM.createTeam(s, ps[4].id, "Gama", T0);
+  TM.merge(s, a.id, b.id, T0);
+  eq1(a.members.length, 4);
+  eq1(s.teams.some((t) => t.id === b.id), false);
+  assert.throws(() => TM.merge(s, a.id, c.id, T0), /passariam/);
+});
+
+// ---------- entrega e avaliação ----------
+function evalState(nTeams) {
+  const { s, ps } = teamState(nTeams * 2);
+  const teams = [];
+  for (let i = 0; i < nTeams; i++) {
+    const t = TM.createTeam(s, ps[i * 2].id, "Equipe " + i, T0);
+    TM.joinByCode(s, ps[i * 2 + 1].id, t.code, T0);
+    TM.confirm(s, t, T0);
+    EV.upsertSubmission(s, t.id, { repoUrl: "https://github.com/x/" + i, slides: { file: "f.pdf", name: "s.pdf", size: 10 } }, ps[i * 2].id, T0);
+    teams.push(t);
+  }
+  const judges = [0, 1, 2].map((i) => {
+    const j = newPerson({ name: "J" + i, roles: ["judge"] });
+    s.people.push(j);
+    return j;
+  });
+  return { s, teams, judges };
+}
+const vals = (s, a, b) => {
+  const [c1, c2] = s.config.evaluation.criteria;
+  return { values: { [c1.id]: a, [c2.id]: b } };
+};
+
+test("avaliação: critérios travados antes de abrir; com nota, não destravam", () => {
+  const { s, teams, judges } = evalState(1);
+  assert.throws(() => EV.setOpen(s, true), /Trave/);
+  assert.throws(() => EV.lockCriteria(s, true), /pelo menos um/);
+  EV.addCriterion(s, { name: "Aderência", weight: 2 });
+  EV.addCriterion(s, { name: "Execução", weight: 1, scaleMax: 10 });
+  EV.lockCriteria(s, true);
+  assert.throws(() => EV.addCriterion(s, { name: "Outro" }), /travados/);
+  eq1(s.config.evaluation.tiebreakCriterionId, s.config.evaluation.criteria[0].id, "desempate padrão é o primeiro");
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 3, 3), T0), /não está aberta/);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 10), T0);
+  assert.throws(() => EV.lockCriteria(s, false), /notas/);
+});
+test("avaliação: nota fora da escala ou faltando critério é recusada", () => {
+  const { s, teams, judges } = evalState(1);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta", scaleMax: 10 });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 6, 3), T0), /1 a 5/);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 2.5, 3), T0), /inteira/);
+  const [c1] = s.config.evaluation.criteria;
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, { values: { [c1.id]: 3 } }, T0), /Beta/);
+});
+test("avaliação: só equipe confirmada com entrega completa é avaliada", () => {
+  const { s, teams, judges } = evalState(2);
+  s.submissions.find((x) => x.teamId === teams[1].id).slides = null;
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  eq1(EV.evaluableTeams(s).length, 1);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 3, 3), T0), /não está em avaliação/);
+});
+test("avaliação: ranking por média ponderada, desempate pelo critério escolhido", () => {
+  const { s, teams, judges } = evalState(3);
+  EV.addCriterion(s, { name: "Aderência", weight: 1 });
+  EV.addCriterion(s, { name: "Pitch", weight: 1 });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  // T0: (5,1) e T1: (1,5) empatam na média; desempate = Aderência → T0 na frente.
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 1), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 1, 5), T0);
+  EV.submitScore(s, judges[0].id, teams[2].id, vals(s, 5, 5), T0);
+  const r = EV.ranking(s);
+  eq1(r[0].teamId, teams[2].id);
+  eq1(r[0].score, 100);
+  eq1(r[1].teamId, teams[0].id);
+  eq1(r[2].teamId, teams[1].id);
+  eq1(r[1].position, 2);
+  eq1(r[2].position, 3);
+});
+test("avaliação: impedimento tira a nota e não conta no total de jurados", () => {
+  const { s, teams, judges } = evalState(1);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 1, 1), T0);
+  EV.submitScore(s, judges[1].id, teams[0].id, vals(s, 5, 5), T0);
+  eq1(EV.ranking(s)[0].score, 50);
+  EV.setConflict(s, judges[0].id, teams[0].id, true, T0);
+  const row = EV.ranking(s)[0];
+  eq1(row.score, 100);
+  eq1(row.eligibleJudges, 2);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 3, 3), T0), /impedido/);
+});
+test("avaliação: fase final usa a nota da final para finalistas; travar fecha a banca", () => {
+  const { s, teams, judges } = evalState(3);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 5), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 4, 4), T0);
+  EV.submitScore(s, judges[0].id, teams[2].id, vals(s, 1, 1), T0);
+  assert.throws(() => EV.setPhase(s, "final"), /2 finalistas/);
+  EV.setFinalists(s, [teams[0].id, teams[1].id]);
+  EV.setPhase(s, "final");
+  eq1(EV.evaluableTeams(s).length, 2);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 2, 2), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 5, 5), T0);
+  const r = EV.ranking(s);
+  eq1(r[0].teamId, teams[1].id, "vence a final, não a fase única");
+  eq1(r[2].teamId, teams[2].id, "não finalista depois");
+  EV.lockResults(s, true, T0);
+  eq1(s.config.evaluation.open, false);
+  assert.throws(() => EV.setOpen(s, true), /travado/);
+  eq1(EV.podium(s), null, "nada público antes de revelar");
+  EV.reveal(s, T0);
+  const pod = EV.podium(s);
+  eq1(pod.length, 3);
+  eq1(pod[0].name, teams[1].name);
+  eq1(pod[0].score, undefined, "pódio não mostra nota");
+  assert.throws(() => EV.lockResults(s, false, T0), /revelado/);
+});
+test("avaliação: jurado que é integrante não avalia a própria equipe", () => {
+  const { s, teams } = evalState(1);
+  const member = s.people.find((p) => p.id === teams[0].members[0]);
+  member.roles.push("judge");
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  eq1(EV.hasConflict(s, member.id, teams[0].id), true);
+  assert.throws(() => EV.submitScore(s, member.id, teams[0].id, vals(s, 5, 5), T0), /impedido/);
+});
+test("entrega: PDF de verdade e links http(s)", () => {
+  eq1(EV.isPdf(Buffer.from("%PDF-1.7 ...")), true);
+  eq1(EV.isPdf(Buffer.from("<html>")), false);
+  assert.throws(() => EV.validateSubmissionFields({ repoUrl: "javascript:alert(1)" }), /inválido/);
+  eq1(EV.validateSubmissionFields({ repoUrl: "https://github.com/a/b" }).repoUrl, "https://github.com/a/b");
+});
+
+// ---------- revisão 2: entrega, base, limites, revogação ----------
+// Store em memória com o mesmo contrato do real (get/mutate com rollback).
+function memStore(state, opts) {
+  let st = state;
+  return {
+    get: () => st,
+    mutate(fn) {
+      const snap = JSON.stringify(st);
+      try {
+        const r = fn(st);
+        if (opts && opts.failWrite && opts.failWrite()) throw new Error("disco cheio");
+        return r;
+      } catch (e) {
+        st = JSON.parse(snap);
+        throw e;
+      }
+    },
+  };
+}
+function deliveryCtx(state, mailResult, opts) {
+  const sent = [];
+  const ctx = {
+    store: memStore(state, opts),
+    now: () => (opts && opts.now ? opts.now() : T0),
+    baseUrl: () => "https://lepv.example",
+    report: () => {},
+    mail: {
+      emailEnabled: () => true,
+      layout: () => "<html>",
+      sendEmail: async (m) => {
+        sent.push(m);
+        return typeof mailResult === "function" ? mailResult() : mailResult;
+      },
+    },
+  };
+  const push = { enabled: () => false, publicKey: () => "", send: async () => ({ status: "sent" }) };
+  return { ctx, sent, push };
+}
+function stateWithEmailDelivery() {
+  const { s } = annState();
+  A.createAnnouncement(s, draft({ audiences: ["sponsor"], channels: { email: true } }), null, T0);
+  return s;
+}
+
+test("entrega: sucesso marca enviado; e-mail usa a base pública", async () => {
+  const s = stateWithEmailDelivery();
+  const { ctx, sent, push } = deliveryCtx(s, { status: "outbox" });
+  await createDelivery(ctx, push).runOnce();
+  eq1(ctx.store.get().deliveries[0].status, "sent");
+  assert.ok(sent[0].text.includes("https://lepv.example/hack/portal#avisos"));
+});
+test("entrega: falha reenvia com espera; incerto não reenvia sozinho", async () => {
+  const s = stateWithEmailDelivery();
+  let t = T0.getTime();
+  const { ctx, sent, push } = deliveryCtx(s, { status: "failed", error: "HTTP 500" }, { now: () => new Date(t) });
+  const d = createDelivery(ctx, push);
+  await d.runOnce();
+  eq1(ctx.store.get().deliveries[0].status, "failed");
+  await d.runOnce();
+  eq1(sent.length, 1, "espera antes da segunda tentativa");
+  t += 61 * 1000;
+  await d.runOnce();
+  eq1(sent.length, 2);
+  t += 6 * 60 * 1000;
+  await d.runOnce();
+  await d.runOnce();
+  eq1(sent.length, MAX_ATTEMPTS, "para no máximo de tentativas");
+
+  const s2 = stateWithEmailDelivery();
+  const u = deliveryCtx(s2, { status: "unknown", error: "timeout" });
+  const d2 = createDelivery(u.ctx, u.push);
+  await d2.runOnce();
+  await d2.runOnce();
+  eq1(u.sent.length, 1);
+  eq1(u.ctx.store.get().deliveries[0].status, "unknown");
+});
+test("entrega: se gravar o resultado falha, o recibo fica 'enviando' e não sai de novo", async () => {
+  const s = stateWithEmailDelivery();
+  let writes = 0;
+  // Gravações: 1ª no boot da entrega, 2ª "enviando", 3ª o resultado (falha).
+  const { ctx, sent, push } = deliveryCtx(s, { status: "sent" }, { failWrite: () => ++writes === 3 });
+  const d = createDelivery(ctx, push);
+  await d.runOnce().catch(() => {});
+  await d.runOnce().catch(() => {});
+  eq1(sent.length, 1, "não reenviou");
+  eq1(ctx.store.get().deliveries[0].status, "sending");
+  // Reinício: "enviando" vira "incerto".
+  createDelivery(Object.assign({}, ctx, { store: memStore(ctx.store.get()) }), push);
+  eq1(ctx.store.get().deliveries[0].status, "unknown");
+});
+test("rede: sem conexão tenta de novo; timeout é incerto", () => {
+  eq1(networkOutcome({ code: "ECONNREFUSED", message: "x" }).status, "failed");
+  eq1(networkOutcome({ cause: { code: "ENOTFOUND" }, message: "fetch failed" }).status, "failed");
+  eq1(networkOutcome({ name: "TimeoutError", message: "aborted" }).status, "unknown");
+});
+test("base dos links: variável vence; Railway usa o domínio; Host só em dev", () => {
+  const req = { protocol: "http", get: () => "evil.example" };
+  eq1(publicBaseFor({ HACK_PUBLIC_URL: "https://lepv.org/" }, req), "https://lepv.org");
+  eq1(publicBaseFor({ RAILWAY_ENVIRONMENT_NAME: "production" }, req), "https://lepv.org");
+  eq1(publicBaseFor({}, req), "http://evil.example");
+  eq1(publicBaseFor({}, null), "https://lepv.org");
+});
+test("limite: estoura depois do teto na janela", () => {
+  const lim = rateLimiter(3, 60000);
+  eq1([lim("a"), lim("a"), lim("a"), lim("a")].join(), "false,false,false,true");
+  eq1(lim("b"), false, "chave separada");
+});
+test("link por e-mail: falha mantém o link antigo; sucesso o revoga", async () => {
+  const s = emptyState();
+  const p = newPerson({ email: "x@ex.com", roles: ["participant"] });
+  s.people.push(p);
+  const old = issueLoginToken(s, p.id, T0);
+  const bad = deliveryCtx(s, { status: "failed", error: "HTTP 422" });
+  const r = await sendAccessLink(bad.ctx, "https://lepv.example", p.id);
+  eq1(r.result.status, "failed");
+  eq1(bad.ctx.store.get().people[0].lastLinkEmail.status, "failed");
+  eq1(consumeLoginToken(bad.ctx.store.get(), old, later(1)).id, p.id, "antigo ainda vale");
+  const s2 = emptyState();
+  const p2 = newPerson({ email: "y@ex.com", roles: ["participant"] });
+  s2.people.push(p2);
+  const old2 = issueLoginToken(s2, p2.id, T0);
+  const ok = deliveryCtx(s2, { status: "sent" });
+  await sendAccessLink(ok.ctx, "https://lepv.example", p2.id);
+  assert.throws(() => consumeLoginToken(ok.ctx.store.get(), old2, later(1)), /Link inválido/);
+});
+test("ator: inscrição retirada derruba a sessão; membro bloqueado não entra", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"], signupStatus: "confirmed" });
+  s.people.push(p);
+  assert.ok(resolveActor(req({ pid: p.id, epoch: 1 }), s, deps));
+  p.roles = [];
+  p.signupStatus = "removed";
+  eq1(resolveActor(req({ pid: p.id, epoch: 1 }), s, deps), null);
+  const m = newPerson({ roles: ["participant"], memberOrder: 7 });
+  s.people.push(m);
+  assert.ok(resolveActor(req(null, { order: 7, name: "M", director: false }), s, deps));
+  m.disabled = true;
+  eq1(resolveActor(req(null, { order: 7, name: "M", director: false }), s, deps), null);
+  const d = newPerson({ memberOrder: 8, disabled: true });
+  s.people.push(d);
+  eq1(resolveActor(req(null, { order: 8, name: "D", director: true }), s, deps), null, "diretor bloqueado aqui também");
 });
 
 (async () => {

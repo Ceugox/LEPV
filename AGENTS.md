@@ -21,7 +21,7 @@ server.js        aplicação inteira: rotas, API, sessão, eventos, presença
 lib/             módulos de apoio (client-ip.js, iCalendar, etc.)
 public/          HTML, CSS e JS servidos ao browser; img/ e gallery/
 data/            estado local de desenvolvimento (em produção é volume Railway)
-tests/           ical.js (unidade) e e2e.js
+tests/           ical.js (unidade), e2e.js, hackathon.js (unidade) e e2e-hack.js
 scripts/         verificações de UI, arte, contraste, consistência e fixtures
 docs/            notas de produto
 ```
@@ -52,7 +52,10 @@ npm test
 npm run verify
 ```
 
-`npm test` é iCalendar mais e2e, contra volume isolado num diretório temporário.
+`npm test` é iCalendar, e2e do site, unidade e e2e da plataforma do hackathon,
+cada e2e contra volume isolado num diretório temporário. A e2e do hackathon
+roda com relógio fixo (`HACK_NOW`) antes do evento: o resultado não muda quando
+o calendário real passa pelos horários agendados.
 `npm run verify` encadeia internamente as 13 verificações (e2e, inline, CSS,
 arte, contraste, UI, texto do topo, revelação, consistência, app, abas, tags,
 diretoria) — encadeamento **dentro** do script é permitido; o que o portão
@@ -78,6 +81,24 @@ recusa é encadeamento na linha que você digita.
 6. **Turnstile mantém rede ativa.** Playwright com `networkidle` trava; use
    `load` e espere `LEPVTurnstile.token()` não vazio. O widget vive em shadow
    DOM fechado, então seletor de iframe não acha nada.
+
+## Plataforma do hackathon (/hack)
+
+Módulo isolado em `lib/hackathon/` (composição em `index.js`, rotas por domínio
+em `routes/`), front em `public/hack/`. Spec e decisões:
+`docs/superpowers/specs/2026-10-21-hackathon-platform-design.md` (a Revisão 2
+prevalece). Estado num único `hackathon.json` no volume, gravado por
+`store.mutate` síncrono — nada assíncrono dentro dele.
+
+Variáveis: `RESEND_API_KEY` e `HACK_EMAIL_FROM` (e-mail), `HACK_VAPID_PUBLIC_KEY`,
+`HACK_VAPID_PRIVATE_KEY` e `HACK_VAPID_SUBJECT` (push), `HACK_PUBLIC_URL` (base
+dos links; no Railway o padrão já é `https://lepv.org`), `HACK_EVENT_ID` (fixa o
+evento). Só para teste: `HACK_NOW` (relógio), `HACK_EMAIL_OUTBOX` e
+`HACK_PUSH_OUTBOX` (gravam em arquivo em vez de enviar) — nunca em produção.
+
+`npm run verify:hack` mede LP e telas logadas (diretoria, participante e jurada
+de verificação criadas pela própria verificação) e serve Google Fonts vazio:
+a rede deixava a verificação intermitente.
 
 ## CI
 

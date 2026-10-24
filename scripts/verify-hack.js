@@ -20,8 +20,13 @@ const PAGES = ['/hack/', '/hack/?inscricoes=encerradas', '/hack/acesso', '/hack/
 // Telas logadas; a aba entra pelo hash.
 const APP_PAGES = [
   '/hack/portal#inicio', '/hack/portal#avisos', '/hack/portal#agenda',
-  '/hack/organizacao#pessoas', '/hack/organizacao#avisos', '/hack/organizacao#whatsapp', '/hack/organizacao#programacao',
+  '/hack/organizacao#pessoas', '/hack/organizacao#equipes', '/hack/organizacao#entregas', '/hack/organizacao#avaliacao',
+  '/hack/organizacao#avisos', '/hack/organizacao#whatsapp', '/hack/organizacao#programacao',
 ];
+// Telas que só aparecem para participante ou jurado: entram com pessoas de
+// verificação criadas pela própria diretoria (link pessoal consumido aqui).
+const PARTICIPANT_PAGES = ['/hack/portal#equipe', '/hack/portal#entrega'];
+const JUDGE_PAGES = ['/hack/portal#banca'];
 const MODES = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, reducedMotion: 'no-preference' },
   { name: 'mobile', viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' },
@@ -55,10 +60,48 @@ async function measure(page) {
         .filter(el => el.getBoundingClientRect().height < 43.5)
         .map(el => (el.textContent || el.name || el.tagName).trim().slice(0, 24) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px'),
       fieldFont: Math.min(16, ...[...document.querySelectorAll(FIELDS)].map(el => parseFloat(getComputedStyle(el).fontSize))),
-      loading: /Carregando…/.test((document.querySelector('main') || document.body).textContent),
+      // Só o painel visível: os escondidos guardam o "Carregando…" inicial.
+      loading: /Carregando…/.test((document.querySelector('.panel:not([hidden])') || document.querySelector('main') || document.body).textContent),
+      // Valor de programação vazando na tela ("null", "undefined", "NaN").
+      leaked: ((document.querySelector('.panel:not([hidden])') || document.querySelector('main') || document.body).innerText.match(/\b(null|undefined|NaN)\b/) || [null])[0],
       notice: (() => { const n = document.getElementById('aviso-inscricao'); return n ? !n.hidden : null; })(),
     };
   });
+}
+
+// Cria (uma vez) a participante e a jurada de verificação e devolve, a cada
+// chamada, um link pessoal novo (uso único) para cada uma.
+async function verificationPeople(adminReq) {
+  const people = await (await adminReq.get(BASE + '/hack/api/admin/people')).json();
+  const find = (email) => (people.people || []).find((p) => p.email === email);
+  let judge = find('jurada.verificacao@lepv.example');
+  if (!judge) {
+    const r = await adminReq.post(BASE + '/hack/api/admin/people', { data: { name: 'Jurada Verificação', email: 'jurada.verificacao@lepv.example', roles: ['judge'] } });
+    judge = (await r.json()).person;
+  }
+  let part = find('participante.verificacao@lepv.example');
+  const tok = process.env.LEPV_INSCRICAO_TOKEN;
+  if (!part && tok) {
+    await fetch(BASE + '/api/event-signup/' + tok, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Participante Verificação', email: 'participante.verificacao@lepv.example', phone: '21999999999',
+        vinculo: 'FGV', temGrupo: 'Não', awareLocation: true, awareTime: true }),
+    });
+    const again = await (await adminReq.get(BASE + '/hack/api/admin/people')).json();
+    part = again.people.find((p) => p.email === 'participante.verificacao@lepv.example');
+  }
+  const link = async (p) => {
+    if (!p) return null;
+    const r = await adminReq.post(BASE + '/hack/api/admin/people/' + p.id + '/link', { data: { send: 'none' } });
+    return r.ok() ? (await r.json()).url.split('#t=')[1] : null;
+  };
+  return { judge: await link(judge), participant: await link(part) };
+}
+
+async function contextWithLink(browser, mode, token) {
+  const c = await browser.newContext({ viewport: mode.viewport, reducedMotion: mode.reducedMotion });
+  const r = await c.request.post(BASE + '/hack/api/access/consume', { data: { token } });
+  return r.ok() ? c : null;
 }
 
 (async () => {
@@ -78,15 +121,25 @@ async function measure(page) {
     const ctx = await browser.newContext({ viewport: mode.viewport, reducedMotion: mode.reducedMotion });
     const login = await ctx.request.post(BASE + '/api/login', { data: { order: 1, password: ADMIN_PASS } });
     check(login.ok(), `[${mode.name}] login da diretoria para as telas logadas`, login.status());
-    for (const p of PAGES.concat(APP_PAGES)) {
-      const page = await (APP_PAGES.includes(p) ? ctx : anon).newPage();
+    const links = await verificationPeople(ctx.request);
+    const partCtx = links.participant ? await contextWithLink(browser, mode, links.participant) : null;
+    const judgeCtx = links.judge ? await contextWithLink(browser, mode, links.judge) : null;
+    check(Boolean(judgeCtx), `[${mode.name}] jurada de verificação entrou pelo link`);
+    if (process.env.LEPV_INSCRICAO_TOKEN) check(Boolean(partCtx), `[${mode.name}] participante de verificação entrou pelo link`);
+    const pages = PAGES.concat(APP_PAGES, partCtx ? PARTICIPANT_PAGES : [], judgeCtx ? JUDGE_PAGES : []);
+    for (const p of pages) {
+      const owner = APP_PAGES.includes(p) ? ctx : PARTICIPANT_PAGES.includes(p) ? partCtx : JUDGE_PAGES.includes(p) ? judgeCtx : anon;
+      const page = await owner.newPage();
       const errors = [];
       page.on('pageerror', e => errors.push(String(e.message)));
       page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
       const res = await page.goto(BASE + p, { waitUntil: 'load', timeout: 20000 });
       if (p.includes('#')) {
         // Telas logadas carregam pela API depois do load.
-        await page.waitForFunction(() => !/Carregando…/.test(document.querySelector('main').textContent), null, { timeout: 8000 }).catch(() => {});
+        await page.waitForFunction(() => {
+          const el = document.querySelector('.panel:not([hidden])') || document.querySelector('main');
+          return el && !/Carregando…/.test(el.textContent);
+        }, null, { timeout: 8000 }).catch(() => {});
       }
       // Rola até o fim para carregar as imagens lazy e disparar as revelações.
       await page.evaluate(async () => {
@@ -105,6 +158,7 @@ async function measure(page) {
       check(m.smallControls.length === 0, 'controles com 44px de altura', m.smallControls.join(', ') || undefined);
       check(m.fieldFont >= 16, 'campos com 16px (sem zoom no iPhone)', m.fieldFont + 'px');
       if (p.includes('#')) check(!m.loading, 'dados carregaram');
+      check(!m.leaked, 'nenhum null/undefined/NaN na tela', m.leaked || undefined);
       if (p.includes('inscricoes=encerradas')) check(m.notice === true, 'aviso de inscrições encerradas aparece');
       else if (m.notice !== null) check(m.notice === false, 'aviso de inscrições encerradas escondido');
       if (SHOTS) await page.screenshot({ path: path.join(SHOTS, `hack-${mode.name}-${p.replace(/\W+/g, '_')}.png`), fullPage: p.includes('#') });
@@ -112,6 +166,8 @@ async function measure(page) {
     }
     await anon.close();
     await ctx.close();
+    if (partCtx) await partCtx.close();
+    if (judgeCtx) await judgeCtx.close();
   }
 
   // Countdown com relógio simulado (15h de Brasília = 18h UTC): antes do

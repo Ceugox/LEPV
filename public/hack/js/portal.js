@@ -67,6 +67,13 @@
     }
     g.appendChild(nowCard);
 
+    if (state.podium && state.podium.length) {
+      g.insertBefore(h('article.card.card--red', { 'aria-labelledby': 'h-pod' },
+        h('p.card__k', 'Resultado'),
+        h('h2.card__title#h-pod', 'Vencedores do 1º Hackathon LEPV'),
+        h('ol.agenda', state.podium.map((p) => h('li', h('time', p.position + 'º'), h('span', p.name))))), g.firstChild);
+    }
+
     if (state.avisos && state.avisos.length) {
       g.appendChild(h('article.card', { 'aria-labelledby': 'h-ult' },
         h('p.card__k', 'Avisos'),
@@ -139,6 +146,9 @@
       state.avisos = r.announcements;
       state.push = r.push;
       renderAvisos();
+      // Aberto direto na aba (ex.: tocando a notificação): conta como leitura.
+      const panel = document.querySelector('.panel[data-panel="avisos"]');
+      if (panel && !panel.hidden && !document.hidden) markAllRead();
       renderInicio();
       renderPush();
     } catch (e) { if (e.status !== 401) toast(e.message, true); }
@@ -201,7 +211,13 @@
       const reg = await navigator.serviceWorker.register('/hack/sw.js', { scope: '/hack/' });
       await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(state.push.publicKey) });
-      await api('/hack/api/push/subscribe', { method: 'POST', body: { subscription: sub.toJSON() } });
+      try {
+        await api('/hack/api/push/subscribe', { method: 'POST', body: { subscription: sub.toJSON() } });
+      } catch (e) {
+        // Servidor não registrou: não pode parecer ativo neste aparelho.
+        await sub.unsubscribe().catch(() => {});
+        throw e;
+      }
       toast('Notificações ativadas neste aparelho.');
     } catch (e) {
       toast(e.message || 'Não foi possível ativar as notificações.', true);
@@ -230,16 +246,28 @@
       $('ola').textContent = '';
       $('ola').append('Olá, ', h('em', (me.me.name.split(' ')[0] || '') + '.'));
       $('link-org').hidden = !(me.perms.manage || me.perms.comms || me.perms.checkin);
+      // Abas por permissão (data-perm): some quem não tem o papel.
+      document.querySelectorAll('.tab[data-perm]').forEach((b) => { b.hidden = !me.perms[b.dataset.perm]; });
+      if (window.HackTeam) window.HackTeam.meId = me.me.id;
       renderInicio();
       renderAgenda();
       tabs.show();
       loadAvisos();
+      api('/hack/api/results').then((r) => { if (r.podium) { state.podium = r.podium; renderInicio(); } }).catch(() => {});
     } catch (e) {
-      if (e.status !== 401) toast(e.message, true);
+      if (e.status === 401) return;
+      // Primeira carga falhou (sinal ruim na fila da entrada): tenta de novo.
+      toast(e.message + ' Tentando de novo…', true);
+      setTimeout(load, 5000);
     }
   }
 
-  const tabs = window.Hack.tabs((name) => { if (name === 'avisos') markAllRead(); });
+  const tabs = window.Hack.tabs((name) => {
+    if (name === 'avisos') markAllRead();
+    if (name === 'equipe' && window.HackTeam && state.me) window.HackTeam.render($('equipe-grid'));
+    if (name === 'entrega' && window.HackSubmission && state.me) window.HackSubmission.render($('entrega-grid'));
+    if (name === 'banca' && window.HackJudge && state.me) window.HackJudge.render($('banca-grid'));
+  });
   load();
   // Próximo horário anda com o relógio; avisos novos chegam sem recarregar.
   setInterval(() => { if (state.me) { renderInicio(); loadAvisos(); } }, 60 * 1000);

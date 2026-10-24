@@ -74,6 +74,8 @@
     }
   }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
+  // Esvazia e preenche, ignorando null/false (Element.append escreveria "null").
+  function fill(el) { clear(el); append(el, Array.prototype.slice.call(arguments, 1)); return el; }
 
   let toastTimer;
   function toast(msg, isErr) {
@@ -124,6 +126,15 @@
   // Só sai de verdade se o servidor encerrou a sessão: num aparelho
   // compartilhado, "Sair" que falhou em silêncio deixaria a conta aberta.
   async function logout() {
+    // Notificações deste aparelho não seguem para a próxima pessoa que usar.
+    try {
+      const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration('/hack/') : null;
+      const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+      if (sub) {
+        await api('/hack/api/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint }, allow401: true }).catch(() => {});
+        await sub.unsubscribe();
+      }
+    } catch (e) { /* sem push neste aparelho */ }
     try { await api('/hack/api/access/logout', { method: 'POST', allow401: true }); }
     catch (e) { toast('Não foi possível sair: ' + e.message, true); return; }
     try {
@@ -144,5 +155,5 @@
     navigator.serviceWorker.register('/hack/sw.js', { scope: '/hack/' }).catch(() => {});
   }
 
-  window.Hack = { api, h, clear, toast, dayTime, time, dayLabel, at, hm, tabs, logout, copy, TZ };
+  window.Hack = { api, h, clear, fill, toast, dayTime, time, dayLabel, at, hm, tabs, logout, copy, TZ };
 })();

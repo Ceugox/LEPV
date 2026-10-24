@@ -37,6 +37,9 @@
   <div class="tabs__in" role="tablist">
     <button class="tab" type="button" role="tab" data-tab="inicio">Início</button>
     <button class="tab" type="button" role="tab" data-tab="avisos">Avisos <span class="tab__n" id="n-avisos" hidden></span></button>
+    <button class="tab" type="button" role="tab" data-tab="equipe" data-perm="participant" hidden>Equipe</button>
+    <button class="tab" type="button" role="tab" data-tab="entrega" data-perm="participant" hidden>Entrega</button>
+    <button class="tab" type="button" role="tab" data-tab="banca" data-perm="judge" hidden>Banca</button>
     <button class="tab" type="button" role="tab" data-tab="agenda">Agenda e locais</button>
   </div>
 </nav>
@@ -54,11 +57,22 @@
     </div>
     <div class="stack" id="avisos-list"></div>
   </section>
+  <section class="panel" data-panel="equipe" aria-label="Equipe" hidden>
+    <div class="grid grid--2" id="equipe-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="entrega" aria-label="Entrega" hidden>
+    <div class="grid grid--2" id="entrega-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="banca" aria-label="Banca" hidden>
+    <div class="grid grid--2" id="banca-grid"><p class="empty">Carregando…</p></div>
+  </section>
   <section class="panel" data-panel="agenda" aria-label="Agenda e locais" hidden>
     <div class="grid grid--2" id="agenda-grid"></div>
   </section>
 </main>
 <script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/team.js"></script>
+<script src="/hack/js/entrega.js"></script>
 <script src="/hack/js/portal.js"></script>
 </body>
 </html>
