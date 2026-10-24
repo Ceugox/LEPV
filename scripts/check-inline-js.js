@@ -7,7 +7,7 @@
    parser do Node nele.
 
    Uso: node scripts/check-inline-js.js [arquivo.html ...]
-   Sem argumentos, varre public/*.html.
+   Sem argumentos, varre public/*.html e public/hack/*.html.
 */
 const fs = require("fs");
 const path = require("path");
@@ -16,9 +16,11 @@ const vm = require("vm");
 const ROOT = path.join(__dirname, "..");
 const alvos = process.argv.slice(2).length
   ? process.argv.slice(2)
-  : fs.readdirSync(path.join(ROOT, "public"))
-      .filter((f) => f.endsWith(".html"))
-      .map((f) => path.join("public", f));
+  : ["public", path.join("public", "hack")].flatMap((dir) =>
+      fs.readdirSync(path.join(ROOT, dir))
+        .filter((f) => f.endsWith(".html"))
+        .map((f) => path.join(dir, f))
+    );
 
 // Só os <script> SEM src: os com src são arquivos e o node --check já cobre.
 const BLOCO = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;

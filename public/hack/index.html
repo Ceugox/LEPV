@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1º Hackathon LEPV</title>
+<meta name="description" content="1º Hackathon LEPV — 30 e 31 de outubro de 2026. Abertura na FGV, grande final no Instituto 12, Leblon, Rio de Janeiro.">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="/hack/img/pao-acucar-noite.jpg">
+<script>if (!matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('motion');</script>
+<link rel="stylesheet" href="/hack/hack.css">
+</head>
+<body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="nav" aria-label="Navegação principal">
+  <a class="nav__brand" href="#topo" aria-label="LEPV — início"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+  <nav class="nav__links" aria-label="Seções">
+    <a href="#final">Instituto 12</a>
+    <a href="#cronograma">Cronograma</a>
+    <a href="#plataforma">Plataforma</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <a class="nav__cta" href="/hack/inscricao">Inscreva-se</a>
+</header>
+
+<p class="notice glass" id="aviso-inscricao" role="status" hidden>As inscrições do hackathon estão encerradas no momento. Já se inscreveu? <a href="/hack/acesso">Acesse seu portal</a>.</p>
+
+<main id="conteudo">
+
+  <!-- HERO -->
+  <section class="hero" id="topo">
+    <div class="hero__media" aria-hidden="true">
+      <img src="/hack/img/pao-acucar-noite.jpg" alt="" width="2400" height="1350" fetchpriority="high">
+    </div>
+    <div class="hero__grade" aria-hidden="true"></div>
+
+    <div class="hero__sky">
+      <p class="eyebrow">Liga de Empreendedorismo da Praia Vermelha apresenta</p>
+      <p class="hero__tag">Dois dias. Ideias reais. <em>Soluções que importam.</em></p>
+    </div>
+
+    <div class="hero__base">
+      <div class="hero__row">
+        <a class="pill" href="#final"><span class="pill__dot"></span>Grande final · <b>Instituto 12</b> · Sáb 31/10</a>
+        <div class="hero__side">
+          <div class="glass count" role="timer" aria-live="off" aria-label="Contagem regressiva para a abertura" data-count="2026-10-30T15:00:00-03:00">
+            <p class="count__k">Abertura · Sex 30/10 · 15h · FGV</p>
+            <div class="count__d">
+              <div><b data-u="d">--</b><span>dias</span></div>
+              <div><b data-u="h">--</b><span>horas</span></div>
+              <div><b data-u="m">--</b><span>min</span></div>
+              <div><b data-u="s">--</b><span>seg</span></div>
+            </div>
+            <p class="count__done" hidden>O hackathon começou</p>
+          </div>
+          <div class="ctas">
+            <a class="btn btn--red" href="/hack/inscricao">Inscreva-se <span aria-hidden="true">→</span></a>
+            <a class="btn btn--glass" href="/hack/acesso">Acessar meu portal</a>
+          </div>
+        </div>
+      </div>
+      <h1 class="hero__title"><span class="hero__n">1º</span> Hackathon <span class="hero__lepv">LEPV</span></h1>
+    </div>
+    <p class="credit">Pão de Açúcar à noite · foto gustavo nacht / Unsplash</p>
+  </section>
+
+  <!-- A FINAL É AQUI -->
+  <section class="final" id="final" aria-labelledby="h-final">
+    <div class="final__media" aria-hidden="true"><img src="/hack/img/sala-vermelha.jpg" alt="" loading="lazy" width="2400" height="1600"></div>
+    <div class="final__in">
+      <p class="eyebrow eyebrow--red">O grande anúncio</p>
+      <h2 id="h-final" class="final__title"><span>A grande final</span> é no <b>Instituto 12.</b></h2>
+      <dl class="final__facts">
+        <div><dt>Quando</dt><dd>Sábado, 31/10 · 8h às 19h</dd></div>
+        <div><dt>Onde</dt><dd>Av. Ataulfo de Paiva, 1120 · Leblon, Rio</dd></div>
+        <div><dt>O que rola</dt><dd>Hacking final, submissão, banca, apresentações, vencedores e happy hour</dd></div>
+      </dl>
+      <p class="final__note">A largada é na sexta, 30/10, das 15h às 22h, na FGV (endereço exato a confirmar). No sábado, o hackathon se muda para o Instituto 12, a casa de fundadores e investidores do Rio.</p>
+    </div>
+  </section>
+
+  <!-- DAQUI — foto dentro da tipografia -->
+  <section class="origin" id="origem" aria-labelledby="h-origem">
+    <div class="origin__bg" aria-hidden="true"></div>
+    <h2 id="h-origem" class="origin__word"><span aria-hidden="true">Praia<br>Vermelha</span><span class="sr">Praia Vermelha</span></h2>
+    <div class="origin__text">
+      <p class="eyebrow">Ponto de partida</p>
+      <p class="origin__lead">A LEPV nasceu ali embaixo, no IME, entre engenheiros que resolveram empreender. <em>Engenharia que empreende.</em></p>
+    </div>
+    <p class="credit credit--in">Praia Vermelha e Urca vistas do Pão de Açúcar · foto Krys Amon / Unsplash · a casa da LEPV, não o local do evento</p>
+  </section>
+
+  <!-- CRONOGRAMA: vidro sobre a foto -->
+  <section class="sched" id="cronograma" aria-labelledby="h-sched">
+    <div class="sched__media" aria-hidden="true"><img src="/hack/img/urca-entardecer.jpg" alt="" loading="lazy" width="2400" height="1800"></div>
+    <div class="sched__in">
+      <div class="sec-head">
+        <p class="eyebrow">Cronograma</p>
+        <h2 id="h-sched" class="sec-title">Dois dias,<br><em>dois endereços.</em></h2>
+      </div>
+      <div class="days">
+        <article class="glass day">
+          <header class="day__h"><p class="day__k">Sexta · 30/10</p><p class="day__place">FGV</p><p class="day__span">15h — 22h</p></header>
+          <ol>
+            <li><time>15h–15h40</time><span>Recepção / cadastro</span></li>
+            <li><time>16h–16h30</time><span>Patrocinadores e regras</span></li>
+            <li class="hot"><time>16h30–17h</time><span>Problemática, pela Teachy</span></li>
+            <li class="hot"><time>17h30–22h</time><span>Hacking</span></li>
+          </ol>
+        </article>
+        <article class="glass day day--final">
+          <header class="day__h"><p class="day__k">Sábado · 31/10 · grande final</p><p class="day__place">Instituto 12</p><p class="day__span">8h — 19h</p></header>
+          <ol>
+            <li class="hot"><time>08h–13h</time><span>Hacking</span></li>
+            <li class="hot"><time>13h</time><span>Submissão dos projetos</span></li>
+            <li><time>13h–14h</time><span>Almoço</span></li>
+            <li><time>14h–15h</time><span>Análise da banca</span></li>
+            <li><time>15h10–16h</time><span>Apresentações</span></li>
+            <li class="hot"><time>16h30</time><span>Anúncio dos vencedores</span></li>
+            <li><time>17h–19h</time><span>Happy hour</span></li>
+          </ol>
+        </article>
+      </div>
+      <p class="credit credit--in">Urca ao entardecer · foto Davi Costa / Unsplash</p>
+    </div>
+  </section>
+
+  <!-- DESAFIO -->
+  <section class="seal" id="desafio" aria-labelledby="h-seal">
+    <div class="seal__media" aria-hidden="true"><img src="/hack/img/paineis-vermelhos.jpg" alt="" loading="lazy" width="2400" height="1600"></div>
+    <div class="seal__in">
+      <p class="eyebrow">O desafio</p>
+      <h2 id="h-seal" class="sec-title">Lacrado até<br><em>sexta, 16h30.</em></h2>
+      <p class="seal__lead">A <b>Teachy</b> apresenta a problemática na abertura. Ninguém conhece o desafio antes: todo mundo larga do mesmo ponto.</p>
+      <div class="glass count count--sm" role="timer" aria-live="off" aria-label="Contagem regressiva para a revelação do desafio" data-count="2026-10-30T16:30:00-03:00">
+        <div class="count__d">
+          <div><b data-u="d">--</b><span>dias</span></div>
+          <div><b data-u="h">--</b><span>horas</span></div>
+          <div><b data-u="m">--</b><span>min</span></div>
+          <div><b data-u="s">--</b><span>seg</span></div>
+        </div>
+        <p class="count__done" hidden>Desafio revelado</p>
+      </div>
+      <ul class="stats">
+        <li><b>2</b><span>dias</span></li>
+        <li><b>9h30</b><span>de hacking</span></li>
+        <li><b>2–4</b><span>por equipe</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- PLATAFORMA -->
+  <section class="plat" id="plataforma" aria-labelledby="h-plat">
+    <figure class="plat__fig">
+      <img src="/hack/img/teclado-vermelho.jpg" alt="Teclado iluminado em vermelho, em close (imagem ilustrativa)" loading="lazy" width="2400" height="1600">
+      <figcaption>Imagem ilustrativa · foto Niko Nieminen / Unsplash</figcaption>
+    </figure>
+    <div class="plat__in">
+      <p class="eyebrow">lepv.org/hack</p>
+      <h2 id="h-plat" class="sec-title">Uma plataforma<br><em>para o fim de semana inteiro.</em></h2>
+      <ul class="feats">
+        <li><span>01</span><div><h3>Avisos em tempo real</h3><p>Central de avisos e notificação no celular.</p></div></li>
+        <li><span>02</span><div><h3>QR de credenciamento</h3><p>Seu check-in na entrada, nos dois dias.</p></div></li>
+        <li><span>03</span><div><h3>Cronograma e locais</h3><p>FGV na sexta, Instituto 12 no sábado.</p></div></li>
+        <li><span>04</span><div><h3>Encontrar equipe</h3><p>Perfis, habilidades e vagas para quem está sem grupo.</p></div></li>
+        <li><span>05</span><div><h3>Entrega e submissão</h3><p>Materiais e projeto, até sábado às 13h.</p></div></li>
+        <li><span>06</span><div><h3>Avaliação pela banca</h3><p>As equipes são avaliadas direto na plataforma.</p></div></li>
+        <li><span>07</span><div><h3>Área de parceiros</h3><p>Espaço de patrocinadores e apoiadores.</p></div></li>
+      </ul>
+      <a class="btn btn--line" href="/hack/acesso">Acessar meu portal <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+
+  <!-- EQUIPES + PARCEIROS -->
+  <section class="duo" aria-label="Equipes e parceiros">
+    <div class="duo__card" id="equipes">
+      <p class="eyebrow">Equipes</p>
+      <p class="duo__big">2<span>—</span>4</p>
+      <p>pessoas por equipe. Ainda sem grupo? Em <b>Encontrar equipe</b>, na plataforma, você vê perfis, habilidades e vagas abertas.</p>
+      <a class="btn btn--red" href="/hack/inscricao">Inscreva-se <span aria-hidden="true">→</span></a>
+    </div>
+    <div class="duo__card" id="parceiros">
+      <p class="eyebrow">Parceiros</p>
+      <p class="duo__name">Teachy</p>
+      <p>Traz a problemática que as equipes vão resolver, revelada na sexta às 16h30.</p>
+      <p class="duo__muted">Patrocinadores e apoiadores têm área própria na plataforma e espaço na abertura.</p>
+      <a class="btn btn--line" href="/hack/parceiros">Sou patrocinador/apoiador <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="faq" id="faq" aria-labelledby="h-faq">
+    <h2 id="h-faq" class="sec-title">Perguntas<br><em>frequentes.</em></h2>
+    <div class="faq__list">
+      <details><summary>Onde é?</summary><p>Sexta, 30/10, na FGV (endereço exato a confirmar). Sábado, 31/10, a grande final no Instituto 12: Av. Ataulfo de Paiva, 1120, Leblon.</p></details>
+      <details><summary>Qual o tamanho da equipe?</summary><p>De 2 a 4 pessoas.</p></details>
+      <details><summary>Não tenho equipe. Posso me inscrever?</summary><p>Sim. Use Encontrar equipe, na plataforma, para ver perfis, habilidades e vagas.</p></details>
+      <details><summary>Quando conheço o desafio?</summary><p>Sexta, 30/10, às 16h30, quando a Teachy apresenta a problemática.</p></details>
+      <details><summary>Até quando entrego o projeto?</summary><p>Sábado, 31/10, às 13h, pela plataforma.</p></details>
+      <details><summary>O que levar?</summary><p>Notebook e carregador. O cronograma inclui almoço no sábado e happy hour no encerramento.</p></details>
+      <details><summary>Quais são os prêmios?</summary><p>Prêmios a anunciar.</p></details>
+    </div>
+  </section>
+
+  <!-- FECHO -->
+  <section class="outro" aria-labelledby="h-outro">
+    <div class="outro__media" aria-hidden="true"><img src="/hack/img/bondinho.jpg" alt="" loading="lazy" width="2400" height="1590"></div>
+    <div class="outro__in">
+      <h2 id="h-outro" class="outro__title">Sexta, 15h.<br><em>Sábado, Instituto 12.</em></h2>
+      <a class="btn btn--red btn--xl" href="/hack/inscricao">Inscreva-se <span aria-hidden="true">→</span></a>
+    </div>
+    <p class="credit credit--in">Bondinho do Pão de Açúcar · foto Desert Morocco Adventure / Unsplash</p>
+  </section>
+</main>
+
+<footer class="foot">
+  <img src="/hack/img/logo-mark-white.png" alt="Logo da LEPV" width="56" height="53">
+  <div>
+    <p class="foot__name">LEPV — Liga de Empreendedorismo da Praia Vermelha</p>
+    <p class="foot__lema">Engenharia que empreende.</p>
+  </div>
+  <nav class="foot__links" aria-label="Links">
+    <a href="/hack/inscricao">Inscreva-se</a>
+    <a href="/hack/acesso">Acessar meu portal</a>
+    <a href="/hack/parceiros">Sou patrocinador/apoiador</a>
+  </nav>
+  <p class="foot__small">1º Hackathon LEPV · Sex 30/10 na FGV · Sáb 31/10 no Instituto 12 · Rio de Janeiro. Fotos: Unsplash (gustavo nacht, Krys Amon, Davi Costa, Desert Morocco Adventure, Niko Nieminen, JC Dela Cuesta, Miguel Alcântara), licença Unsplash.</p>
+</footer>
+
+<script src="/hack/js/landing.js"></script>
+</body>
+</html>

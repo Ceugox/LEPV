@@ -2,7 +2,7 @@
 // Nasceu pra agenda/trajetos sobreviverem ao sinal ruim do metrô; hoje serve
 // pro acervo continuar legível offline usando a última resposta vista.
 // Nada de cache-first — deploy novo sempre vence quando há rede.
-var CACHE = "lepv-sp-v12"; // v12: centro de gastos (/js/features/reimbursements.js)
+var CACHE = "lepv-sp-v13"; // v13: /hack fica fora deste worker
 
 self.addEventListener("install", function (e) {
   self.skipWaiting();
@@ -25,9 +25,13 @@ self.addEventListener("activate", function (e) {
 // - "/": o corpo varia por sessão (app.html se logado, home.html se não), então
 //   uma cópia cacheada mostra a página errada para o próximo visitante.
 // - PDFs: arquivos de até 25 MB, tanto os da imersão quanto os das aulas.
+// - /hack/*: o hackathon tem worker e regras de cache próprios (/hack/sw.js),
+//   e /hack/api/* é privado por sessão do evento, não por /api/.
 function isPrivate(url) {
   return (
     url.pathname === "/" ||
+    url.pathname === "/hack" ||
+    url.pathname.indexOf("/hack/") === 0 ||
     url.pathname.indexOf("/api/") === 0 ||
     /\/file$/.test(url.pathname)
   );
