@@ -789,10 +789,12 @@ test("equipes: entrega não fica órfã (juntar e esvaziar)", () => {
   EV.upsertSubmission(s, b.id, { repoUrl: "https://x.y/z" }, ps[1].id, T0);
   assert.throws(() => TM.merge(s, a.id, b.id, T0), /entregou/);
   assert.throws(() => TM.leave(s, b, ps[1].id, T0), /entrega/);
-  // Inscrição retirada do último integrante: a equipe some com a entrega.
+  // Inscrição retirada do último integrante: a limpeza automática não apaga
+  // equipe que entregou — fica para a diretoria decidir.
   ps[1].roles = [];
   TM.prune(s, T0);
-  eq1(s.submissions.length, 0);
+  eq1(s.submissions.length, 1);
+  eq1(TM.findTeam(s, b.id).members.length, 1);
 });
 test("entrega: prorrogação vale só para a equipe", () => {
   const s = emptyState();
@@ -906,6 +908,53 @@ test("parceiros: nome único também ao editar; pendentes nunca somem no teto", 
     if (i < 30) PT.decideRequest(s, r.id, false, "dir", T0);
   }
   eq1(s.partnerRequests.filter((x) => x.status === "pending").length, 490, "todo pendente fica");
+});
+
+// ---------- revisão 5 ----------
+test("equipes: depois do prazo a limpeza automática não mexe", () => {
+  const { s, ps } = teamState(3);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  ps[1].roles = [];
+  eq1(TM.prune(s, new Date("2026-10-31T16:30:00Z")), false);
+  eq1(t.members.length, 2);
+});
+test("credenciamento: operação malformada não derruba o lote", () => {
+  const { s, ana, staff } = admState();
+  const { device } = K.prepareDevice(s, staff.id, "cel", T0);
+  const r = K.syncOps(s, device, staff.id, [null, 42, { opId: "op-ffffffff6", personId: ana.id, day: DAY1, at: T0.toISOString() }], T0);
+  eq1(r[0].status, "rejected");
+  eq1(r[1].status, "rejected");
+  eq1(r[2].status, "ok");
+});
+test("credenciamento: aparelho vencido ainda entrega o que leu antes de vencer", () => {
+  const { s, ana, staff } = admState();
+  const { device, token } = K.prepareDevice(s, staff.id, "cel", T0);
+  const after = new Date(Date.parse(device.expiresAt) + 3600 * 1000);
+  assert.throws(() => K.checkDevice(s, device.id, token, staff.id, after), /expirou/);
+  const dev = K.checkDevice(s, device.id, token, staff.id, after, { forSync: true });
+  const r = K.syncOps(s, dev, staff.id, [
+    { opId: "op-gggggggg7", personId: ana.id, day: DAY1, at: T0.toISOString() },
+    { opId: "op-hhhhhhhh8", personId: ana.id, day: DAY1, at: after.toISOString() },
+  ], after);
+  eq1(r[0].status, "ok");
+  eq1(r[1].status, "rejected");
+  assert.throws(() => K.checkDevice(s, device.id, token, staff.id, new Date(Date.parse(device.expiresAt) + 8 * 864e5), { forSync: true }), /expirou/);
+});
+test("parceiros: bloqueado que autorizou fica fora do CSV", () => {
+  const s = emptyState();
+  s.people.push(newPerson({ name: "Ativa", email: "a@ex.com", roles: ["participant"], consent: true }));
+  s.people.push(newPerson({ name: "Bloqueada", email: "b@ex.com", roles: ["participant"], consent: true, disabled: true }));
+  const out = PT.exportConsenting(s);
+  eq1(out.count, 1);
+  assert.ok(!out.csv.includes("b@ex.com"));
+});
+test("parceiros: trocar a modalidade da organização troca o papel dos representantes", () => {
+  const { s, teachy } = partnerState();
+  const r = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  const { person } = PT.decideRequest(s, r.id, true, "dir", T0);
+  PT.updateOrg(s, teachy.id, { kind: "supporter" });
+  assert.deepStrictEqual(person.roles, ["supporter"]);
 });
 
 (async () => {

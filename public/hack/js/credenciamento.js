@@ -11,6 +11,8 @@
   const ROLE = { participant: 'Participante', judge: 'Jurado(a)', staff: 'Staff', sponsor: 'Patrocinador', supporter: 'Apoiador' };
   let me = null;
   let setup = null; // { personId, deviceId, deviceToken, expiresAt, snapshot }
+  let otherOwner = false; // a fila guardada é de outra pessoa da organização
+  let expired = false; // autorização vencida: só envia o que já foi lido
   const history = [];
 
   // ---------- resultado ----------
@@ -49,8 +51,10 @@
       const r = await api('/hack/api/checkin/scan', { method: 'POST', body: { code, day: day() } });
       showServer(r);
     } catch (e) {
-      if (e.offline && setup) return handleOffline(code);
-      if (e.offline) return show('err', 'Sem internet', ['Este aparelho não foi preparado para offline. Use outro aparelho ou a lista manual.']);
+      // Sem rede ou servidor fora (502/503/504): segue pela cópia do aparelho.
+      const down = e.offline || (e.status >= 502 && e.status <= 504);
+      if (down && setup && !otherOwner) return handleOffline(code);
+      if (down) return show('err', 'Sem conexão com o servidor', ['Este aparelho não está preparado para offline. Use a busca manual quando a rede voltar ou outro aparelho.']);
       show('err', 'Erro', [e.message]);
     }
   }
@@ -71,7 +75,7 @@
 
   async function handleOfflineInner(code) {
     if (!code.startsWith(PREFIX)) return show('err', 'QR inválido', ['Não é um ingresso deste hackathon.']);
-    if (Date.parse(setup.expiresAt) <= Date.now()) return show('err', 'Autorização expirada', ['Conecte à internet e prepare de novo.']);
+    if (expired || Date.parse(setup.expiresAt) <= Date.now()) return show('err', 'Autorização expirada', ['Conecte à internet e prepare de novo.']);
     const hsh = await OFF.sha256Hex(code.slice(PREFIX.length));
     const t = setup.snapshot.tickets.find((x) => x.h === hsh);
     if (!t) return show('err', 'QR desconhecido', ['Não está na cópia deste aparelho. Pode ser inscrição recente: sincronize quando a rede voltar.']);
@@ -93,7 +97,7 @@
   let syncBlocked = ''; // motivo para parar a sincronização automática
   const REFUSED = { blocked: 'acesso bloqueado', waitlist: 'lista de espera', invalid: 'QR inválido', rejected: 'leitura inválida' };
   async function sync(manual) {
-    if (!setup || syncing) return;
+    if (!setup || syncing || otherOwner) return;
     if (syncBlocked && !manual) return;
     let ops;
     try { ops = await OFF.listOps(); } catch (e) { toast('Não consegui ler as leituras guardadas neste aparelho.', true); return; }
@@ -143,6 +147,7 @@
   }
 
   $('prep').addEventListener('click', async () => {
+    if (otherOwner) { toast('Há leituras de outra pessoa guardadas aqui: ela precisa sincronizar antes.', true); return; }
     try {
       // Já preparado: só atualiza a cópia, com a mesma credencial. Aparelho
       // novo só na primeira vez ou se a autorização antiga não vale mais.
@@ -160,8 +165,11 @@
         }
       }
       const r = await api('/hack/api/checkin/prepare', { method: 'POST', body: { label: navigator.userAgent.slice(0, 60) } });
+      // Fila antiga (aparelho vencido) sobe antes de trocar de credencial.
+      if (expired) await sync(true);
       setup = { personId: r.operatorId, deviceId: r.deviceId, deviceToken: r.deviceToken, expiresAt: r.expiresAt, snapshot: r.snapshot };
       syncBlocked = '';
+      expired = false;
       await OFF.set('setup', setup);
       $('off-msg').textContent = 'Aparelho preparado: ' + r.snapshot.tickets.length + ' ingressos na cópia local.';
       $('prep').textContent = 'Atualizar cópia';
@@ -278,7 +286,8 @@
     try {
       people = (await api('/hack/api/checkin/search?q=' + encodeURIComponent(q) + '&day=' + day())).people;
     } catch (e) {
-      if (!(e.offline && setup)) { toast(e.message, true); return; }
+      const down = e.offline || (e.status >= 502 && e.status <= 504);
+      if (!(down && setup && !otherOwner)) { toast(e.message, true); return; }
       const s = q.toLowerCase();
       people = setup.snapshot.tickets.filter((t) => t.name.toLowerCase().includes(s)).slice(0, 20)
         .map((t) => Object.assign({}, t, { offline: true }));
@@ -296,17 +305,22 @@
       showServer(r);
       runSearch();
     } catch (e) {
-      if (!(e.offline && setup)) { toast(e.message, true); return; }
-      const t = setup.snapshot.tickets.find((x) => x.id === p.id);
-      if (!t || t.status !== 'valid') return show('err', 'Não liberado', describe(t));
-      const { server, local } = await localCheckins();
-      if (server.some((c) => c.personId === t.id && c.day === day()) || local.some((o) => o.personId === t.id && o.day === day())) {
-        return show('dup', 'Já registrado', describe(t));
+      const down = e.offline || (e.status >= 502 && e.status <= 504);
+      if (!(down && setup && !otherOwner)) { toast(e.message, true); return; }
+      try {
+        const t = setup.snapshot.tickets.find((x) => x.id === p.id);
+        if (!t || t.status !== 'valid') return show('err', 'Não liberado', describe(t));
+        const { server, local } = await localCheckins();
+        if (server.some((c) => c.personId === t.id && c.day === day()) || local.some((o) => o.personId === t.id && o.day === day())) {
+          return show('dup', 'Já registrado', describe(t));
+        }
+        await OFF.addOp({ opId: OFF.newOpId(), personId: t.id, h: t.h, day: day(), at: new Date().toISOString() });
+        show('pending', 'Registrado neste aparelho', describe(t).concat('Sincronização pendente.'));
+        remember({ name: t.name, label: 'Pendente (offline)' });
+        refreshPending();
+      } catch (err) {
+        show('err', 'Armazenamento offline indisponível', ['Não deu para guardar a entrada de ' + p.name + ' (' + (err.message || err) + '). Anote e registre quando a rede voltar.']);
       }
-      await OFF.addOp({ opId: OFF.newOpId(), personId: t.id, h: t.h, day: day(), at: new Date().toISOString() });
-      show('pending', 'Registrado neste aparelho', describe(t).concat('Sincronização pendente.'));
-      remember({ name: t.name, label: 'Pendente (offline)' });
-      refreshPending();
     }
   }
 
@@ -342,11 +356,31 @@
       if (e.status === 401) return;
       // Sem rede ao abrir: segue com o aparelho preparado, se houver.
     }
-    try { setup = await OFF.get('setup'); } catch (e) { setup = null; }
-    // Outra pessoa neste aparelho, ou autorização vencida: limpa a cópia.
-    if (setup && ((me && setup.personId !== me.id) || Date.parse(setup.expiresAt) <= Date.now())) {
-      await OFF.wipe();
+    try {
+      setup = await OFF.get('setup');
+    } catch (e) {
       setup = null;
+      $('off-msg').textContent = 'Não consegui ler a cópia offline deste aparelho (' + (e.message || e) + '). Prepare de novo com internet.';
+    }
+    // Leituras ainda não enviadas NUNCA são apagadas ao abrir a tela.
+    const pending = setup ? await OFF.pendingCount() : 0;
+    if (setup && me && setup.personId !== me.id) {
+      if (pending === 0) {
+        // Cópia de outra pessoa, sem nada pendente: some.
+        await OFF.wipe();
+        setup = null;
+      } else {
+        // Fila de outra pessoa: só ela consegue enviar. Fica guardada e o
+        // offline deste aparelho fica desligado até lá.
+        otherOwner = true;
+        syncBlocked = 'Este aparelho tem ' + (pending === null ? 'leituras' : pending + ' leitura(s)') + ' de outra pessoa da organização ainda não sincronizada(s). Ela precisa entrar aqui e sincronizar.';
+        show('err', 'Leituras pendentes de outra pessoa', [syncBlocked]);
+      }
+    } else if (setup && Date.parse(setup.expiresAt) <= Date.now()) {
+      // Vencido: a fila ainda sobe (o servidor aceita o que foi lido antes do
+      // vencimento); novas leituras offline exigem preparar de novo.
+      expired = true;
+      if (pending === 0) { await OFF.wipe(); setup = null; }
     }
     let days = ['2026-10-30', '2026-10-31'];
     // Offline: o dia sai do relógio do aparelho, no fuso de Brasília.
