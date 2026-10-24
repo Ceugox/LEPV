@@ -29,7 +29,11 @@
         ? (b.running ? 'Envio em lote: ' : 'Último envio em lote: ') + b.done + ' de ' + b.total + (b.failed ? ' · ' + b.failed + ' falha(s), veja “Falha no e-mail” na lista' : '')
         : '';
     renderPeople();
-    if (b.running) setTimeout(() => loadPeople().catch(() => {}), 3000);
+    if (b.running) {
+      setTimeout(() => loadPeople().catch(() => {
+        $('email-status').textContent += ' · Não foi possível atualizar o progresso (sem rede?). Recarregue a página antes de reenviar.';
+      }), 3000);
+    }
   }
 
   function linkBadge(p) {
@@ -655,8 +659,77 @@
     evalAction({ action: 'podium', podiumSize: Number($('podium-in').value) }, 'Pódio atualizado.');
   });
 
+  // ---------- parceiros ----------
+  const KIND = { sponsor: 'Patrocinador', supporter: 'Apoiador' };
+  async function loadPartners() {
+    const r = await api('/hack/api/admin/partners');
+    const rl = clear($('req-list'));
+    if (!r.requests.length) rl.appendChild(h('li', h('p.muted', 'Nenhum pedido ainda.')));
+    r.requests.forEach((x) => rl.appendChild(h('li',
+      h('div.list__main', h('b', x.name + ' · ' + x.orgName), h('span', [KIND[x.kind], x.email, x.phone, x.role].filter(Boolean).join(' · '))),
+      x.status === 'pending' ? h('div.row',
+        h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => decide(x, true) }, 'Aprovar'),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => decide(x, false) }, 'Recusar'))
+        : h('span.badge' + (x.status === 'approved' ? '.badge--ok' : '.badge--err'), x.status === 'approved' ? 'Aprovado' : 'Recusado'))));
+    const ol = clear($('org-list'));
+    if (!r.orgs.length) ol.appendChild(h('li', h('p.muted', 'Cadastre as organizações para elas aparecerem no formulário.')));
+    r.orgs.forEach((o) => ol.appendChild(h('li',
+      h('div.list__main', h('b', o.name), h('span', KIND[o.kind] + (o.active ? '' : ' · fora do formulário'))),
+      h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => orgDialog(o) }, 'Editar'))));
+    const rep = clear($('rep-list'));
+    if (!r.representatives.length) rep.appendChild(h('li', h('p.muted', 'Nenhum representante aprovado.')));
+    r.representatives.forEach((p) => rep.appendChild(h('li',
+      h('div.list__main', h('b', p.name), h('span', [(r.orgs.find((o) => o.id === p.orgId) || {}).name, p.email].filter(Boolean).join(' · '))),
+      h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
+        if (!confirmTwice('Remover ' + p.name + ' da organização?')) return;
+        try { await api('/hack/api/admin/partners/representatives/' + p.id, { method: 'DELETE' }); toast('Removido.'); await loadPartners(); }
+        catch (e) { toast(e.message, true); }
+      } }, 'Remover'))));
+    const ex = clear($('exp-list'));
+    if (!r.exports.length) ex.appendChild(h('li', h('p.muted', 'Nenhuma exportação.')));
+    r.exports.slice().reverse().forEach((x) => ex.appendChild(h('li', h('div.list__main', h('b', x.person), h('span', window.Hack.dayTime(x.at) + ' · ' + x.count + ' contato(s)')))));
+  }
+
+  async function decide(x, approve) {
+    try {
+      const r = await api('/hack/api/admin/partners/requests/' + x.id, { method: 'POST', body: { approve } });
+      await loadPartners();
+      if (!approve) { toast('Recusado.'); return; }
+      openDialog('Acesso de ' + x.name.split(' ')[0],
+        h('p', 'Aprovado como ' + KIND[x.kind] + ' · ' + x.orgName + '.'),
+        r.email ? h('p.small', 'E-mail: ' + ({ sent: 'enviado', outbox: 'gravado (teste)', failed: 'falhou', unknown: 'incerto', unconfigured: 'não configurado' }[r.email.status] || r.email.status)) : null,
+        h('label.field', h('span', 'Link pessoal'), h('div.copy', h('input', { value: r.url, readonly: true, 'aria-label': 'Link de acesso' }),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => copy(r.url) }, 'Copiar'))),
+        r.whatsappUrl ? h('a.btn.btn--red.btn--sm', { href: r.whatsappUrl, target: '_blank', rel: 'noopener' }, 'Abrir no WhatsApp') : null);
+    } catch (e) { toast(e.message, true); }
+  }
+
+  function orgDialog(o) {
+    o = o || { name: '', kind: 'sponsor', active: true };
+    const form = h('form.form',
+      h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: o.name, required: true, maxlength: 80 })),
+      h('label.field', h('span', 'Modalidade'), h('select', { name: 'kind' },
+        h('option', { value: 'sponsor', selected: o.kind === 'sponsor' }, 'Patrocinador'),
+        h('option', { value: 'supporter', selected: o.kind === 'supporter' }, 'Apoiador'))),
+      h('label.check', h('input', { type: 'checkbox', name: 'active', checked: o.active }), h('span', 'Aparece no formulário público')),
+      h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      const body = { name: f.name.value, kind: f.kind.value, active: f.active.checked };
+      try {
+        await api('/hack/api/admin/partners/orgs' + (o.id ? '/' + o.id : ''), { method: o.id ? 'PATCH' : 'POST', body });
+        dlg.close();
+        toast('Organização salva.');
+        await loadPartners();
+      } catch (e) { toast(e.message, true); }
+    });
+    openDialog(o.id ? 'Editar organização' : 'Nova organização', form);
+  }
+  $('add-org').addEventListener('click', () => orgDialog(null));
+
   // ---------- carga ----------
-  const loaders = { pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });
@@ -666,8 +739,10 @@
     state.perms = r.perms;
     $('who').textContent = r.me.name;
     document.querySelectorAll('.tab[data-perm]').forEach((b) => { b.hidden = !r.perms[b.dataset.perm]; });
+    $('link-cred').hidden = !r.perms.checkin;
     if (!document.querySelector('.tab[data-perm]:not([hidden])')) {
-      location.replace('/hack/portal');
+      // Staff só de credenciamento cai direto na tela de entrada.
+      location.replace(r.perms.checkin ? '/hack/credenciamento' : '/hack/portal');
       return;
     }
     tabs.show();

@@ -435,12 +435,22 @@ test("permissões: toda rota da organização recusa anônimo (401) e participan
     ["GET", "/hack/api/admin/whatsapp"], ["POST", "/hack/api/admin/deliveries/x"],
     ["GET", "/hack/api/admin/teams"], ["POST", "/hack/api/admin/teams"], ["GET", "/hack/api/admin/submissions"],
     ["PUT", "/hack/api/admin/config/deadline"], ["GET", "/hack/api/admin/evaluation"], ["POST", "/hack/api/admin/evaluation"],
+    ["GET", "/hack/api/admin/partners"], ["POST", "/hack/api/admin/partners/orgs"], ["PATCH", "/hack/api/admin/partners/orgs/x"],
+    ["POST", "/hack/api/admin/partners/requests/x"], ["DELETE", "/hack/api/admin/partners/representatives/x"],
+    ["GET", "/hack/api/admin/devices"], ["POST", "/hack/api/admin/devices/x/revoke"], ["DELETE", "/hack/api/checkin/x"],
+    ["PUT", "/hack/api/admin/submissions/x"], ["DELETE", "/hack/api/admin/submissions/x"],
   ];
   const anon = client();
+  const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
+  const sl = await S.admin.post("/hack/api/admin/people/" + sofia.id + "/link", { send: "none" });
+  const staff = client();
+  eq((await staff.post("/hack/api/access/consume", { token: sl.data.url.split("#t=")[1] })).status, 200);
   for (const [m, u] of routes) {
     const body = m === "GET" ? undefined : {};
     eq((await anon.raw(m, u, body)).status, 401, "anônimo " + m + " " + u);
     eq((await S.people.ana.raw(m, u, body)).status, 403, "participante " + m + " " + u);
+    eq((await S.people.julia.raw(m, u, body)).status, 403, "jurada " + m + " " + u);
+    eq((await staff.raw(m, u, body)).status, 403, "staff sem permissão " + m + " " + u);
   }
 });
 
@@ -637,6 +647,12 @@ test("equipes: pedido aceito por integrante lota a equipe; código não passa de
   const conf = await S.c.ana.patch("/hack/api/team", { confirm: true });
   eq(conf.status, 200);
   eq(conf.data.team.status, "confirmed");
+  const elisaId = (await S.c.elisa.get("/hack/api/me")).data.me.id;
+  const anaId = (await S.c.ana.get("/hack/api/me")).data.me.id;
+  eq((await S.c.bruno.patch("/hack/api/team", { removeMember: elisaId })).status, 403, "só quem criou remove");
+  eq((await S.c.ana.patch("/hack/api/team", { removeMember: anaId })).status, 400, "dono usa Sair");
+  eq((await S.c.ana.patch("/hack/api/team", { confirm: false })).data.team.status, "forming");
+  eq((await S.c.ana.patch("/hack/api/team", { confirm: true })).data.team.status, "confirmed");
 });
 
 test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", async () => {
@@ -726,6 +742,8 @@ test("avaliação: segunda equipe, critérios travados antes de abrir", async ()
   eq((await ev({ action: "addCriterion", name: "Pitch" })).status, 409, "travados");
   const j = await S.c.julia.get("/hack/api/judge");
   eq(j.data.open, false);
+  eq(j.data.visible, false, "antes do prazo a banca não vê projetos");
+  eq(j.data.teams.length, 0);
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, { values: {} })).status, 409, "fechada");
   eq((await ev({ action: "open", open: true })).status, 200);
 });
@@ -780,9 +798,159 @@ test("entrega: depois do prazo a equipe não edita mais", async () => {
   eq(r.data.open, false);
   eq((await ana.put("/hack/api/team/submission", { description: "tarde demais" })).status, 409);
   eq((await uploadSlides(ana, PDF)).status, 409);
+  // Resultado já revelado: nem a diretoria mexe mais na Alfa.
+  eq((await S.admin.patch("/hack/api/admin/teams/" + S.alfa.id, { deadlineOverride: "2026-10-31T16:30:00Z" })).status, 200, "prorrogação só registra");
+  eq((await ana.put("/hack/api/team/submission", { description: "com prorrogação" })).status, 409, "resultado travado congela");
+  eq((await S.admin.del("/hack/api/admin/submissions/" + S.alfa.id + "?only=slides")).status, 409, "travado");
   await restartServer();
   S.admin = client();
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
+});
+
+// ================= módulo 6: parceiros =================
+
+test("parceiros: formulário pede, não concede; diretoria aprova e o representante vê só a própria agenda", async () => {
+  const ad = (u, b, m) => (m === "PATCH" ? S.admin.patch(u, b) : S.admin.post(u, b));
+  const t = await ad("/hack/api/admin/partners/orgs", { name: "Teachy", kind: "sponsor" });
+  eq(t.status, 200);
+  const n = await ad("/hack/api/admin/partners/orgs", { name: "Norte", kind: "sponsor" });
+  const ap = await ad("/hack/api/admin/partners/orgs", { name: "Café Apoio", kind: "supporter" });
+  S.orgs = { teachy: t.data.org, norte: n.data.org, apoio: ap.data.org };
+  const pub = await client().get("/hack/api/partners/orgs");
+  eq(pub.data.sponsor.length, 2);
+  eq(pub.data.supporter[0].name, "Café Apoio");
+  const anon = client();
+  eq((await anon.post("/hack/api/partners/request", { kind: "sponsor", orgId: S.orgs.apoio.id, name: "Rita Rep", email: "rita@teachy.com" })).status, 400, "org de outra modalidade");
+  eq((await anon.post("/hack/api/partners/request", { kind: "sponsor", orgId: S.orgs.teachy.id, name: "Rita Rep", email: "rita@teachy.com", phone: "21933332222" })).status, 200);
+  eq((await anon.post("/hack/api/partners/request", { kind: "supporter", orgId: S.orgs.apoio.id, name: "Caio Café", email: "caio@cafe.com" })).status, 200);
+  // pedido pendente: pedir o link não entra
+  eq((await client().post("/hack/api/access/request", { email: "rita@teachy.com" })).status, 200);
+  await new Promise((r) => setTimeout(r, 400));
+  eq(mails().filter((m) => m.to === "rita@teachy.com").length, 0, "pendente não recebe link");
+  // atividade da Teachy na programação
+  const prog = (await S.admin.get("/hack/api/admin/program")).data.program;
+  const probl = prog.find((a) => /Problemática/.test(a.title));
+  eq((await S.admin.patch("/hack/api/admin/program/" + probl.id, { orgIds: [S.orgs.teachy.id] })).status, 200);
+  const reqs = (await S.admin.get("/hack/api/admin/partners")).data.requests;
+  const rita = reqs.find((x) => x.email === "rita@teachy.com");
+  const caio = reqs.find((x) => x.email === "caio@cafe.com");
+  const ok = await S.admin.post("/hack/api/admin/partners/requests/" + rita.id, { approve: true });
+  eq(ok.status, 200);
+  assert(ok.data.whatsappUrl.startsWith("https://wa.me/5521933332222"), "atalho de WhatsApp");
+  eq((await S.admin.post("/hack/api/admin/partners/requests/" + caio.id, { approve: true })).status, 200);
+  S.c.rita = await enterAs("rita@teachy.com");
+  S.c.caio = await enterAs("caio@cafe.com");
+  const pr = await S.c.rita.get("/hack/api/partner");
+  eq(pr.status, 200);
+  eq(pr.data.org.name, "Teachy");
+  eq(pr.data.agenda.length, 1);
+  eq(pr.data.canExport, true);
+  const pc = await S.c.caio.get("/hack/api/partner");
+  eq(pc.data.agenda.length, 0, "agenda de outra organização não aparece");
+  eq(pc.data.canExport, false);
+});
+
+test("parceiros: exportação só para patrocinador, só de quem autorizou, registrada", async () => {
+  const csv = await S.c.rita.get("/hack/api/partner/export.csv");
+  eq(csv.status, 200);
+  assert(String(csv.headers.get("content-type")).startsWith("text/csv"), "csv");
+  assert(csv.data.includes("ana@ex.com"), "Ana autorizou");
+  assert(!csv.data.includes("bruno@ex.com"), "Bruno não autorizou");
+  assert(!csv.data.includes("julia@ex.com"), "jurada não é participante");
+  eq((await S.c.caio.get("/hack/api/partner/export.csv")).status, 403, "apoiador");
+  // Sessões anteriores caíram no reinício do teste de prazo: entra de novo.
+  S.c.julia = await enterAs("julia@ex.com");
+  S.c.ana = await enterAs("ana@ex.com");
+  eq((await S.c.julia.get("/hack/api/partner/export.csv")).status, 403, "jurada");
+  eq((await S.c.ana.get("/hack/api/partner/export.csv")).status, 403, "participante");
+  // Aviso só para participantes: patrocinadora não vê; para patrocinadores, vê.
+  const a1 = await S.admin.post("/hack/api/admin/announcements", { title: "Só participantes", body: "x x x", audiences: ["participant"] });
+  const a2 = await S.admin.post("/hack/api/admin/announcements", { title: "Só patrocinadores", body: "y y y", audiences: ["sponsor"] });
+  const seen = (await S.c.rita.get("/hack/api/announcements")).data.announcements.map((x) => x.id);
+  eq(seen.includes(a1.data.announcement.id), false, "patrocinadora não vê aviso de participantes");
+  eq(seen.includes(a2.data.announcement.id), true);
+  eq((await S.c.rita.post("/hack/api/announcements/" + a1.data.announcement.id + "/read")).status, 404, "nem pela API direta");
+  eq((await S.c.ana.get("/hack/api/announcements")).data.announcements.some((x) => x.id === a2.data.announcement.id), false);
+  const log = (await S.admin.get("/hack/api/admin/partners")).data.exports;
+  eq(log.length, 1);
+  eq(log[0].person, "Rita Rep");
+});
+
+test("parceiros: removido perde o acesso da organização na hora", async () => {
+  const reps = (await S.admin.get("/hack/api/admin/partners")).data.representatives;
+  const rita = reps.find((p) => p.email === "rita@teachy.com");
+  eq((await S.admin.del("/hack/api/admin/partners/representatives/" + rita.id)).status, 200);
+  eq((await S.c.rita.get("/hack/api/partner")).status, 401, "sessão derrubada");
+  eq((await S.c.rita.get("/hack/api/partner/export.csv")).status, 401);
+});
+
+// ================= módulo 7: credenciamento =================
+function storeState() {
+  return JSON.parse(fs.readFileSync(path.join(volumeDir, "hackathon.json"), "utf8"));
+}
+const qrOf = (email) => "LEPVHACK1:" + storeState().people.find((p) => p.email === email).qrToken;
+
+test("credenciamento: só quem tem permissão lê; QR vale uma vez por dia", async () => {
+  eq((await S.c.ana.post("/hack/api/checkin/scan", { code: "x", day: "2026-10-30" })).status, 403, "participante");
+  const r = await S.admin.post("/hack/api/checkin/scan", { code: qrOf("ana@ex.com"), day: "2026-10-30" });
+  eq(r.status, 200);
+  eq(r.data.status, "ok");
+  eq(r.data.person.team, "Alfa");
+  const d = await S.admin.post("/hack/api/checkin/scan", { code: qrOf("ana@ex.com"), day: "2026-10-30" });
+  eq(d.data.status, "duplicate");
+  eq((await S.admin.post("/hack/api/checkin/scan", { code: "LEPVHACK1:naoexiste0000000000", day: "2026-10-30" })).data.status, "invalid");
+  eq((await S.admin.post("/hack/api/checkin/scan", { code: qrOf("ana@ex.com"), day: "2026-11-02" })).status, 400, "dia fora do evento");
+  // QR não autentica o portal
+  eq((await client().post("/hack/api/access/consume", { token: qrOf("ana@ex.com").split(":")[1] })).status, 401);
+});
+
+test("credenciamento: busca manual e registro sem QR", async () => {
+  const r = await S.admin.get("/hack/api/checkin/search?q=carla&day=2026-10-30");
+  eq(r.status, 200);
+  const carla = r.data.people.find((p) => p.name === "Carla Participante");
+  assert(carla && !carla.checkin, "Carla sem entrada");
+  const m = await S.admin.post("/hack/api/checkin/person/" + carla.id, { day: "2026-10-30" });
+  eq(m.data.status, "ok");
+  const again = await S.admin.get("/hack/api/checkin/search?q=carla&day=2026-10-30");
+  assert(again.data.people.find((p) => p.id === carla.id).checkin, "agora com entrada");
+});
+
+test("credenciamento: offline sincroniza sem duplicar, com aparelho revogável", async () => {
+  const p1 = await S.admin.post("/hack/api/checkin/prepare", { label: "celular 1" });
+  eq(p1.status, 200);
+  const snap = JSON.stringify(p1.data.snapshot);
+  assert(!snap.includes("bruno@ex.com") && !snap.includes(qrOf("bruno@ex.com").split(":")[1]), "cópia sem contato e sem token");
+  const p2 = await S.admin.post("/hack/api/checkin/prepare", { label: "celular 2" });
+  const crypto = require("crypto");
+  const h = crypto.createHash("sha256").update(qrOf("bruno@ex.com").split(":")[1]).digest("hex");
+  const op = { opId: "op1-bruno-offline", h, day: "2026-10-31", at: new Date().toISOString() };
+  const s1 = await S.admin.post("/hack/api/checkin/sync", { deviceId: p1.data.deviceId, deviceToken: p1.data.deviceToken, ops: [op] });
+  eq(s1.data.results[0].status, "ok");
+  const s1b = await S.admin.post("/hack/api/checkin/sync", { deviceId: p1.data.deviceId, deviceToken: p1.data.deviceToken, ops: [op] });
+  eq(s1b.data.results[0].status, "ok", "reenvio idempotente");
+  const s2 = await S.admin.post("/hack/api/checkin/sync", { deviceId: p2.data.deviceId, deviceToken: p2.data.deviceToken, ops: [Object.assign({}, op, { opId: "op2-bruno-offline" })] });
+  eq(s2.data.results[0].status, "duplicate", "segundo aparelho não dobra");
+  const count = storeState().checkins.filter((c) => c.day === "2026-10-31" && c.personId === s1.data.results[0].personId).length;
+  eq(count, 1);
+  eq((await S.admin.post("/hack/api/checkin/sync", { deviceId: p1.data.deviceId, deviceToken: "errado", ops: [] })).status, 401);
+  eq((await S.admin.post("/hack/api/admin/devices/" + p2.data.deviceId + "/revoke")).status, 200);
+  eq((await S.admin.post("/hack/api/checkin/sync", { deviceId: p2.data.deviceId, deviceToken: p2.data.deviceToken, ops: [] })).status, 401, "revogado");
+  const devs = (await S.admin.get("/hack/api/admin/devices")).data.devices;
+  assert(devs.find((d) => d.id === p1.data.deviceId).lastSyncAt, "última sincronização registrada");
+});
+
+test("credenciamento: staff só com a permissão marcada", async () => {
+  const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
+  const link = async () => (await S.admin.post("/hack/api/admin/people/" + sofia.id + "/link", { send: "none" })).data.url.split("#t=")[1];
+  const c = client();
+  eq((await c.post("/hack/api/access/consume", { token: await link() })).status, 200);
+  eq((await c.post("/hack/api/checkin/scan", { code: qrOf("davi@ex.com"), day: "2026-10-30" })).status, 403);
+  eq((await S.admin.patch("/hack/api/admin/people/" + sofia.id, { staffPerms: { checkin: true } })).status, 200);
+  const r = await c.post("/hack/api/checkin/scan", { code: qrOf("davi@ex.com"), day: "2026-10-30" });
+  eq(r.status, 200);
+  eq(r.data.status, "ok");
+  eq((await c.del("/hack/api/checkin/" + r.data.checkin.id)).status, 403, "desfazer é da diretoria");
+  eq((await S.admin.del("/hack/api/checkin/" + r.data.checkin.id)).status, 200);
 });
 
 // ================= execução =================

@@ -21,6 +21,7 @@
     <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
     <div class="app-top__who">
       <span class="app-top__name" id="who"></span>
+      <a class="btn btn--glass btn--sm" href="/hack/credenciamento" id="link-cred" hidden>Credenciamento</a>
       <a class="btn btn--glass btn--sm" href="/hack/portal">Portal</a>
       <button class="btn btn--ghost btn--sm" type="button" id="sair">Sair</button>
     </div>
@@ -37,6 +38,7 @@
     <button class="tab" type="button" role="tab" data-tab="equipes" data-perm="manage">Equipes</button>
     <button class="tab" type="button" role="tab" data-tab="entregas" data-perm="manage">Entregas</button>
     <button class="tab" type="button" role="tab" data-tab="avaliacao" data-perm="manage">Avaliação</button>
+    <button class="tab" type="button" role="tab" data-tab="parceiros" data-perm="manage">Parceiros</button>
     <button class="tab" type="button" role="tab" data-tab="avisos" data-perm="comms">Avisos</button>
     <button class="tab" type="button" role="tab" data-tab="whatsapp" data-perm="comms">WhatsApp</button>
     <button class="tab" type="button" role="tab" data-tab="programacao" data-perm="manage">Programação</button>
@@ -123,6 +125,19 @@
     <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="judges-list"></ul></div>
     <h2 class="sec-h">Ranking (só a organização vê)</h2>
     <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="rank-body"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="parceiros" aria-label="Parceiros" hidden>
+    <div class="row" style="margin-bottom:16px"><button class="btn btn--red btn--sm" type="button" id="add-org">Cadastrar organização</button>
+      <span class="spacer"></span><a class="small" href="/hack/parceiros" target="_blank" rel="noopener">Formulário público ↗</a></div>
+    <h2 class="sec-h">Pedidos de acesso</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="req-list"></ul></div>
+    <h2 class="sec-h">Organizações</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="org-list"></ul></div>
+    <h2 class="sec-h">Representantes aprovados</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="rep-list"></ul></div>
+    <h2 class="sec-h">Exportações de contatos</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="exp-list"></ul></div>
   </section>
 
   <section class="panel" data-panel="avisos" aria-label="Avisos" hidden>

@@ -21,6 +21,7 @@ const PAGES = ['/hack/', '/hack/?inscricoes=encerradas', '/hack/acesso', '/hack/
 const APP_PAGES = [
   '/hack/portal#inicio', '/hack/portal#avisos', '/hack/portal#agenda',
   '/hack/organizacao#pessoas', '/hack/organizacao#equipes', '/hack/organizacao#entregas', '/hack/organizacao#avaliacao',
+  '/hack/organizacao#parceiros', '/hack/credenciamento#leitura',
   '/hack/organizacao#avisos', '/hack/organizacao#whatsapp', '/hack/organizacao#programacao',
 ];
 // Telas que só aparecem para participante ou jurado: entram com pessoas de
@@ -45,7 +46,7 @@ async function measure(page) {
     const shown = el => {
       const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && !el.closest('dialog:not([open])');
+      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && !el.closest('dialog:not([open])') && !el.closest('[aria-hidden="true"]');
     };
     const CONTROLS = 'button, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea, .btn, .tab';
     const FIELDS = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea';
@@ -59,7 +60,7 @@ async function measure(page) {
       smallControls: [...document.querySelectorAll(CONTROLS)].filter(shown)
         .filter(el => el.getBoundingClientRect().height < 43.5)
         .map(el => (el.textContent || el.name || el.tagName).trim().slice(0, 24) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px'),
-      fieldFont: Math.min(16, ...[...document.querySelectorAll(FIELDS)].map(el => parseFloat(getComputedStyle(el).fontSize))),
+      fieldFont: Math.min(16, ...[...document.querySelectorAll(FIELDS)].filter(el => !el.closest('[aria-hidden="true"]')).map(el => parseFloat(getComputedStyle(el).fontSize))),
       // Só o painel visível: os escondidos guardam o "Carregando…" inicial.
       loading: /Carregando…/.test((document.querySelector('.panel:not([hidden])') || document.querySelector('main') || document.body).textContent),
       // Valor de programação vazando na tela ("null", "undefined", "NaN").
@@ -168,6 +169,32 @@ async function contextWithLink(browser, mode, token) {
     await ctx.close();
     if (partCtx) await partCtx.close();
     if (judgeCtx) await judgeCtx.close();
+  }
+
+  // Fonte reserva larga (o Linux do CI não tem Arial Narrow; um visitante cuja
+  // fonte não carregou também cai nela): nenhum título pode ser cortado nem
+  // empurrar a página. Mede o texto contra a própria caixa e contra a tela.
+  for (const vp of [{ width: 1440, height: 900 }, { width: 360, height: 780 }]) {
+    const ctx = await browser.newContext({ viewport: vp });
+    for (const p of ['/hack/', '/hack/parceiros', '/hack/acesso']) {
+      const page = await ctx.newPage();
+      await page.goto(BASE + p, { waitUntil: 'load' });
+      await page.addStyleTag({ content: '*{font-family: Verdana, "DejaVu Sans", sans-serif !important}' });
+      await page.waitForTimeout(200);
+      const r = await page.evaluate(() => {
+        const W = document.documentElement.clientWidth;
+        const cut = [...document.querySelectorAll('h1, h2, h3, .sec-title, .hero__title, .origin__word')]
+          .filter((el) => el.getBoundingClientRect().width > 0)
+          .filter((el) => el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().right > W + 1)
+          .map((el) => (el.className || el.tagName).toString().slice(0, 30));
+        return { overflow: document.documentElement.scrollWidth - W, cut };
+      });
+      console.log(`\n[fonte reserva ${vp.width}px] ${p}`);
+      check(r.overflow <= 0, 'sem rolagem horizontal', r.overflow + 'px');
+      check(r.cut.length === 0, 'nenhum título cortado', r.cut.join(', ') || undefined);
+      await page.close();
+    }
+    await ctx.close();
   }
 
   // Countdown com relógio simulado (15h de Brasília = 18h UTC): antes do

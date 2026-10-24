@@ -126,16 +126,18 @@
   // Só sai de verdade se o servidor encerrou a sessão: num aparelho
   // compartilhado, "Sair" que falhou em silêncio deixaria a conta aberta.
   async function logout() {
-    // Notificações deste aparelho não seguem para a próxima pessoa que usar.
+    // Notificações deste aparelho não seguem para a próxima pessoa que usar:
+    // o servidor apaga a inscrição pelo endpoint e o navegador cancela a dele.
+    let endpoint = '';
     try {
       const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration('/hack/') : null;
       const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
       if (sub) {
-        await api('/hack/api/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint }, allow401: true }).catch(() => {});
-        await sub.unsubscribe();
+        endpoint = sub.endpoint;
+        await sub.unsubscribe().catch(() => {});
       }
     } catch (e) { /* sem push neste aparelho */ }
-    try { await api('/hack/api/access/logout', { method: 'POST', allow401: true }); }
+    try { await api('/hack/api/access/logout', { method: 'POST', allow401: true, body: { endpoint } }); }
     catch (e) { toast('Não foi possível sair: ' + e.message, true); return; }
     try {
       // Dados locais do credenciamento e do portal não sobrevivem à troca de pessoa.

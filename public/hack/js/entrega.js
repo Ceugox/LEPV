@@ -13,7 +13,7 @@
     const head = h('article.card.card--red',
       h('p.card__k', 'Prazo de entrega'),
       h('h3.card__title', dayTime(d.deadline)),
-      h('p', d.open ? 'Até lá a equipe pode editar quantas vezes quiser. Depois, a entrega trava.' : 'O prazo passou: a entrega está travada.'));
+      h('p', d.open ? 'Até lá a equipe pode editar quantas vezes quiser. Depois, a entrega trava.' : 'O prazo passou: a entrega está travada. Erro no envio? Fale com a organização.'));
     out.push(head);
     if (!sub) {
       out.push(h('article.card', h('p.card__k', 'Entrega'), h('p', 'Entre numa equipe (aba Equipe) para entregar o projeto.')));
@@ -59,6 +59,7 @@
           body: f,
         });
         const data = await res.json().catch(() => ({}));
+        if (res.status === 401) { location.href = '/hack/acesso'; return; }
         if (!res.ok) throw new Error(data.message || 'Falha no envio (' + res.status + ').');
         toast('Slides enviados.');
         renderSubmission(box);
@@ -84,6 +85,12 @@
     try { d = await api('/hack/api/judge'); } catch (e) { if (e.status !== 401) toast(e.message, true); return; }
     const out = [];
     const phase = d.phase === 'final' ? 'Final' : 'Avaliação';
+    if (!d.visible) {
+      out.push(h('article.card.card--red', h('p.card__k', 'Banca'), h('h3.card__title', 'Projetos depois do prazo'),
+        h('p.muted', 'Os projetos aparecem aqui quando o prazo de entrega terminar ou a organização abrir a avaliação.')));
+      clear(box).append(...out);
+      return;
+    }
     out.push(h('article.card.card--red',
       h('p.card__k', 'Banca · ' + phase),
       h('h3.card__title', d.open ? d.done + ' de ' + d.teams.length + ' equipes avaliadas' : d.resultsLocked ? 'Resultado travado' : 'Avaliação ainda não aberta'),
