@@ -390,6 +390,19 @@ test("acesso: lista de espera recebe link e vê a própria condição", async ()
   eq((await S.admin.patch("/api/events/" + ev.id, { capacity: "" })).status, 200);
 });
 
+test("inscrição: aceita UFPE e Outra universidade, recusa vínculo fora da lista", async () => {
+  const html = await (await fetch(BASE + "/inscricao.html")).text();
+  for (const v of ["UFPE", "Outra universidade"]) assert(html.includes('<option value="' + v + '">'), "opção " + v + " no formulário");
+  const base = { phone: "21988887777", curso: "Engenharia", temGrupo: "Não", awareLocation: true, awareTime: true };
+  const r1 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Paula Recife", email: "paula.ufpe@ex.com", vinculo: "UFPE" });
+  eq(r1.status, 200, "UFPE: " + JSON.stringify(r1.data));
+  const r2 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Otto Outra", email: "otto.outra@ex.com", phone: "21988886666", vinculo: "Outra universidade" });
+  eq(r2.status, 200, "Outra universidade: " + JSON.stringify(r2.data));
+  const r3 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Xis Fora", email: "xis@ex.com", phone: "21988885555", vinculo: "Qualquer" });
+  eq(r3.status, 400, "vínculo fora da lista");
+  eq(r3.data.error, "invalid_vinculo");
+});
+
 test("acesso: sair encerra a sessão; /session diz isso sem 401", async () => {
   const c = await enterAs("elisa@ex.com");
   eq((await c.get("/hack/api/session")).data.authenticated, true);
@@ -579,7 +592,7 @@ test("avisos: push urgente chega ao aparelho inscrito", async () => {
 });
 
 test("avisos: agendador com relógio simulado publica na hora e não republica após reinício", async () => {
-  await restartServer({ HACK_NOW: "2026-10-30T18:00:20Z" });
+  await restartServer({ HACK_NOW: "2026-10-30T17:30:20Z" });
   await new Promise((r) => setTimeout(r, 300));
   S.admin = client();
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
@@ -587,13 +600,13 @@ test("avisos: agendador com relógio simulado publica na hora e não republica a
   const first = list.filter((a) => a.title === "O hackathon começou!");
   eq(first.length, 1);
   eq(first[0].status, "published");
-  eq(first[0].publishedAt, "2026-10-30T18:00:20.000Z");
+  eq(first[0].publishedAt, "2026-10-30T17:30:20.000Z");
   const second = list.find((a) => a.title === "Bom dia, Instituto 12!");
   eq(second.status, "scheduled");
   const ana = await enterAs("ana@ex.com");
   assert((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "O hackathon começou!"), "Ana vê o aviso");
   const pushedBefore = pushes().filter((x) => x.payload.title === "O hackathon começou!").length;
-  await restartServer({ HACK_NOW: "2026-10-30T18:02:00Z" });
+  await restartServer({ HACK_NOW: "2026-10-30T17:32:00Z" });
   await new Promise((r) => setTimeout(r, 500));
   S.admin = client();
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
@@ -873,7 +886,7 @@ test("parceiros: formulário pede, não concede; diretoria aprova e o representa
   eq(mails().filter((m) => m.to === "rita@teachy.com").length, 0, "pendente não recebe link");
   // atividade da Teachy na programação
   const prog = (await S.admin.get("/hack/api/admin/program")).data.program;
-  const probl = prog.find((a) => /Problemática/.test(a.title));
+  const probl = prog.find((a) => /^Teachy: o mercado de educação/.test(a.title));
   eq((await S.admin.patch("/hack/api/admin/program/" + probl.id, { orgIds: [S.orgs.teachy.id] })).status, 200);
   const reqs = (await S.admin.get("/hack/api/admin/partners")).data.requests;
   const rita = reqs.find((x) => x.email === "rita@teachy.com");
