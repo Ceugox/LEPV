@@ -164,7 +164,7 @@ a { color: inherit; }
 .day li:last-child { border-bottom: 0; }
 .day time { font: 500 15px/1.3 var(--f-body); font-variant-numeric: tabular-nums; color: rgba(255,255,255,.55); }
 .day li span { color: #fff; }
-.day li i { font: 500 12px/1.3 var(--f-body); font-style: normal; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.38); }
+.day li i { font: 500 12px/1.3 var(--f-body); font-style: normal; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.6); }
 /* Momento-chave: ponto + texto, sem glow, sem fundo tintado */
 .day li.hot span::before, .sched__key .dot { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--red-lit); margin-right: 10px; vertical-align: .12em; }
 .sched__key { margin: 26px 0 0; font: 500 11px/1.3 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.55); }
