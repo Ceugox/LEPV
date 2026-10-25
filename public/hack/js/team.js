@@ -80,7 +80,10 @@
     if (!d.hasGroup || d.locked || (d.team && !d.team.open)) return null;
     let people = [];
     let loadError = '';
-    try { people = (await api('/hack/api/team/group-candidates')).people; } catch (e) { loadError = 'Não deu para carregar a lista de inscritos agora. Recarregue a página.'; }
+    try { people = (await api('/hack/api/team/group-candidates')).people; } catch (e) {
+      console.error('[hack] candidatos do grupo', e);
+      loadError = e.status && e.status < 500 ? e.message : 'Não deu para carregar a lista de inscritos agora. Recarregue a página.';
+    }
     const sentIds = new Set(d.sent.map((x) => x.person && x.person.id));
     const results = h('ul.list');
     const input = h('input', { type: 'search', placeholder: 'Nome do colega', autocomplete: 'off', 'aria-label': 'Buscar colega pelo nome' });

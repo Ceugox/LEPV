@@ -1171,6 +1171,37 @@ test("grupo: cancelar com resultado travado é recusado", () => {
   s.config.evaluation.resultsLocked = true;
   assert.throws(() => TM.cancelIndication(s, a.id, ps[0].id, T0), /travado/);
 });
+test("grupo: pessoa indicada por dois do mesmo grupo conta uma vez só", () => {
+  const { s, ps } = groupState(5);
+  // B indica A e C; A (ainda sem equipe) indica C e D. A aceita B.
+  const bToA = TM.indicate(s, ps[1].id, ps[0].id, T0);
+  TM.indicate(s, ps[1].id, ps[2].id, T0);
+  const later = new Date(T0.getTime() + 60000);
+  const aToC = TM.indicate(s, ps[0].id, ps[2].id, later);
+  const aToD = TM.indicate(s, ps[0].id, ps[3].id, later);
+  TM.decide(s, bToA.id, ps[0].id, true, later);
+  eq1(aToC.status, "cancelled", "repetida sai");
+  eq1(aToD.status, "pending", "D mantém a vaga: só 2 pessoas pendentes");
+});
+test("grupo: entrada por código que lota a equipe corta as indicações excedentes", () => {
+  const { s, ps } = groupState(6);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  const c = TM.indicate(s, ps[0].id, ps[2].id, T0);
+  const d = TM.indicate(s, ps[0].id, ps[3].id, new Date(T0.getTime() + 1000));
+  const t = TM.teamOf(s, ps[0].id);
+  TM.join(s, t, ps[4].id, T0);
+  eq1(t.members.length, 3);
+  eq1(c.status, "pending");
+  eq1(d.status, "cancelled", "3 integrantes + 2 pendentes passaria de 4");
+});
+test("grupo: equipe desfeita pela diretoria leva as indicações junto", () => {
+  const { s, ps } = groupState(3);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  const pend = TM.indicate(s, ps[1].id, ps[2].id, T0);
+  TM.disband(s, TM.teamOf(s, ps[0].id), T0);
+  eq1(pend.status, "cancelled");
+  eq1(s.teams.length, 0);
+});
 test("grupo: resultado travado bloqueia indicar e aceitar", () => {
   const { s, ps } = groupState(3);
   const a = TM.indicate(s, ps[0].id, ps[1].id, T0);

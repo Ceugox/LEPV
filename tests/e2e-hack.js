@@ -726,6 +726,8 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   eq(ivoInv.team.name, "Grupo de Gil");
   const soloNow = (await S.admin.get("/hack/api/admin/teams")).data.solo;
   eq(soloNow.find((x) => x.email === "ivo@ex.com").groupReceived, 1);
+  const solo0 = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  eq(solo0.find((x) => x.email === "ivo@ex.com").groupSent, 0);
   eq((await S.c.davi.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 403, "fora do grupo não cancela");
   eq((await gil.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 200, "colega de equipe cancela");
   eq((await gil.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
