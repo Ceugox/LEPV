@@ -58,7 +58,10 @@
   // Num dia do evento o dia é sempre o de hoje (relógio de Brasília), mesmo
   // com a tela aberta desde ontem; fora do evento, o do seletor (ensaio).
   let dayLocked = false;
-  const brtToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+  // Relógio do servidor corrigido pela diferença do aparelho: celular com a
+  // hora errada não registra o dia errado (medido no /status).
+  let clockSkew = 0;
+  const brtToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(Date.now() + clockSkew));
   const day = () => (dayLocked ? brtToday() : $('dia').value);
   // O que vai para o servidor: nada quando travado (ele usa o dia dele).
   const dayParam = () => (dayLocked ? undefined : day());
@@ -111,7 +114,7 @@
     const prev = server.find((c) => c.personId === t.id && c.day === day());
     if (prev) return show('dup', 'Já registrado', describe(t).concat('Entrada às ' + time(prev.at) + ' (cópia do aparelho)'));
     if (local.some((o) => o.personId === t.id && o.day === day())) return show('dup', 'Já lido neste aparelho', describe(t).concat('Aguardando sincronização.'));
-    await OFF.addOp({ opId: OFF.newOpId(), h: hsh, personId: t.id, day: day(), at: new Date().toISOString() });
+    await OFF.addOp({ opId: OFF.newOpId(), h: hsh, personId: t.id, day: day(), at: new Date(Date.now() + clockSkew).toISOString() });
     show('pending', 'Registrado neste aparelho', describe(t).concat('Sincronização pendente — confirme quando a rede voltar.'));
     remember({ name: t.name, label: 'Pendente (offline)' });
     refreshPending();
@@ -135,16 +138,25 @@
       // para o login a cada 20s — a fila ficaria parada sem ninguém ver.
       // Em lotes: o servidor aceita corpo JSON de até 100 KB, e uma fila de
       // centenas de leituras numa requisição só viraria 413 para sempre.
+      // Se um lote falhar no meio, o que os anteriores já trouxeram (inclusive
+      // recusas) é processado e mostrado antes de tratar o erro.
       const r = { results: [] };
+      let batchError = null;
       for (let i = 0; i < ops.length; i += 200) {
-        const part = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, timeoutMs: 20000, body: {
-          deviceId: setup.deviceId, deviceToken: setup.deviceToken,
-          ops: ops.slice(i, i + 200).map((o) => ({ opId: o.opId, h: o.h, personId: o.personId, day: o.day, at: o.at })),
-        } });
-        await OFF.removeOps(part.results.map((x) => x.opId));
-        r.results = r.results.concat(part.results);
+        try {
+          const part = await api('/hack/api/checkin/sync', { method: 'POST', allow401: true, timeoutMs: 20000, body: {
+            deviceId: setup.deviceId, deviceToken: setup.deviceToken,
+            ops: ops.slice(i, i + 200).map((o) => ({ opId: o.opId, h: o.h, personId: o.personId, day: o.day, at: o.at })),
+          } });
+          await OFF.removeOps(part.results.map((x) => x.opId));
+          r.results = r.results.concat(part.results);
+        } catch (e) {
+          batchError = e;
+          break;
+        }
       }
-      syncBlocked = '';
+      if (!r.results.length && batchError) throw batchError;
+      if (!batchError) syncBlocked = '';
       const ok = r.results.filter((x) => x.status === 'ok');
       const dups = r.results.filter((x) => x.status === 'duplicate');
       const refused = r.results.filter((x) => REFUSED[x.status]);
@@ -161,6 +173,8 @@
       }
       toast(ok.length + ' sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + (refused.length ? ' · ' + refused.length + ' recusada(s)' : '') + '.', refused.length > 0);
       refreshStats();
+      // O resto da fila (lote que falhou) segue o tratamento normal de erro.
+      if (batchError) throw batchError;
     } catch (e) {
       if (e.offline) { if (manual) toast('Ainda sem internet.', true); }
       else if ((e.status === 401 || e.status === 403) && /^device_/.test(e.code || '')) {
@@ -365,7 +379,7 @@
         if (server.some((c) => c.personId === t.id && c.day === day()) || local.some((o) => o.personId === t.id && o.day === day())) {
           return show('dup', 'Já registrado', describe(t));
         }
-        await OFF.addOp({ opId: OFF.newOpId(), personId: t.id, h: t.h, day: day(), at: new Date().toISOString() });
+        await OFF.addOp({ opId: OFF.newOpId(), personId: t.id, h: t.h, day: day(), at: new Date(Date.now() + clockSkew).toISOString() });
         show('pending', 'Registrado neste aparelho', describe(t).concat('Sincronização pendente.'));
         remember({ name: t.name, label: 'Pendente (offline)' });
         refreshPending();
@@ -427,8 +441,10 @@
       }
     }
     let days = ['2026-10-30', '2026-10-31'];
-    // Offline: o dia sai do relógio do aparelho, no fuso de Brasília.
-    const localToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    // Offline: o dia sai do relógio do aparelho corrigido pela última diferença
+    // medida com o servidor, no fuso de Brasília.
+    try { clockSkew = Number(await OFF.get('clockSkew')) || 0; } catch (e) { clockSkew = 0; }
+    const localToday = brtToday();
     let def = days.includes(localToday) ? localToday : days[0];
     let locked = days.includes(localToday);
     try {
@@ -436,6 +452,8 @@
       days = st.days;
       def = st.defaultDay;
       locked = st.dayLocked;
+      clockSkew = Date.parse(st.now) - Date.now();
+      try { await OFF.set('clockSkew', clockSkew); } catch (e) { /* segue sem guardar */ }
     } catch (e) { /* offline */ }
     fill($('dia'), days.map((d) => h('option', { value: d, selected: d === def }, dayLabel(d))));
     // No dia do evento não se escolhe dia: é o de hoje (o servidor também impõe).

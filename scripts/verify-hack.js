@@ -208,13 +208,17 @@ async function contextWithLink(browser, mode, token) {
     console.log('\n[credenciamento offline]');
     await page.goto(BASE + '/hack/credenciamento', { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('dia').options.length > 0, null, { timeout: 8000 });
-    // Ponto de partida conhecido: a participante de verificação sem entrada em
-    // 31/10 (rodadas anteriores podem ter registrado; a diretoria desfaz).
-    const found = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=2026-10-31')).json();
+    // Dia de trabalho: o que o servidor diz (num dia do evento é o de hoje e
+    // o seletor fica travado — a verificação não pode tentar trocá-lo).
+    const st = await (await ctx.request.get(BASE + '/hack/api/checkin/status')).json();
+    const workDay = st.dayLocked ? st.defaultDay : '2026-10-31';
+    // Ponto de partida conhecido: a participante de verificação sem entrada no
+    // dia (rodadas anteriores podem ter registrado; a diretoria desfaz).
+    const found = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=' + workDay)).json();
     for (const p of found.people || []) {
       if (p.checkin) await ctx.request.delete(BASE + '/hack/api/checkin/' + p.checkin.id);
     }
-    await page.selectOption('#dia', '2026-10-31');
+    if (!st.dayLocked) await page.selectOption('#dia', workDay);
     await page.click('#prep');
     const prepared = await page.waitForFunction(() => /ingressos/.test(document.getElementById('off-msg').textContent), null, { timeout: 8000 }).then(() => true, () => false);
     check(prepared, 'aparelho preparado para offline');
@@ -234,7 +238,7 @@ async function contextWithLink(browser, mode, token) {
       await page.waitForFunction(() => /Nada pendente/.test(document.getElementById('pend').textContent), null, { timeout: 15000 }).catch(() => null);
       const after = await page.evaluate(() => document.getElementById('pend').textContent);
       check(/Nada pendente/.test(after), 'fila sincronizou ao voltar a rede', after.slice(0, 80));
-      const server = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=2026-10-31')).json();
+      const server = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=' + workDay)).json();
       check((server.people || []).some((p) => p.checkin && p.checkin.source !== 'online'), 'servidor registrou a entrada vinda do offline');
     }
     check(errors.length === 0, 'sem erro de JS no credenciamento', errors.join(' | ') || undefined);
