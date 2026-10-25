@@ -1112,6 +1112,65 @@ test("grupo: nome provisório não colide", () => {
   TM.decide(s, TM.indicate(s, ps[2].id, ps[3].id, T0).id, ps[3].id, true, T0);
   eq1(TM.teamOf(s, ps[2].id).name, "Grupo de P0 2");
 });
+test("grupo: quem sai da equipe leva embora as indicações que fez", () => {
+  const { s, ps } = groupState(4);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  const pend = TM.indicate(s, ps[1].id, ps[2].id, T0);
+  TM.leave(s, TM.teamOf(s, ps[1].id), ps[1].id, T0);
+  eq1(pend.status, "cancelled");
+});
+test("grupo: autor ou indicado que deixa de participar tem a indicação cancelada na limpeza", () => {
+  const { s, ps } = groupState(4);
+  const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  const b = TM.indicate(s, ps[2].id, ps[3].id, T0);
+  ps[0].disabled = true;
+  ps[3].roles = [];
+  eq1(TM.prune(s, T0), true);
+  eq1(a.status, "cancelled");
+  eq1(b.status, "cancelled");
+});
+test("grupo: quando dois lados se juntam, o que passa de 4 é cancelado (mais novas primeiro)", () => {
+  const { s, ps } = groupState(7);
+  const toB = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  TM.indicate(s, ps[0].id, ps[2].id, T0);
+  const later = new Date(T0.getTime() + 60000);
+  const b1 = TM.indicate(s, ps[1].id, ps[3].id, T0);
+  const b2 = TM.indicate(s, ps[1].id, ps[4].id, later);
+  TM.decide(s, toB.id, ps[1].id, true, later);
+  // equipe {0,1} + pendentes de 0 (→2) e de 1 (→3, →4) = 5 > 4: cai a mais nova de 1
+  eq1(b2.status, "cancelled");
+  eq1(b1.status, "pending");
+});
+test("grupo: recusa e cancelamento liberam a vaga para outra indicação", () => {
+  const { s, ps } = groupState(6);
+  const inv = [1, 2, 3].map((i) => TM.indicate(s, ps[0].id, ps[i].id, T0));
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[4].id, T0), /passaria de 4/);
+  TM.decide(s, inv[0].id, ps[1].id, false, T0);
+  TM.indicate(s, ps[0].id, ps[4].id, T0);
+  TM.cancelIndication(s, inv[1].id, ps[0].id, T0);
+  TM.indicate(s, ps[0].id, ps[5].id, T0);
+});
+test("grupo: indicação repetida volta marcada como repetida", () => {
+  const { s, ps } = groupState(2);
+  TM.indicate(s, ps[0].id, ps[1].id, T0);
+  eq1(TM.indicate(s, ps[0].id, ps[1].id, T0).duplicate, true);
+  eq1(s.invites.length, 1);
+});
+test("grupo: nome provisório cabe em 40 caracteres mesmo com primeiro nome enorme", () => {
+  const { s, ps } = groupState(4);
+  ps[0].name = "Maximiliano".repeat(5) + " Silva";
+  ps[2].name = ps[0].name;
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  TM.decide(s, TM.indicate(s, ps[2].id, ps[3].id, T0).id, ps[3].id, true, T0);
+  assert(s.teams.every((t) => t.name.length <= 40), s.teams.map((t) => t.name).join(", "));
+  eq1(s.teams.length, 2);
+});
+test("grupo: cancelar com resultado travado é recusado", () => {
+  const { s, ps } = groupState(2);
+  const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  s.config.evaluation.resultsLocked = true;
+  assert.throws(() => TM.cancelIndication(s, a.id, ps[0].id, T0), /travado/);
+});
 test("grupo: resultado travado bloqueia indicar e aceitar", () => {
   const { s, ps } = groupState(3);
   const a = TM.indicate(s, ps[0].id, ps[1].id, T0);

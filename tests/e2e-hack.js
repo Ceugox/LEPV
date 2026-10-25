@@ -693,13 +693,14 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
 
 test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {
   const base = { phone: "21988880000", curso: "Engenharia", vinculo: "FGV", temGrupo: "Sim", awareLocation: true, awareTime: true };
-  for (const [name, email, phone] of [["Gil Grupo", "gil@ex.com", "21988880001"], ["Hugo Grupo", "hugo@ex.com", "21988880002"]]) {
+  for (const [name, email, phone] of [["Gil Grupo", "gil@ex.com", "21988880001"], ["Hugo Grupo", "hugo@ex.com", "21988880002"], ["Ivo Grupo", "ivo@ex.com", "21988880003"]]) {
     eq((await client().post("/api/event-signup/" + S.signupToken, { ...base, name, email, phone })).status, 200, "inscrição " + name);
   }
   const gil = await enterAs("gil@ex.com");
   const hugo = await enterAs("hugo@ex.com");
   const hugoId = (await hugo.get("/hack/api/me")).data.me.id;
   eq((await S.c.davi.get("/hack/api/team/group-candidates")).status, 403, "sem grupo não vê a lista");
+  eq((await S.c.davi.post("/hack/api/team/indicate", { personId: hugoId })).status, 403, "sem grupo não indica");
   const cand = (await gil.get("/hack/api/team/group-candidates")).data.people;
   assert(cand.some((p) => p.id === hugoId), "Hugo aparece para o Gil");
   assert(!cand.some((p) => p.name === "Bruno Participante"), "quem já tem equipe não aparece");
@@ -714,9 +715,25 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   const t = (await gil.get("/hack/api/team")).data.team;
   eq(t.size, 2);
   eq(t.name, "Grupo de Gil");
+  // Hugo, já na equipe, indica o Ivo: o Gil vê a pendência, o Ivo vê a equipe.
+  const ivo = await enterAs("ivo@ex.com");
+  const ivoId = (await ivo.get("/hack/api/me")).data.me.id;
+  eq((await hugo.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  const sentByTeam = (await gil.get("/hack/api/team")).data.sent;
+  eq(sentByTeam.length, 1, "colega de equipe vê a indicação");
+  eq(sentByTeam[0].person.name, "Ivo Grupo");
+  const ivoInv = (await ivo.get("/hack/api/team")).data.invites.find((i) => i.kind === "group");
+  eq(ivoInv.team.name, "Grupo de Gil");
+  const soloNow = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  eq(soloNow.find((x) => x.email === "ivo@ex.com").groupReceived, 1);
+  eq((await S.c.davi.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 403, "fora do grupo não cancela");
+  eq((await gil.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 200, "colega de equipe cancela");
+  eq((await gil.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  const again = await gil.post("/hack/api/team/indicate", { personId: ivoId });
+  eq(again.data.duplicate, true, "repetida avisa");
   // Limpa para não mexer nas contagens dos módulos seguintes.
   eq((await S.admin.del("/hack/api/admin/teams/" + t.id)).status, 200);
-  for (const email of ["gil@ex.com", "hugo@ex.com"]) {
+  for (const email of ["gil@ex.com", "hugo@ex.com", "ivo@ex.com"]) {
     const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
     const sg = ev.signups.find((x) => x.email === email);
     eq((await S.admin.del("/api/events/" + ev.id + "/signups/" + sg.id)).status, 200);
@@ -730,6 +747,10 @@ test("equipes: depois do prazo de entrega a composição congela (só a diretori
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
   const ana = await enterAs("ana@ex.com");
   eq((await ana.post("/hack/api/team/leave")).status, 409);
+  const brunoLate = await enterAs("bruno@ex.com");
+  const late = await brunoLate.post("/hack/api/team/indicate", { personId: "qualquer" });
+  eq(late.status, 409, "indicar depois do prazo");
+  eq(late.data.error, "teams_locked");
   eq((await ana.get("/hack/api/team")).data.locked, true);
   // Prorrogação só da Alfa: ela volta a editar a entrega; as outras não.
   eq((await S.admin.patch("/hack/api/admin/teams/" + S.alfa.id, { deadlineOverride: "2026-10-31T16:30:00Z" })).status, 200);

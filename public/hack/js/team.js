@@ -49,7 +49,7 @@
     return h('article.card.card--red',
       h('p.card__k', 'Equipe · ' + d.min + ' a ' + d.max + ' pessoas'),
       h('h3.card__title', 'Você ainda não está numa equipe'),
-      d.hasGroup ? h('p', 'Na inscrição você disse que já tem grupo. Indique os colegas no quadro “Seu grupo”: quando um deles aceitar, a equipe se forma. Se preferir, uma pessoa cria a equipe e passa o código.') : null,
+      d.hasGroup && !d.locked ? h('p', 'Na inscrição você disse que já tem grupo. Indique os colegas no quadro “Seu grupo”: quando um deles aceitar, a equipe se forma. Se preferir, uma pessoa cria a equipe e passa o código.') : null,
       h('div.grid.grid--2', create, join));
   }
 
@@ -79,18 +79,20 @@
   async function groupCard(d) {
     if (!d.hasGroup || d.locked || (d.team && !d.team.open)) return null;
     let people = [];
-    try { people = (await api('/hack/api/team/group-candidates')).people; } catch (e) { return h('p.muted', e.message); }
+    let loadError = '';
+    try { people = (await api('/hack/api/team/group-candidates')).people; } catch (e) { loadError = 'Não deu para carregar a lista de inscritos agora. Recarregue a página.'; }
     const sentIds = new Set(d.sent.map((x) => x.person && x.person.id));
     const results = h('ul.list');
     const input = h('input', { type: 'search', placeholder: 'Nome do colega', autocomplete: 'off', 'aria-label': 'Buscar colega pelo nome' });
     const draw = () => {
       const q = fold(input.value.trim());
+      if (loadError) { clear(results).append(h('li', h('p.muted', loadError))); return; }
       const found = q.length < 2 ? [] : people.filter((p) => !sentIds.has(p.id) && fold(p.name).includes(q)).slice(0, 8);
       clear(results).append(...(q.length < 2
         ? [h('li', h('p.muted', 'Digite pelo menos 2 letras do nome.'))]
         : found.length ? found.map((p) => h('li',
           h('div.list__main', h('b', p.name), h('span', [p.vinculo, p.curso].filter(Boolean).join(' · '))),
-          h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/indicate', { method: 'POST', body: { personId: p.id } }), 'Indicação enviada. Agora é só a pessoa aceitar.') }, 'Indicar')))
+          h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => act(async () => { const r = await api('/hack/api/team/indicate', { method: 'POST', body: { personId: p.id } }); toast(r.duplicate ? 'Essa pessoa já tinha sido indicada.' : 'Indicação enviada. Agora é só a pessoa aceitar.'); }) }, 'Indicar')))
         : [h('li', h('p.muted', 'Ninguém com esse nome entre os inscritos com grupo. A pessoa precisa se inscrever e marcar que tem grupo.'))]));
     };
     input.addEventListener('input', draw);
