@@ -767,6 +767,13 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   assert(simDel.data.cancelled.some((c) => c.from === "Gil Grupo"), "DELETE simula: " + JSON.stringify(simDel.data));
   eq((await S.admin.get("/hack/api/admin/teams")).data.teams.filter((x) => x.id === g2.id || x.id === g3.id).length, 2, "nada gravado");
   for (const id of [g2.id, g3.id]) eq((await S.admin.del("/hack/api/admin/teams/" + id)).status, 200);
+  // Gil e Hugo indicam o Ivo; juntar Gil e Hugo corta a repetida (do Hugo),
+  // mas a do Gil segue valendo: a prévia não lista nada.
+  eq((await gil.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  eq((await hugo.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  const simDup = await S.admin.post("/hack/api/admin/teams", { memberIds: [gilId, hugoId], dryRun: true });
+  eq(simDup.data.cancelled.length, 0, "repetida fora da prévia: " + JSON.stringify(simDup.data));
+  eq((await ivo.get("/hack/api/team")).data.invites.filter((i) => i.kind === "group").length, 2, "simulação não mexe nas indicações");
   // Arrastar na organização: duas pessoas sem equipe, sem nome → nome provisório.
   const dragged = await S.admin.post("/hack/api/admin/teams", { memberIds: [hugoId, ivoId] });
   eq(dragged.status, 200, JSON.stringify(dragged.data));
