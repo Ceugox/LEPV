@@ -1181,6 +1181,8 @@ test("grupo: pessoa indicada por dois do mesmo grupo conta uma vez só", () => {
   const aToD = TM.indicate(s, ps[0].id, ps[3].id, later);
   TM.decide(s, bToA.id, ps[0].id, true, later);
   eq1(aToC.status, "cancelled", "repetida sai");
+  eq1(aToC.reason, "duplicate");
+  eq1(TM.lostSeatsFor(s, ps[2].id, later).length, 0, "C não recebe aviso: a indicação do B segue valendo");
   eq1(aToD.status, "pending", "D mantém a vaga: só 2 pessoas pendentes");
 });
 test("grupo: entrada por código que lota a equipe corta as indicações excedentes", () => {
@@ -1193,7 +1195,7 @@ test("grupo: entrada por código que lota a equipe corta as indicações exceden
   eq1(t.members.length, 3);
   eq1(c.status, "pending");
   eq1(d.status, "cancelled", "3 integrantes + 2 pendentes passaria de 4");
-  eq1(d.reason, "team_full", "motivo gravado para o portal avisar");
+  eq1(d.reason, "seats_reserved", "vaga reservada, não equipe cheia");
 });
 test("grupo: equipe desfeita pela diretoria leva as indicações junto", () => {
   const { s, ps } = groupState(3);
@@ -1202,6 +1204,36 @@ test("grupo: equipe desfeita pela diretoria leva as indicações junto", () => {
   TM.disband(s, TM.teamOf(s, ps[0].id), T0);
   eq1(pend.status, "cancelled");
   eq1(s.teams.length, 0);
+});
+test("grupo: equipe que chega a 4 pela diretoria corta as indicações com motivo de equipe cheia", () => {
+  const { s, ps } = groupState(6);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  const pend = TM.indicate(s, ps[1].id, ps[5].id, T0);
+  const t = TM.teamOf(s, ps[0].id);
+  const other = TM.createTeam(s, ps[2].id, "Outra", T0);
+  TM.join(s, other, ps[3].id, T0);
+  TM.merge(s, t.id, other.id, T0);
+  eq1(t.members.length, 4);
+  eq1(pend.status, "cancelled");
+  eq1(pend.reason, "team_full");
+});
+test("grupo: aviso de vaga perdida aparece para os dois lados, só por 48 h", () => {
+  const { s, ps } = groupState(6);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  const pend = TM.indicate(s, ps[0].id, ps[5].id, T0);
+  const t = TM.teamOf(s, ps[0].id);
+  TM.join(s, t, ps[2].id, T0);
+  TM.join(s, t, ps[3].id, T0);
+  eq1(pend.reason, "team_full");
+  const toIndicated = TM.lostSeatsFor(s, ps[5].id, T0);
+  eq1(toIndicated.length, 1);
+  eq1(toIndicated[0].mine, true);
+  eq1(toIndicated[0].name, "P0");
+  const toTeammate = TM.lostSeatsFor(s, ps[3].id, T0);
+  eq1(toTeammate[0].mine, false, "colega de equipe vê o corte do lado dele");
+  eq1(toTeammate[0].name, "P5");
+  eq1(TM.lostSeatsFor(s, ps[4].id, T0).length, 0, "quem não tem nada a ver não vê");
+  eq1(TM.lostSeatsFor(s, ps[5].id, new Date(T0.getTime() + 49 * 3600 * 1000)).length, 0, "some depois de 48 h");
 });
 test("grupo: resultado travado bloqueia indicar e aceitar", () => {
   const { s, ps } = groupState(3);

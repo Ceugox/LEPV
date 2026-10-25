@@ -172,7 +172,16 @@
     return h('article.card', h('p.card__k', 'Indicações canceladas'),
       h('ul.list', d.lostSeats.map((x) => h('li', h('div.list__main',
         h('b', x.name),
-        h('span', x.mine ? 'A indicação que essa pessoa fez para você foi cancelada: a equipe dela completou 4 pessoas.' : 'Sua equipe completou 4 pessoas e a indicação para essa pessoa foi cancelada.'))))));
+        h('span', lostText(x)))))));
+  }
+
+  function lostText(x) {
+    if (x.reason === 'team_full') {
+      return x.mine ? 'A indicação que essa pessoa fez para você foi cancelada: a equipe dela completou 4 pessoas.'
+        : 'Sua equipe completou 4 pessoas e a indicação para essa pessoa foi cancelada.';
+    }
+    return x.mine ? 'A indicação que essa pessoa fez para você foi cancelada: as vagas da equipe dela já estavam reservadas para outras indicações. Se uma delas for recusada, ela pode indicar você de novo.'
+      : 'A indicação para essa pessoa foi cancelada: com quem entrou, as vagas da equipe já estavam reservadas para outras indicações. Se alguma for recusada, indique de novo.';
   }
 
   async function render(container) {
