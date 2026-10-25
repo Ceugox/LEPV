@@ -48,26 +48,20 @@
   if (!motion) return;
 
   /* reveal */
-  const targets = document.querySelectorAll('.final__in > *, .sec-head, .day, .seal__in > *, .feats li, .duo__card, .faq__list details, .outro__in');
+  const targets = document.querySelectorAll('.final__in > *, .org__text, .org__grid, .sec-head, .day, .feats li, .faq__list details, .outro__in');
   targets.forEach(t => t.classList.add('rv'));
   const io = new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
   }), { rootMargin: '0px 0px -8% 0px' });
   targets.forEach(t => io.observe(t));
 
-  /* scroll-linked parallax: hero photo drifts, origin photo pans inside the letters */
+  /* scroll-linked parallax: a foto do hero desliza devagar */
   const root = document.documentElement;
-  const origin = document.querySelector('.origin');
   let raf = 0;
   const onScroll = () => {
     raf = 0;
     const y = window.scrollY;
     if (y < window.innerHeight * 1.2) root.style.setProperty('--sy', y.toFixed(1));
-    if (origin) {
-      const r = origin.getBoundingClientRect();
-      const p = Math.min(1, Math.max(0, 1 - (r.top + r.height) / (window.innerHeight + r.height)));
-      origin.style.setProperty('--op', p.toFixed(3));
-    }
   };
   window.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(onScroll); }, { passive: true });
   onScroll();

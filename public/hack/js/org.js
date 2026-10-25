@@ -493,7 +493,7 @@
           t.status === 'confirmed'
             ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: false }, 'Voltou para formação.') }, 'Desconfirmar')
             : h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: true }, 'Confirmada.') }, 'Confirmar'))));
-      if (t.size < 4) dropTarget(card, (pid) => guardPending([pid], () => teamPatch(t.id, { addMember: pid }, 'Incluído na ' + t.name + '.')));
+      if (t.size < 4) dropTarget(card, (pid) => teamPatch(t.id, { addMember: pid }, 'Incluído na ' + t.name + '.'));
     });
     const solo = clear($('solo-list'));
     if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
@@ -512,7 +512,7 @@
         li.classList.add('is-dragging');
       });
       li.addEventListener('dragend', () => li.classList.remove('is-dragging'));
-      dropTarget(li, (pid) => pid !== p.id && guardPending([pid, p.id], () => soloPair(pid, p.id)));
+      dropTarget(li, (pid) => pid !== p.id && soloPair(pid, p.id));
     });
   }
 
@@ -532,26 +532,30 @@
     });
   }
 
-  // Quem tem indicação de grupo pendente perde essa indicação ao entrar numa
-  // equipe: a organização confirma antes, sabendo quem é.
-  function guardPending(ids, go) {
-    const who = state.solo.filter((x) => ids.includes(x.id) && (x.groupSent || x.groupReceived));
-    if (!who.length) return go();
-    const names = who.map((x) => x.name + ' (' + (x.groupSent + x.groupReceived) + ')').join(', ');
+  // Toda mudança de composição pela diretoria passa por aqui: o servidor
+  // simula (dryRun) e diz quais indicações de grupo cairiam; havendo alguma,
+  // a organização confirma vendo quem perde. Depois executa de verdade.
+  async function teamOp(url, method, body, onDone) {
+    let sim;
+    try { sim = await api(url, { method, body: Object.assign({}, body, { dryRun: true }) }); }
+    catch (e) { toast(e.message, true); return; }
+    const run = async () => {
+      try { const r = await api(url, { method, body }); await onDone(r); await loadTeams(); }
+      catch (e) { toast(e.message, true); }
+    };
+    if (!sim.cancelled || !sim.cancelled.length) { if (dlg.open) dlg.close(); return run(); }
     openDialog('Indicações pendentes',
-      h('p', names + ' tem indicação de grupo ainda sem resposta. Juntar agora cancela essas indicações.'),
+      h('p', 'Isto cancela indicação de grupo ainda sem resposta:'),
+      h('ul.list', sim.cancelled.map((c) => h('li', h('div.list__main', h('b', c.from + ' → ' + c.to))))),
       h('div.row', { style: 'margin-top:12px' },
-        h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => { dlg.close(); go(); } }, 'Juntar mesmo assim'),
+        h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => { dlg.close(); run(); } }, 'Continuar mesmo assim'),
         h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => dlg.close() }, 'Cancelar')));
   }
 
   // Duas pessoas sem equipe viram uma equipe nova (nome provisório, renomeável).
-  async function soloPair(draggedId, targetId) {
-    try {
-      const r = await api('/hack/api/admin/teams', { method: 'POST', body: { memberIds: [targetId, draggedId] } });
-      toast('Equipe “' + r.team.name + '” criada. Renomeie em Ajustar.');
-      await loadTeams();
-    } catch (e) { toast(e.message, true); }
+  function soloPair(draggedId, targetId) {
+    return teamOp('/hack/api/admin/teams', 'POST', { memberIds: [targetId, draggedId] },
+      (r) => toast('Equipe “' + r.team.name + '” criada. Renomeie em Ajustar.'));
   }
 
   // Mesma coisa sem arrastar (celular e teclado).
@@ -566,16 +570,14 @@
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const v = sel.value;
-      dlg.close();
-      if (v.startsWith('t:')) guardPending([p.id], () => teamPatch(v.slice(2), { addMember: p.id }, 'Incluído.'));
-      else guardPending([p.id, v.slice(2)], () => soloPair(p.id, v.slice(2)));
+      if (v.startsWith('t:')) teamPatch(v.slice(2), { addMember: p.id }, 'Incluído.');
+      else soloPair(p.id, v.slice(2));
     });
     openDialog('Juntar com…', form);
   }
 
-  async function teamPatch(id, body, ok) {
-    try { await api('/hack/api/admin/teams/' + id, { method: 'PATCH', body }); if (ok) toast(ok); await loadTeams(); }
-    catch (e) { toast(e.message, true); }
+  function teamPatch(id, body, ok) {
+    return teamOp('/hack/api/admin/teams/' + id, 'PATCH', body, () => { if (ok) toast(ok); });
   }
 
   const soloOptions = () => state.solo.map((p) => h('option', { value: p.id }, p.name + (p.hasGroup ? ' (tem grupo)' : '')));
@@ -583,18 +585,17 @@
   function teamDialog(t) {
     const rename = h('form.form', h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: t.name, required: true })),
       h('button.btn.btn--ghost.btn--sm', { type: 'submit' }, 'Renomear'));
-    rename.addEventListener('submit', (ev) => { ev.preventDefault(); dlg.close(); teamPatch(t.id, { name: ev.target.name.value }, 'Renomeada.'); });
+    rename.addEventListener('submit', (ev) => { ev.preventDefault(); teamPatch(t.id, { name: ev.target.name.value }, 'Renomeada.'); });
     const add = h('form.form', h('label.field', h('span', 'Adicionar participante sem equipe'), h('select', { name: 'who' }, soloOptions())),
       h('button.btn.btn--ghost.btn--sm', { type: 'submit', disabled: !state.solo.length || t.size >= 4 }, 'Adicionar'));
-    add.addEventListener('submit', (ev) => { ev.preventDefault(); dlg.close(); teamPatch(t.id, { addMember: ev.target.who.value }, 'Adicionado.'); });
+    add.addEventListener('submit', (ev) => { ev.preventDefault(); teamPatch(t.id, { addMember: ev.target.who.value }, 'Adicionado.'); });
     const others = state.teams.filter((x) => x.id !== t.id && x.size + t.size <= 4);
     const merge = h('form.form', h('label.field', h('span', 'Juntar outra equipe nesta (até 4 pessoas)'),
       h('select', { name: 'other' }, others.map((x) => h('option', { value: x.id }, x.name + ' (' + x.size + ')')))),
       h('button.btn.btn--ghost.btn--sm', { type: 'submit', disabled: !others.length }, 'Juntar'));
-    merge.addEventListener('submit', async (ev) => {
+    merge.addEventListener('submit', (ev) => {
       ev.preventDefault();
-      try { await api('/hack/api/admin/teams/' + t.id + '/merge', { method: 'POST', body: { otherId: ev.target.other.value } }); dlg.close(); toast('Equipes juntadas.'); await loadTeams(); }
-      catch (e) { toast(e.message, true); }
+      teamOp('/hack/api/admin/teams/' + t.id + '/merge', 'POST', { otherId: ev.target.other.value }, () => toast('Equipes juntadas.'));
     });
     const del = h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
       try { await api('/hack/api/admin/teams/' + t.id, { method: 'DELETE' }); dlg.close(); toast('Equipe desfeita.'); await loadTeams(); }
@@ -609,11 +610,10 @@
       h('label.field', h('span', 'Nome da equipe'), h('input', { name: 'name', required: true })),
       h('label.field', h('span', 'Integrantes (segure Ctrl/⌘ para escolher vários; até 4)'), sel),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Criar equipe'));
-    form.addEventListener('submit', async (ev) => {
+    form.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const ids = Array.from(sel.selectedOptions).map((o) => o.value);
-      try { await api('/hack/api/admin/teams', { method: 'POST', body: { name: ev.target.name.value, memberIds: ids } }); dlg.close(); toast('Equipe criada.'); await loadTeams(); }
-      catch (e) { toast(e.message, true); }
+      teamOp('/hack/api/admin/teams', 'POST', { name: ev.target.name.value, memberIds: ids }, () => toast('Equipe criada.'));
     });
     openDialog('Nova equipe', form);
   });
