@@ -1193,6 +1193,7 @@ test("grupo: entrada por código que lota a equipe corta as indicações exceden
   eq1(t.members.length, 3);
   eq1(c.status, "pending");
   eq1(d.status, "cancelled", "3 integrantes + 2 pendentes passaria de 4");
+  eq1(d.reason, "team_full", "motivo gravado para o portal avisar");
 });
 test("grupo: equipe desfeita pela diretoria leva as indicações junto", () => {
   const { s, ps } = groupState(3);

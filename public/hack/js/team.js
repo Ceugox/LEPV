@@ -166,16 +166,25 @@
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/invites/' + r.id, { method: 'POST', body: { accept: false } })) }, 'Recusar')) : null))));
   }
 
+  // Indicações cortadas porque a equipe chegou a 4.
+  function lostCard(d) {
+    if (!d.lostSeats || !d.lostSeats.length) return null;
+    return h('article.card', h('p.card__k', 'Indicações canceladas'),
+      h('ul.list', d.lostSeats.map((x) => h('li', h('div.list__main',
+        h('b', x.name),
+        h('span', x.mine ? 'A indicação que essa pessoa fez para você foi cancelada: a equipe dela completou 4 pessoas.' : 'Sua equipe completou 4 pessoas e a indicação para essa pessoa foi cancelada.'))))));
+  }
+
   async function render(container) {
     box = container;
     let d;
     try { d = await api('/hack/api/team'); } catch (e) { if (e.status !== 401) toast(e.message, true); return; }
     const out = [];
     if (d.team) {
-      out.push(teamCard(d), requestsCard(d), await groupCard(d));
+      out.push(teamCard(d), requestsCard(d), await groupCard(d), lostCard(d));
       if (d.team.open && !d.locked) out.push(await discoverCard(d, true));
     } else {
-      out.push(invitesCard(d), await groupCard(d), startCard(d));
+      out.push(invitesCard(d), lostCard(d), await groupCard(d), startCard(d));
       if (d.canDiscover && !d.locked) out.push(profileCard(d), await discoverCard(d, false));
     }
     clear(box).append(...out.filter(Boolean));
