@@ -48,7 +48,7 @@
   if (!motion) return;
 
   /* reveal */
-  const targets = document.querySelectorAll('.final__in > *, .org__text, .org__grid, .sec-head, .day, .feats li, .duo__card, .faq__list details, .outro__in');
+  const targets = document.querySelectorAll('.final__in > *, .org__text, .org__grid, .sec-head, .day, .feats li, .faq__list details, .outro__in');
   targets.forEach(t => t.classList.add('rv'));
   const io = new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }

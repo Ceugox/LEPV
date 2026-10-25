@@ -36,7 +36,7 @@ body.app { min-height: 100vh; background: var(--ink); }
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 .tabs__in { display: flex; gap: 6px; max-width: calc(1180px + 2 * var(--gut)); margin: 0 auto; padding: 8px var(--gut); overflow-x: auto; scrollbar-width: none; }
 .tabs__in::-webkit-scrollbar { display: none; }
-.tab { flex: none; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid transparent; background: none; color: var(--text-2);
+.tab { flex: none; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--text-2);
   font: 600 14px/1 var(--f-body); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .tab:hover { color: #fff; background: rgba(255,255,255,.06); }
 .tab[aria-selected="true"] { color: #fff; background: var(--red); }

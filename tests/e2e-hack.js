@@ -212,6 +212,18 @@ test("prepara: diretoria cria o hackathon e 5 pessoas se inscrevem", async () =>
   }
 });
 
+test("inscrição: aceita UFPE e Outra universidade, recusa vínculo fora da lista", async () => {
+  const html = await (await fetch(BASE + "/inscricao.html")).text();
+  for (const v of ["UFPE", "Outra universidade"]) assert(html.includes('<option value="' + v + '">'), "opção " + v + " no formulário");
+  const base = { phone: "21988887777", curso: "Engenharia", temGrupo: "Não", awareLocation: true, awareTime: true };
+  const r1 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Paula Recife", email: "paula.ufpe@ex.com", vinculo: "UFPE" });
+  eq(r1.status, 200, "UFPE: " + JSON.stringify(r1.data));
+  const r2 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Otto Outra", email: "otto.outra@ex.com", phone: "21988886666", vinculo: "Outra universidade" });
+  eq(r2.status, 200, "Outra universidade: " + JSON.stringify(r2.data));
+  const r3 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Xis Fora", email: "xis@ex.com", phone: "21988885555", vinculo: "Qualquer" });
+  eq(r3.status, 400, "vínculo fora da lista");
+});
+
 test("rotas: /hack/inscricao leva ao formulário do evento", async () => {
   const r = await client().get("/hack/inscricao");
   eq(r.status, 302);

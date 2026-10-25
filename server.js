@@ -1686,7 +1686,7 @@ const SIGNUP_ESPECIALIDADES = [
 ];
 // Listas fechadas do formulário público de inscrição do Hackathon LEPV × FGV
 // (evento type "hackathon" usa este conjunto de campos em vez do padrão IME).
-const HACKATHON_VINCULOS = ["Ativa do IME", "Reserva do IME", "FGV"];
+const HACKATHON_VINCULOS = ["Ativa do IME", "Reserva do IME", "FGV", "UFPE", "Outra universidade"];
 const HACKATHON_ANOS_FACULDADE = ["1", "2", "3", "4", "5"];
 const HACKATHON_SIMNAO = ["Sim", "Não"];
 const HACKATHON_DATAS_ALT = ["2 e 3 de outubro", "9 e 10 de outubro", "Outro"];
