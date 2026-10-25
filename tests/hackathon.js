@@ -12,8 +12,11 @@ const A = require("../lib/hackathon/announcements");
 const TM = require("../lib/hackathon/teams");
 const EV = require("../lib/hackathon/evaluation");
 const { createDelivery, MAX_ATTEMPTS } = require("../lib/hackathon/delivery");
-const { publicBaseFor, rateLimiter, networkOutcome } = require("../lib/hackathon/util");
+const { publicBaseFor, rateLimiter, networkOutcome, route, setReporter, HackError } = require("../lib/hackathon/util");
+const { createPush } = require("../lib/hackathon/push");
 const { sendAccessLink } = require("../lib/hackathon/routes/access");
+const PT = require("../lib/hackathon/partners");
+const K = require("../lib/hackathon/admission");
 const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
 
 const results = { pass: 0, fail: 0 };
@@ -671,6 +674,346 @@ test("ator: inscrição retirada derruba a sessão; membro bloqueado não entra"
   const d = newPerson({ memberOrder: 8, disabled: true });
   s.people.push(d);
   eq1(resolveActor(req(null, { order: 8, name: "D", director: true }), s, deps), null, "diretor bloqueado aqui também");
+});
+
+// ---------- parceiros ----------
+function partnerState() {
+  const s = emptyState();
+  const teachy = PT.addOrg(s, { name: "Teachy", kind: "sponsor" });
+  const apoio = PT.addOrg(s, { name: "Apoio X", kind: "supporter" });
+  return { s, teachy, apoio };
+}
+const reqBody = (extra) => Object.assign({ kind: "sponsor", name: "Rita Representante", email: "rita@teachy.com" }, extra);
+
+test("parceiros: organização de outra modalidade (formulário adulterado) é recusada", () => {
+  const { s, apoio, teachy } = partnerState();
+  assert.throws(() => PT.createRequest(s, reqBody({ orgId: apoio.id }), T0), /lista/);
+  PT.updateOrg(s, teachy.id, { active: false });
+  assert.throws(() => PT.createRequest(s, reqBody({ orgId: teachy.id }), T0), /lista/, "inativa também");
+});
+test("parceiros: pedido não dá papel; aprovação dá papel e organização", () => {
+  const { s, teachy } = partnerState();
+  const r = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  eq1(s.people.length, 0, "pedir não cria acesso");
+  eq1(PT.createRequest(s, reqBody({ orgId: teachy.id }), T0).id, r.id, "pedido repetido não duplica");
+  const out = PT.decideRequest(s, r.id, true, "dir", T0);
+  assert.deepStrictEqual(out.person.roles, ["sponsor"]);
+  eq1(out.person.orgId, teachy.id);
+  assert.throws(() => PT.decideRequest(s, r.id, true, "dir", T0), /já decidido/);
+});
+test("parceiros: recusado não vira pessoa; representante de outra org não é sobrescrito", () => {
+  const { s, teachy, apoio } = partnerState();
+  const r1 = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  PT.decideRequest(s, r1.id, false, "dir", T0);
+  eq1(s.people.length, 0);
+  const r2 = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  PT.decideRequest(s, r2.id, true, "dir", T0);
+  const r3 = PT.createRequest(s, reqBody({ kind: "supporter", orgId: apoio.id }), T0);
+  assert.throws(() => PT.decideRequest(s, r3.id, true, "dir", T0), /outra organização/);
+});
+test("parceiros: agenda só com atividades da própria organização", () => {
+  const { s, teachy, apoio } = partnerState();
+  s.program.push({ id: "a1", day: "2026-10-30", start: "16:30", end: "17:00", title: "Problemática", place: "FGV", orgIds: [teachy.id] });
+  s.program.push({ id: "a2", day: "2026-10-30", start: "16:00", end: "16:30", title: "Apoio", place: "FGV", orgIds: [apoio.id] });
+  eq1(PT.orgAgenda(s, teachy.id).map((a) => a.id).join(), "a1");
+});
+test("parceiros: exportação só de quem autorizou, sem fórmula executável", () => {
+  const s = emptyState();
+  s.people.push(newPerson({ name: "=HYPERLINK(1)", email: "a@ex.com", phone: "+5521", roles: ["participant"], consent: true, curso: "Eco" }));
+  s.people.push(newPerson({ name: "Sem Consentimento", email: "b@ex.com", roles: ["participant"], consent: false }));
+  s.people.push(newPerson({ name: "Jurado Consentido", email: "c@ex.com", roles: ["judge"], consent: true }));
+  const out = PT.exportConsenting(s);
+  eq1(out.count, 1);
+  assert.ok(out.csv.includes(`"'=HYPERLINK(1)"`), "fórmula neutralizada");
+  assert.ok(out.csv.includes(`"'+5521"`), "telefone com + também");
+  assert.ok(!out.csv.includes("b@ex.com") && !out.csv.includes("c@ex.com"));
+});
+
+// ---------- revisão 3: integridade ----------
+test("avaliação: nota ponderada tem valor exato (peso 2 escala 5, peso 1 escala 10)", () => {
+  const crit = [{ id: "a", weight: 2, scaleMax: 5 }, { id: "b", weight: 1, scaleMax: 10 }];
+  // (2*(4-1)/4 + 1*(7-1)/9) / 3 * 100
+  eq1(Math.round(EV.judgeTotal(crit, { a: 4, b: 7 }) * 100) / 100, 72.22);
+  eq1(EV.judgeTotal(crit, { a: 5, b: 10 }), 100);
+  eq1(EV.judgeTotal(crit, { a: 1, b: 1 }), 0);
+});
+test("avaliação: peso que arredonda para zero é recusado", () => {
+  const { s } = evalState(1);
+  assert.throws(() => EV.addCriterion(s, { name: "Quase nada", weight: 0.04 }), /Peso/);
+});
+test("avaliação: nota de jurado bloqueado ou que perdeu o papel não conta", () => {
+  const { s, teams, judges } = evalState(1);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 1, 1), T0);
+  EV.submitScore(s, judges[1].id, teams[0].id, vals(s, 5, 5), T0);
+  judges[0].disabled = true;
+  eq1(EV.ranking(s)[0].score, 100);
+  judges[0].disabled = false;
+  judges[0].roles = [];
+  eq1(EV.ranking(s)[0].score, 100);
+});
+test("avaliação: depois de revelado o pódio não muda (nem re-trava, nem equipe muda)", () => {
+  const { s, teams, judges } = evalState(2);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 5), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 1, 1), T0);
+  EV.lockResults(s, true, T0);
+  assert.throws(() => TM.leave(s, teams[0], teams[0].members[0], T0), /travado/);
+  assert.throws(() => TM.merge(s, teams[0].id, teams[1].id, T0), /travado/);
+  EV.reveal(s, T0);
+  assert.throws(() => EV.lockResults(s, true, T0), /revelado/);
+  assert.throws(() => EV.lockResults(s, false, T0), /revelado/);
+});
+test("equipes: quem deixa de ser participante sai da equipe; travado, nada muda", () => {
+  const { s, ps } = teamState(3);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  TM.joinByCode(s, ps[2].id, t.code, T0);
+  ps[2].roles = [];
+  eq1(TM.prune(s, T0), true);
+  eq1(t.members.length, 2);
+  ps[1].disabled = true;
+  s.config.evaluation.resultsLocked = true;
+  eq1(TM.prune(s, T0), false);
+  eq1(t.members.length, 2);
+});
+test("equipes: entrega não fica órfã (juntar e esvaziar)", () => {
+  const { s, ps } = teamState(3);
+  const a = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  const b = TM.createTeam(s, ps[1].id, "Beta", T0);
+  EV.upsertSubmission(s, b.id, { repoUrl: "https://x.y/z" }, ps[1].id, T0);
+  assert.throws(() => TM.merge(s, a.id, b.id, T0), /entregou/);
+  assert.throws(() => TM.leave(s, b, ps[1].id, T0), /entrega/);
+  // Inscrição retirada do último integrante: a limpeza automática não apaga
+  // equipe que entregou — fica para a diretoria decidir.
+  ps[1].roles = [];
+  TM.prune(s, T0);
+  eq1(s.submissions.length, 1);
+  eq1(TM.findTeam(s, b.id).members.length, 1);
+});
+test("entrega: prorrogação vale só para a equipe", () => {
+  const s = emptyState();
+  const t = { id: "e1", deadlineOverride: "2026-10-31T16:30:00.000Z" };
+  eq1(EV.deadlineFor(s, t), Date.parse("2026-10-31T16:30:00.000Z"));
+  eq1(EV.deadlineFor(s, { id: "e2" }), Date.parse("2026-10-31T13:00:00-03:00"));
+  eq1(EV.deadlineFor(s, { id: "e3", deadlineOverride: "2026-10-31T10:00:00Z" }), Date.parse("2026-10-31T13:00:00-03:00"), "prorrogar nunca encurta");
+});
+test("rede: chave inválida é falha, não 'incerto'", () => {
+  eq1(networkOutcome(new Error("Vapid private key should be 32 bytes")).status, "failed");
+  eq1(networkOutcome({ code: "ECONNRESET", message: "socket hang up" }).status, "unknown");
+});
+
+// ---------- credenciamento ----------
+function admState() {
+  const s = emptyState();
+  const ana = newPerson({ name: "Ana", roles: ["participant"], email: "ana@ex.com", phone: "21999990001" });
+  const wait = newPerson({ name: "Wal", signupStatus: "waitlist" });
+  const off = newPerson({ name: "Off", roles: ["participant"], disabled: true });
+  const staff = newPerson({ name: "Sid", roles: ["staff"], staffPerms: { comms: false, checkin: true } });
+  s.people.push(ana, wait, off, staff);
+  return { s, ana, wait, off, staff };
+}
+const DAY1 = "2026-10-30";
+
+test("credenciamento: uma presença por pessoa e dia; repetição e QR alheio tratados", () => {
+  const { s, ana, wait, off, staff } = admState();
+  const op = { by: staff.id };
+  eq1(K.admitByCode(s, "LEPVHACK1:" + ana.qrToken, DAY1, op, T0).status, "ok");
+  const dup = K.admitByCode(s, "LEPVHACK1:" + ana.qrToken, DAY1, op, T0);
+  eq1(dup.status, "duplicate");
+  eq1(dup.checkin.by, "Sid");
+  eq1(K.admitByCode(s, "LEPVHACK1:" + ana.qrToken, "2026-10-31", op, T0).status, "ok", "outro dia");
+  eq1(K.admitByCode(s, "https://evil.example", DAY1, op, T0).status, "invalid");
+  eq1(K.admitByCode(s, "LEPVHACK1:" + "x".repeat(24), DAY1, op, T0).status, "invalid");
+  eq1(K.admitByCode(s, "LEPVHACK1:" + wait.qrToken, DAY1, op, T0).status, "waitlist");
+  eq1(K.admitByCode(s, "LEPVHACK1:" + off.qrToken, DAY1, op, T0).status, "blocked");
+  eq1(s.checkins.length, 2);
+  assert.throws(() => K.resolveDay("2026-11-01", T0), /dias do evento/);
+});
+test("credenciamento: cópia offline só com hash, sem token nem contato", () => {
+  const { s, ana } = admState();
+  const snap = JSON.stringify(K.snapshot(s));
+  assert.ok(!snap.includes(ana.qrToken));
+  assert.ok(!snap.includes("ana@ex.com") && !snap.includes("21999990001"));
+  assert.ok(snap.includes(sha256(ana.qrToken)));
+});
+test("credenciamento: sincronização idempotente; dois aparelhos não dobram a presença", () => {
+  const { s, ana, staff } = admState();
+  const d1 = K.prepareDevice(s, staff.id, "cel 1", T0).device;
+  const d2 = K.prepareDevice(s, staff.id, "cel 2", T0).device;
+  const h = sha256(ana.qrToken);
+  const r1 = K.syncOps(s, d1, staff.id, [{ opId: "op-aaaaaaaa1", h, day: DAY1, at: T0.toISOString() }], T0);
+  eq1(r1[0].status, "ok");
+  const again = K.syncOps(s, d1, staff.id, [{ opId: "op-aaaaaaaa1", h, day: DAY1, at: T0.toISOString() }], later(1000));
+  eq1(again[0].status, "ok", "mesma operação, mesmo resultado");
+  const r2 = K.syncOps(s, d2, staff.id, [{ opId: "op-bbbbbbbb2", h, day: DAY1, at: T0.toISOString() }], later(2000));
+  eq1(r2[0].status, "duplicate");
+  eq1(s.checkins.length, 1);
+  eq1(K.syncOps(s, d1, staff.id, [{ opId: "x", h, day: DAY1 }], T0)[0].status, "rejected");
+});
+test("credenciamento: aparelho revogado, vencido ou de outra pessoa não sincroniza", () => {
+  const { s, staff, ana } = admState();
+  const { device, token } = K.prepareDevice(s, staff.id, "cel", T0);
+  eq1(K.checkDevice(s, device.id, token, staff.id, T0).id, device.id);
+  assert.throws(() => K.checkDevice(s, device.id, "errado", staff.id, T0), /não autorizado/);
+  assert.throws(() => K.checkDevice(s, device.id, token, ana.id, T0), /outra pessoa/);
+  assert.throws(() => K.checkDevice(s, device.id, token, staff.id, new Date("2026-11-02T12:00:00Z")), /expirou/);
+  device.revokedAt = T0.toISOString();
+  assert.throws(() => K.checkDevice(s, device.id, token, staff.id, T0), /revogada/);
+});
+test("credenciamento: horário da leitura offline nunca fica no futuro", () => {
+  const { s, ana, staff } = admState();
+  const { device } = K.prepareDevice(s, staff.id, "cel", T0);
+  K.syncOps(s, device, staff.id, [{ opId: "op-cccccccc3", personId: ana.id, day: DAY1, at: "2030-01-01T00:00:00Z" }], T0);
+  eq1(s.checkins[0].at, T0.toISOString());
+});
+
+// ---------- revisão 4 ----------
+test("credenciamento: no dia do evento só vale o dia de hoje", () => {
+  const sat = new Date("2026-10-31T12:00:00Z"); // 9h de Brasília, sábado
+  eq1(K.resolveDay("", sat), "2026-10-31");
+  eq1(K.resolveDay("2026-10-31", sat), "2026-10-31");
+  assert.throws(() => K.resolveDay("2026-10-30", sat), /Hoje é 31\/10/);
+  eq1(K.resolveDay("2026-10-31", T0), "2026-10-31", "fora do evento (ensaio) escolhe");
+});
+test("credenciamento: leitura offline usa o dia em que foi feita, não o do seletor", () => {
+  const { s, ana, staff } = admState();
+  const sat = new Date("2026-10-31T15:00:00Z");
+  const { device } = K.prepareDevice(s, staff.id, "cel", sat);
+  const r = K.syncOps(s, device, staff.id, [{ opId: "op-dddddddd4", personId: ana.id, day: "2026-10-30", at: "2026-10-31T12:30:00Z" }], sat);
+  eq1(r[0].status, "ok");
+  eq1(s.checkins[0].day, "2026-10-31");
+});
+test("credenciamento: desfeita, a presença não volta pela mesma operação", () => {
+  const { s, ana, staff } = admState();
+  const { device } = K.prepareDevice(s, staff.id, "cel", T0);
+  const op = { opId: "op-eeeeeeee5", personId: ana.id, day: DAY1, at: T0.toISOString() };
+  const r = K.syncOps(s, device, staff.id, [op], T0);
+  K.undo(s, r[0].checkin.id);
+  eq1(s.checkins.length, 0);
+  // Resposta perdida + reenvio depois do desfazer: não recria a presença.
+  const again = K.syncOps(s, device, staff.id, [op], later(10));
+  eq1(again[0].status, "undone");
+  eq1(s.checkins.length, 0);
+});
+test("parceiros: nome único também ao editar; pendentes nunca somem no teto", () => {
+  const { s, teachy, apoio } = partnerState();
+  assert.throws(() => PT.updateOrg(s, apoio.id, { name: "teachy" }), /Já existe/);
+  for (let i = 0; i < 520; i++) {
+    const r = PT.createRequest(s, { kind: "sponsor", orgId: teachy.id, name: "Pessoa Teste" + i, email: "p" + i + "@ex.com" }, T0);
+    if (i < 30) PT.decideRequest(s, r.id, false, "dir", T0);
+  }
+  eq1(s.partnerRequests.filter((x) => x.status === "pending").length, 490, "todo pendente fica");
+});
+
+// ---------- revisão 5 ----------
+test("equipes: depois do prazo a limpeza automática não mexe", () => {
+  const { s, ps } = teamState(3);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  ps[1].roles = [];
+  eq1(TM.prune(s, new Date("2026-10-31T16:30:00Z")), false);
+  eq1(t.members.length, 2);
+});
+test("credenciamento: operação malformada não derruba o lote", () => {
+  const { s, ana, staff } = admState();
+  const { device } = K.prepareDevice(s, staff.id, "cel", T0);
+  const r = K.syncOps(s, device, staff.id, [null, 42, { opId: "op-ffffffff6", personId: ana.id, day: DAY1, at: T0.toISOString() }], T0);
+  eq1(r[0].status, "rejected");
+  eq1(r[1].status, "rejected");
+  eq1(r[2].status, "ok");
+});
+test("credenciamento: aparelho vencido ainda entrega o que leu antes de vencer", () => {
+  const { s, ana, staff } = admState();
+  const { device, token } = K.prepareDevice(s, staff.id, "cel", T0);
+  const after = new Date(Date.parse(device.expiresAt) + 3600 * 1000);
+  assert.throws(() => K.checkDevice(s, device.id, token, staff.id, after), /expirou/);
+  const dev = K.checkDevice(s, device.id, token, staff.id, after, { forSync: true });
+  const r = K.syncOps(s, dev, staff.id, [
+    { opId: "op-gggggggg7", personId: ana.id, day: DAY1, at: T0.toISOString() },
+    { opId: "op-hhhhhhhh8", personId: ana.id, day: DAY1, at: after.toISOString() },
+  ], after);
+  eq1(r[0].status, "ok");
+  eq1(r[1].status, "rejected");
+  assert.throws(() => K.checkDevice(s, device.id, token, staff.id, new Date(Date.parse(device.expiresAt) + 8 * 864e5), { forSync: true }), /expirou/);
+});
+test("parceiros: bloqueado que autorizou fica fora do CSV", () => {
+  const s = emptyState();
+  s.people.push(newPerson({ name: "Ativa", email: "a@ex.com", roles: ["participant"], consent: true }));
+  s.people.push(newPerson({ name: "Bloqueada", email: "b@ex.com", roles: ["participant"], consent: true, disabled: true }));
+  const out = PT.exportConsenting(s);
+  eq1(out.count, 1);
+  assert.ok(!out.csv.includes("b@ex.com"));
+});
+test("parceiros: trocar a modalidade da organização troca o papel dos representantes", () => {
+  const { s, teachy } = partnerState();
+  const r = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  const { person } = PT.decideRequest(s, r.id, true, "dir", T0);
+  PT.updateOrg(s, teachy.id, { kind: "supporter" });
+  assert.deepStrictEqual(person.roles, ["supporter"]);
+});
+
+// ---------- revisão 6 ----------
+test("parceiros: representante removido perde o link ainda não usado; org inativa não ganha representante", () => {
+  const { s, teachy } = partnerState();
+  const r = PT.createRequest(s, reqBody({ orgId: teachy.id }), T0);
+  const { person } = PT.decideRequest(s, r.id, true, "dir", T0);
+  const raw = issueLoginToken(s, person.id, T0);
+  PT.removeRepresentative(s, person.id, later(1));
+  assert.throws(() => consumeLoginToken(s, raw, later(2)), /Link inválido/);
+  const r2 = PT.createRequest(s, reqBody({ orgId: teachy.id, email: "outra@teachy.com" }), T0);
+  PT.updateOrg(s, teachy.id, { active: false });
+  assert.throws(() => PT.decideRequest(s, r2.id, true, "dir", T0), /desativada/);
+});
+test("push: chave VAPID inválida desliga o push sem derrubar o boot", () => {
+  const save = [process.env.HACK_VAPID_PUBLIC_KEY, process.env.HACK_VAPID_PRIVATE_KEY, process.env.HACK_PUSH_OUTBOX];
+  process.env.HACK_VAPID_PUBLIC_KEY = "nao-e-chave";
+  process.env.HACK_VAPID_PRIVATE_KEY = "tambem-nao";
+  delete process.env.HACK_PUSH_OUTBOX;
+  const orig = console.error;
+  console.error = () => {};
+  try {
+    const p = createPush();
+    eq1(p.enabled(), false);
+    eq1(p.publicKey(), "");
+  } finally {
+    console.error = orig;
+    [process.env.HACK_VAPID_PUBLIC_KEY, process.env.HACK_VAPID_PRIVATE_KEY, process.env.HACK_PUSH_OUTBOX] = save;
+    for (const k of ["HACK_VAPID_PUBLIC_KEY", "HACK_VAPID_PRIVATE_KEY", "HACK_PUSH_OUTBOX"]) if (process.env[k] === "undefined") delete process.env[k];
+  }
+});
+test("rotas: 500 vai para o registro de falhas; erro esperado não", async () => {
+  const seen = [];
+  setReporter((scope, err) => seen.push([scope, err.message]));
+  const fake = () => {
+    const res = { code: 0, body: null, headersSent: false, status(c) { this.code = c; return this; }, json(b) { this.body = b; } };
+    return res;
+  };
+  const r1 = fake();
+  await new Promise((done) => { route(() => { throw new Error("disco cheio"); })({ method: "GET", path: "/x" }, Object.assign(r1, { json(b) { this.body = b; done(); } })); });
+  eq1(r1.code, 500);
+  eq1(seen.length, 1);
+  eq1(seen[0][1], "disco cheio");
+  const r2 = fake();
+  await new Promise((done) => { route(() => { throw new HackError(409, "x", "conflito"); })({ method: "GET", path: "/y" }, Object.assign(r2, { json(b) { this.body = b; done(); } })); });
+  eq1(r2.code, 409);
+  eq1(seen.length, 1, "HackError não é falha do sistema");
+  setReporter(() => {});
+});
+
+test("credenciamento: leitura offline às 23h30 de sexta (Brasília) é da sexta", () => {
+  const { s, ana, staff } = admState();
+  const now = new Date("2026-10-31T12:00:00Z");
+  const { device } = K.prepareDevice(s, staff.id, "cel", now);
+  // 02h30 UTC de sábado = 23h30 de sexta em Brasília.
+  K.syncOps(s, device, staff.id, [{ opId: "op-iiiiiiii9", personId: ana.id, day: "2026-10-31", at: "2026-10-31T02:30:00Z" }], now);
+  eq1(s.checkins[0].day, "2026-10-30");
 });
 
 (async () => {

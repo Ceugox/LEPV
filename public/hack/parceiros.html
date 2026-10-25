@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parceiros · 1º Hackathon LEPV</title>
+<meta name="description" content="Patrocinadores e apoiadores do 1º Hackathon LEPV: peça o acesso da sua organização à plataforma.">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+</head>
+<body class="app">
+<main class="gate" id="conteudo">
+  <div class="gate__media" aria-hidden="true"><img src="/hack/img/sala-vermelha.jpg" alt="" width="2400" height="1600"></div>
+  <div class="gate__card glass">
+    <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+    <p class="eyebrow" style="margin-top:24px">1º Hackathon LEPV · parceiros</p>
+    <h1 class="sec-title">Área de<br><em>parceiros.</em></h1>
+    <p class="muted" style="margin:16px 0 22px">Patrocinadores e apoiadores têm área própria na plataforma: agenda de participação da organização e avisos do evento. Peça o acesso abaixo; a organização confere e libera.</p>
+    <form class="form" id="form-parceiro" novalidate>
+      <fieldset class="stack" style="border:0;padding:0;margin:0">
+        <legend class="field" style="padding:0"><span>Modalidade</span></legend>
+        <label class="check"><input type="radio" name="kind" value="sponsor" required><span>Patrocinador</span></label>
+        <label class="check"><input type="radio" name="kind" value="supporter"><span>Apoiador</span></label>
+      </fieldset>
+      <label class="field"><span>Organização</span><select name="orgId" id="org-select" required disabled><option value="">Escolha a modalidade primeiro</option></select></label>
+      <label class="field"><span>Seu nome e sobrenome</span><input name="name" autocomplete="name" required></label>
+      <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="email" inputmode="email" required></label>
+      <label class="field"><span>WhatsApp (opcional)</span><input name="phone" autocomplete="tel" inputmode="tel"></label>
+      <label class="field"><span>Cargo (opcional)</span><input name="role" maxlength="60"></label>
+      <label class="sr" aria-hidden="true">Site<input name="website" tabindex="-1" autocomplete="off"></label>
+      <p class="muted small" id="parceiro-erro" role="alert" hidden></p>
+      <button class="btn btn--red" type="submit">Pedir acesso <span aria-hidden="true">→</span></button>
+    </form>
+    <p class="muted" id="parceiro-ok" role="status" hidden></p>
+    <p class="muted small" style="margin-top:22px">Sua organização não está na lista? Fale com a organização do hackathon. Já tem acesso? <a href="/hack/acesso">Entre aqui</a>.</p>
+  </div>
+</main>
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/parceiros.js"></script>
+</body>
+</html>

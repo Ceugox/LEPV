@@ -115,6 +115,24 @@
     });
   }
 
+  // ---------- parceiro (representante aprovado) ----------
+  async function renderPartner() {
+    const g = $('parceiro-grid');
+    let d;
+    try { d = await api('/hack/api/partner'); } catch (e) { if (e.status !== 401) toast(e.message, true); return; }
+    const agenda = d.agenda.length
+      ? h('ol.agenda', d.agenda.map((a) => h('li', h('time', dayLabel(a.day).split(',')[0] + ' ' + hm(a.start) + (a.end ? '–' + hm(a.end) : '')), h('span', a.title, a.place ? h('span.agenda__orgs', a.place) : null))))
+      : h('p.muted', 'A organização ainda não ligou atividades à sua organização. Elas aparecem aqui quando forem definidas.');
+    window.Hack.fill(g,
+      h('article.card.card--red', h('p.card__k', d.org.kindLabel), h('h2.card__title', d.org.name),
+        h('p.muted', 'Você recebe os avisos do evento para ' + (d.org.kind === 'sponsor' ? 'patrocinadores' : 'apoiadores') + ' na aba Avisos.')),
+      h('article.card', h('p.card__k', 'Agenda da sua organização'), agenda),
+      d.canExport ? h('article.card', h('p.card__k', 'Contatos de participantes'),
+        h('p', d.consentCount + ' participante(s) autorizaram compartilhar nome, curso/instituição e contatos com patrocinadores.'),
+        h('p.muted.small', 'O arquivo reflete a autorização no momento do download. Cada exportação fica registrada.'),
+        h('a.btn.btn--red.btn--sm', { href: '/hack/api/partner/export.csv', download: '' }, 'Baixar CSV')) : null);
+  }
+
   // ---------- avisos ----------
   state.avisos = [];
   state.push = { available: false, publicKey: '' };
@@ -267,6 +285,7 @@
     if (name === 'equipe' && window.HackTeam && state.me) window.HackTeam.render($('equipe-grid'));
     if (name === 'entrega' && window.HackSubmission && state.me) window.HackSubmission.render($('entrega-grid'));
     if (name === 'banca' && window.HackJudge && state.me) window.HackJudge.render($('banca-grid'));
+    if (name === 'parceiro' && state.me) renderPartner();
   });
   load();
   // Próximo horário anda com o relógio; avisos novos chegam sem recarregar.

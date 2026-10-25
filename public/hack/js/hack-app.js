@@ -16,6 +16,14 @@
       init.body = opts.body;
       if (opts.contentType) init.headers['Content-Type'] = opts.contentType;
     }
+    // Tempo-limite opcional: Wi-Fi sem internet deixa o fetch pendurado, e no
+    // credenciamento isso precisa virar "offline", não uma tela congelada.
+    let timer = null;
+    if (opts.timeoutMs && typeof AbortController !== 'undefined') {
+      const ac = new AbortController();
+      init.signal = ac.signal;
+      timer = setTimeout(() => ac.abort(), opts.timeoutMs);
+    }
     let res;
     try {
       res = await fetch(path, init);
@@ -23,10 +31,19 @@
       const err = new Error('Sem conexão. Confira a internet e tente de novo.');
       err.offline = true;
       throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
     let data = null;
     const ct = res.headers.get('content-type') || '';
     if (ct.includes('application/json')) data = await res.json().catch(() => null);
+    // 200 que não é JSON da API (portal cativo de Wi-Fi devolvendo HTML) é
+    // falta de internet, não resposta do servidor.
+    if (res.ok && !data && path.indexOf('/hack/api/') === 0) {
+      const err = new Error('A rede respondeu, mas não é a plataforma (Wi-Fi pedindo login?).');
+      err.offline = true;
+      throw err;
+    }
     if (res.status === 401 && !opts.allow401) {
       location.href = '/hack/acesso';
       const err = new Error('Sessão expirada.');
@@ -125,23 +142,43 @@
 
   // Só sai de verdade se o servidor encerrou a sessão: num aparelho
   // compartilhado, "Sair" que falhou em silêncio deixaria a conta aberta.
+  // Leituras offline ainda não enviadas pedem confirmação (segundo clique).
+  let logoutArmed = 0;
   async function logout() {
-    // Notificações deste aparelho não seguem para a próxima pessoa que usar.
+    if (window.HackOffline) {
+      const n = await window.HackOffline.pendingCount();
+      if ((n === null || n > 0) && Date.now() - logoutArmed > 5000) {
+        logoutArmed = Date.now();
+        toast((n === null ? 'Pode haver' : n) + ' leitura(s) de credenciamento não sincronizada(s) neste aparelho serão apagadas. Sincronize antes, ou clique em Sair de novo para descartar.', true);
+        return;
+      }
+    }
+    // Notificações deste aparelho não seguem para a próxima pessoa que usar:
+    // o servidor apaga a inscrição pelo endpoint e o navegador cancela a dele.
+    let endpoint = '';
     try {
       const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration('/hack/') : null;
       const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
       if (sub) {
-        await api('/hack/api/push/unsubscribe', { method: 'POST', body: { endpoint: sub.endpoint }, allow401: true }).catch(() => {});
-        await sub.unsubscribe();
+        endpoint = sub.endpoint;
+        await sub.unsubscribe().catch(() => {});
       }
     } catch (e) { /* sem push neste aparelho */ }
-    try { await api('/hack/api/access/logout', { method: 'POST', allow401: true }); }
+    try { await api('/hack/api/access/logout', { method: 'POST', allow401: true, body: { endpoint } }); }
     catch (e) { toast('Não foi possível sair: ' + e.message, true); return; }
     try {
       // Dados locais do credenciamento e do portal não sobrevivem à troca de pessoa.
       Object.keys(localStorage).filter((k) => k.indexOf('hack:') === 0).forEach((k) => localStorage.removeItem(k));
     } catch (e) { /* armazenamento bloqueado */ }
-    if (window.HackOffline && window.HackOffline.wipe) { try { await window.HackOffline.wipe(); } catch (e) { /* segue */ } }
+    if (window.HackOffline && window.HackOffline.wipe) {
+      let ok = false;
+      try { ok = await window.HackOffline.wipe(); } catch (e) { ok = false; }
+      if (!ok) {
+        // Nomes e hashes ficariam no aparelho: a pessoa precisa saber.
+        toast('Não consegui apagar os dados offline deste aparelho. Feche as outras abas do portal e saia de novo.', true);
+        return;
+      }
+    }
     location.href = '/hack/';
   }
 

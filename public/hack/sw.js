@@ -5,9 +5,10 @@
 // entra no cache: é privado por sessão e sobreviveria à troca de pessoa no
 // aparelho. Os dados offline do credenciamento ficam no IndexedDB da página,
 // não aqui.
-var CACHE = 'lepv-hack-v2';
+var CACHE = 'lepv-hack-v3';
 var SHELL = [
-  '/hack/portal', '/hack/acesso',
+  '/hack/portal', '/hack/acesso', '/hack/credenciamento',
+  '/hack/js/offline.js', '/hack/js/credenciamento.js', '/hack/vendor/jsQR.js',
   '/hack/hack.css', '/hack/app.css',
   '/hack/js/hack-app.js', '/hack/js/portal.js',
   '/hack/img/logo-mark-white.png', '/hack/img/pao-acucar-noite.jpg',
