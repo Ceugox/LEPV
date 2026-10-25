@@ -106,6 +106,17 @@ a { color: inherit; }
 .ctas--hero .btn { min-height: 64px; padding: 0 36px; font-size: 18px; }
 .hero .credit { right: var(--gut); bottom: 18px; }
 
+/* Patrocínio na primeira página, abaixo dos botões. Logos em versões para
+   fundo escuro, sem placa: NXTP e Norte são as versões oficiais da marca; na
+   Teachy só a palavra ficou clara (o papagaio mantém as cores). */
+.hero__sponsors { margin-top: clamp(30px, 5vh, 52px); text-align: center; }
+.sponsors__list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px clamp(48px, 8vw, 110px); }
+.sponsor { display: block; opacity: .82; transition: opacity .25s; }
+.sponsor:hover, .sponsor:focus-visible { opacity: 1; }
+.sponsor img { height: 34px; width: auto; }
+.sponsor .sponsor__tall { height: 62px; }
+.sponsor .sponsor__low { height: 26px; }
+
 /* ---------- final ---------- */
 .final { position: relative; min-height: 100vh; display: grid; align-items: center; overflow: hidden; isolation: isolate; }
 .final__media { position: absolute; inset: 0; z-index: -1; }
@@ -173,7 +184,6 @@ a { color: inherit; }
 .day li.hot span::before, .sched__key .dot { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--red-lit); margin-right: 10px; vertical-align: .12em; }
 .sched__key { margin: 26px 0 0; font: 500 11px/1.3 var(--f-mono); letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.55); }
 
-
 /* ---------- platform ---------- */
 .plat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 80px); padding: 130px var(--gut); max-width: 1440px; margin: 0 auto; align-items: start; overflow-x: clip; }
 .plat__fig { position: sticky; top: 96px; margin: 0; border-radius: 26px; overflow: hidden; aspect-ratio: 4 / 5; }
@@ -184,18 +194,6 @@ a { color: inherit; }
 .feats li > span { font: 500 12px/2 var(--f-mono); color: var(--red-lit); letter-spacing: .1em; }
 .feats h3 { margin: 0 0 4px; font: condensed 800 26px/1.05 var(--f-disp); text-transform: uppercase; letter-spacing: .02em; }
 .feats p { margin: 0; color: var(--mute); }
-
-
-/* patrocínio: versões para fundo escuro, sem placa. NXTP e Norte são as
-   versões oficiais da marca; na Teachy só a palavra ficou clara (o papagaio
-   mantém as cores). */
-.sponsors { max-width: 1440px; margin: 0 auto; padding: 0 var(--gut) 120px; text-align: center; }
-.sponsors__list { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px clamp(48px, 8vw, 110px); }
-.sponsor { display: block; opacity: .82; transition: opacity .25s; }
-.sponsor:hover, .sponsor:focus-visible { opacity: 1; }
-.sponsor img { height: 34px; width: auto; }
-.sponsor .sponsor__tall { height: 62px; }
-.sponsor .sponsor__low { height: 26px; }
 
 /* ---------- faq ---------- */
 .faq { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 80px); padding: 0 var(--gut) 130px; max-width: 1440px; margin: 0 auto; }
@@ -239,6 +237,10 @@ a { color: inherit; }
   .final__facts { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
+  .sponsors__list { gap: 18px 30px; }
+  .sponsor img { height: 24px; }
+  .sponsor .sponsor__tall { height: 44px; }
+  .sponsor .sponsor__low { height: 18px; }
   .nav { top: 10px; padding-left: 14px; }
   .hero { padding-top: 96px; }
   .hero__media img { object-position: 58% 60%; }
