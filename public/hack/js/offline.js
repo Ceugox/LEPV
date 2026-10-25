@@ -6,7 +6,9 @@
   'use strict';
   const DB = 'lepv-hack';
   let dbp = null;
-  let wipeDeferred = false; // remoção pendente: não gravar mais nada
+  // Remoção pendente (bloqueada por outra aba): novas LEITURAS não entram na
+  // fila. Outras gravações (cópia, histórico) podem acontecer e sumirão junto.
+  let wipeDeferred = false;
 
   function db() {
     if (dbp) return dbp;

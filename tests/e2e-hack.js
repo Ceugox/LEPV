@@ -554,12 +554,16 @@ test("avisos: bloquear tira as notificações do aparelho", async () => {
 
 test("avisos: sair apaga a inscrição de push do aparelho no servidor", async () => {
   const c = await enterAs("carla@ex.com");
+  const other = await enterAs("carla@ex.com");
   eq((await c.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("carla-celular") })).status, 200);
+  // Aparelho de controle, que continua inscrito: prova que o envio aconteceu.
+  eq((await other.post("/hack/api/push/subscribe", { subscription: FAKE_SUB("carla-notebook") })).status, 200);
   eq((await c.post("/hack/api/access/logout", { endpoint: FAKE_SUB("carla-celular").endpoint })).status, 200);
   const r = await S.admin.post("/hack/api/admin/announcements", { title: "Depois do logout", body: "Teste.", audiences: ["participant"], urgent: true });
   eq(r.status, 200);
-  await new Promise((res) => setTimeout(res, 800));
-  eq(pushes().filter((x) => x.payload.title === "Depois do logout" && x.endpoint === FAKE_SUB("carla-celular").endpoint).length, 0);
+  const ctrl = await waitFor(() => pushes().find((x) => x.payload.title === "Depois do logout" && x.endpoint === FAKE_SUB("carla-notebook").endpoint), 5000);
+  assert(ctrl, "o aparelho de controle recebeu (o envio aconteceu)");
+  eq(pushes().filter((x) => x.payload.title === "Depois do logout" && x.endpoint === FAKE_SUB("carla-celular").endpoint).length, 0, "o aparelho que saiu não recebeu");
 });
 
 test("avisos: push urgente chega ao aparelho inscrito", async () => {

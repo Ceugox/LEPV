@@ -161,15 +161,19 @@
       const dups = r.results.filter((x) => x.status === 'duplicate');
       const refused = r.results.filter((x) => REFUSED[x.status]);
       r.results.filter((x) => x.checkin).forEach((x) => setup.snapshot.checkins.push({ personId: x.personId, day: x.checkin.day, at: x.checkin.at }));
-      await OFF.set('setup', setup);
       if (refused.length) {
         // Quem entrou offline mas não podia: alerta inequívoco, com nome e o
-        // motivo do servidor, guardado numa lista que a próxima leitura não apaga.
+        // motivo do servidor. Mostra ANTES de gravar: se o armazenamento
+        // falhar, o alerta já apareceu (as leituras já saíram da fila).
         const lines = refused.map((x) => (x.name || 'Pessoa desconhecida') + ' — ' + REFUSED[x.status] + (x.reason ? ' (' + x.reason + ')' : ''));
         show('err', refused.length + ' leitura(s) recusada(s)', lines);
         setup.refused = (setup.refused || []).concat(lines.map((l) => ({ line: l, at: new Date().toISOString() }))).slice(-50);
-        await OFF.set('setup', setup);
         renderRefused();
+      }
+      try {
+        await OFF.set('setup', setup);
+      } catch (e) {
+        toast('Sincronizado, mas não consegui guardar o histórico neste aparelho: anote as recusas da tela.', true);
       }
       toast(ok.length + ' sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + (refused.length ? ' · ' + refused.length + ' recusada(s)' : '') + '.', refused.length > 0);
       refreshStats();

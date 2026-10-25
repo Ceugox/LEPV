@@ -1016,6 +1016,17 @@ test("credenciamento: leitura offline às 23h30 de sexta (Brasília) é da sexta
   eq1(s.checkins[0].day, "2026-10-30");
 });
 
+test("credenciamento: desfeita não volta nem por aparelho preparado de novo", () => {
+  const { s, ana, staff } = admState();
+  const d1 = K.prepareDevice(s, staff.id, "cel", T0).device;
+  const op = { opId: "op-jjjjjjjj10", personId: ana.id, day: DAY1, at: T0.toISOString() };
+  const r = K.syncOps(s, d1, staff.id, [op], T0);
+  K.undo(s, r[0].checkin.id);
+  const d2 = K.prepareDevice(s, staff.id, "cel", later(5)).device;
+  eq1(K.syncOps(s, d2, staff.id, [op], later(10))[0].status, "undone");
+  eq1(s.checkins.length, 0);
+});
+
 (async () => {
   for (const t of tests) {
     try {

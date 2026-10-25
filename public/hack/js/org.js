@@ -720,7 +720,7 @@
       const r = await api('/hack/api/admin/partners/requests/' + x.id, { method: 'POST', body: { approve } });
       // O link aparece antes de recarregar a lista: se a recarga falhar, ele
       // não se perde (o pedido já está decidido e não volta).
-      loadPartners().catch(() => toast('Aprovado, mas não consegui atualizar a lista. Recarregue a página.', true));
+      loadPartners().catch(() => toast((approve ? 'Aprovado' : 'Recusado') + ', mas não consegui atualizar a lista. Recarregue a página.', true));
       if (!approve) { toast('Recusado.'); return; }
       openDialog('Acesso de ' + x.name.split(' ')[0],
         h('p', 'Aprovado como ' + KIND[x.kind] + ' · ' + x.orgName + '.'),
