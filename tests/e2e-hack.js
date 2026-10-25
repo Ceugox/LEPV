@@ -592,7 +592,7 @@ test("avisos: push urgente chega ao aparelho inscrito", async () => {
 });
 
 test("avisos: agendador com relógio simulado publica na hora e não republica após reinício", async () => {
-  await restartServer({ HACK_NOW: "2026-10-30T18:00:20Z" });
+  await restartServer({ HACK_NOW: "2026-10-30T17:30:20Z" });
   await new Promise((r) => setTimeout(r, 300));
   S.admin = client();
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
@@ -600,13 +600,13 @@ test("avisos: agendador com relógio simulado publica na hora e não republica a
   const first = list.filter((a) => a.title === "O hackathon começou!");
   eq(first.length, 1);
   eq(first[0].status, "published");
-  eq(first[0].publishedAt, "2026-10-30T18:00:20.000Z");
+  eq(first[0].publishedAt, "2026-10-30T17:30:20.000Z");
   const second = list.find((a) => a.title === "Bom dia, Instituto 12!");
   eq(second.status, "scheduled");
   const ana = await enterAs("ana@ex.com");
   assert((await ana.get("/hack/api/announcements")).data.announcements.some((a) => a.title === "O hackathon começou!"), "Ana vê o aviso");
   const pushedBefore = pushes().filter((x) => x.payload.title === "O hackathon começou!").length;
-  await restartServer({ HACK_NOW: "2026-10-30T18:02:00Z" });
+  await restartServer({ HACK_NOW: "2026-10-30T17:32:00Z" });
   await new Promise((r) => setTimeout(r, 500));
   S.admin = client();
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
