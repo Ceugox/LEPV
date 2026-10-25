@@ -170,3 +170,6 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.7); }
   .board { grid-template-columns: minmax(0, 1fr); }
   .board__solo { position: static; max-height: none; overflow: visible; }
 }
+
+/* Equipes: faculdade · ano · curso em destaque sobre o contato. */
+.list__main .academic { display: block; color: #fff; font-weight: 500; }

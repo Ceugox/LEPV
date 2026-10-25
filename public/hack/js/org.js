@@ -469,6 +469,12 @@
   $('wa-pend').addEventListener('change', () => loadWhats().catch((e) => toast(e.message, true)));
 
   // ---------- equipes ----------
+  // Faculdade · ano · curso, do jeito que veio da inscrição ("—" se faltou).
+  function academic(p) {
+    const parts = [p.vinculo, p.anoFaculdade ? p.anoFaculdade + 'º ano' : '', p.curso].filter(Boolean);
+    return h('span.academic', parts.length ? parts.join(' · ') : 'Faculdade, ano e curso não informados');
+  }
+
   state.teams = [];
   state.solo = [];
   async function loadTeams() {
@@ -486,7 +492,7 @@
           h('span.muted.small', t.size + '/4 · código ' + t.code)),
         h('h3.card__title', t.name),
         h('ul.list', t.members.map((m) => h('li',
-          h('div.list__main', h('b', m.name + (m.owner ? ' · criou' : '')), h('span', [m.email, m.phone].filter(Boolean).join(' · '))),
+          h('div.list__main', h('b', m.name + (m.owner ? ' · criou' : '')), academic(m), h('span', [m.email, m.phone].filter(Boolean).join(' · '))),
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { removeMember: m.id }, 'Removido.') }, 'Tirar')))),
         h('div.row', { style: 'margin-top:12px' },
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamDialog(t) }, 'Ajustar'),
@@ -499,7 +505,7 @@
     if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
     r.solo.forEach((p) => {
       const li = solo.appendChild(h('li.solo-item', { draggable: 'true', 'data-person': p.id },
-      h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
+      h('div.list__main', h('b', p.name), academic(p), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
       h('div.row',
         p.hasGroup ? h('span.badge', 'Disse que tem grupo') : null,
         p.hasGroup && !p.groupSent && !p.groupReceived ? h('span.badge.badge--warn', 'Ninguém indicado') : null,
@@ -581,7 +587,7 @@
     return teamOp('/hack/api/admin/teams/' + id, 'PATCH', body, () => { if (ok) toast(ok); });
   }
 
-  const soloOptions = () => state.solo.map((p) => h('option', { value: p.id }, p.name + (p.hasGroup ? ' (tem grupo)' : '')));
+  const soloOptions = () => state.solo.map((p) => h('option', { value: p.id }, p.name + (p.vinculo ? ' · ' + p.vinculo : '') + (p.anoFaculdade ? ' · ' + p.anoFaculdade + 'º' : '') + (p.hasGroup ? ' (tem grupo)' : '')));
 
   function teamDialog(t) {
     const rename = h('form.form', h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: t.name, required: true })),

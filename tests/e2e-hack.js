@@ -205,7 +205,7 @@ test("prepara: diretoria cria o hackathon e 5 pessoas se inscrevem", async () =>
   S.signupToken = h.signupUrl.split("t=")[1];
   for (const p of PARTICIPANTS) {
     const r = await client().post("/api/event-signup/" + S.signupToken, {
-      name: p.name, email: p.email, phone: p.phone, vinculo: "FGV", curso: "Economia", temGrupo: p.temGrupo,
+      name: p.name, email: p.email, phone: p.phone, vinculo: "FGV", curso: "Economia", anoFaculdade: "3", temGrupo: p.temGrupo,
       consentPatrocinadores: p.consent, awareLocation: true, awareTime: true,
     });
     eq(r.status, 200, "inscrição de " + p.name + ": " + JSON.stringify(r.data));
@@ -698,6 +698,10 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   assert(alfa.members.every((m) => m.email), "contatos para a organização");
   const davi = r.data.solo.find((p) => p.email === "davi@ex.com");
   assert(davi, "Davi sem equipe");
+  eq(davi.vinculo, "FGV", "faculdade para montar equipe");
+  eq(davi.curso, "Economia");
+  eq(davi.anoFaculdade, "3", "ano da faculdade vem da inscrição");
+  assert(alfa.members.every((m) => "vinculo" in m && "anoFaculdade" in m && "curso" in m), "dados acadêmicos dos integrantes");
   const c = await S.admin.post("/hack/api/admin/teams", { name: "Beta", memberIds: [davi.id] });
   eq(c.status, 200);
   S.beta = c.data.team;
