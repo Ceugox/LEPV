@@ -27,7 +27,7 @@ body.app { min-height: 100vh; background: var(--ink); }
 .app-top__who { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .app-top__name { font: 500 14px/1.2 var(--f-body); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
 .app-top__title { max-width: 1180px; margin: 26px auto 0; }
-.app-top__title h1 { margin: 0; font: 900 clamp(40px, 6vw, 76px)/.9 var(--f-disp); text-transform: uppercase; letter-spacing: -.01em; }
+.app-top__title h1 { margin: 0; font: 900 clamp(40px, 6vw, 76px)/.9 var(--f-disp); text-transform: uppercase; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .app-top__title h1 em { font: 400 .82em/1 var(--f-serif); text-transform: none; color: #ffd0d2; }
 .app-top__title p { margin: 10px 0 0; color: var(--text-2); }
 
@@ -145,3 +145,14 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.7); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* credenciamento: resultado grande e inequívoco, cor + texto (nunca só cor) */
+.result { border-radius: 18px; padding: 22px; border: 2px solid; }
+.result h2 { margin: 0 0 6px; font: 900 clamp(30px, 6vw, 44px)/1 var(--f-disp); text-transform: uppercase; }
+.result p { margin: 0; }
+.result--ok { background: rgba(60,207,142,.14); border-color: var(--ok); }
+.result--dup { background: rgba(255,200,87,.12); border-color: var(--warn); }
+.result--err { background: rgba(255,107,107,.13); border-color: var(--err); }
+.result--pending { background: rgba(120,170,255,.13); border-color: #78aaff; }
+.scanner { margin-top: 14px; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 1 / 1; max-width: 420px; }
+.scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }

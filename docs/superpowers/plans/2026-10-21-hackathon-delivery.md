@@ -13,10 +13,10 @@
 Prevalece sobre os nomes de arquivo e a ordem das entregas abaixo, que eram propostas de 21/10.
 
 - Composição: `lib/hackathon/index.js` (`registerHackathonRoutes`, store, relógio `HACK_NOW`, ator da requisição). Rotas por domínio em `lib/hackathon/routes/<domínio>.js`, todas recebendo o mesmo `ctx`. Não criar `routes.js`.
-- Regras puras: `store.js`, `people.js`, `access.js`, `event.js`, `program.js`, `mail.js`, `util.js` (e, a seguir, `announcements.js`, `teams.js`, `submissions.js`, `evaluation.js`, `partners.js`, `admission.js`).
-- Front: `public/hack/{index,acesso,portal,organizacao,em-breve}.html`, `hack.css` (LP e tokens), `app.css` (telas de uso), `js/hack-app.js` (base comum), `js/{landing,acesso,portal,org}.js`, `sw.js`, `manifest.webmanifest`.
+- Regras puras: `store.js`, `people.js`, `access.js`, `event.js`, `program.js`, `mail.js`, `push.js`, `delivery.js`, `util.js`, `announcements.js`, `teams.js`, `evaluation.js` (entrega e avaliação), `partners.js`, `admission.js` (credenciamento).
+- Front: `public/hack/{index,acesso,portal,organizacao,parceiros,credenciamento}.html`, `hack.css` (LP e tokens), `app.css` (telas de uso), `js/hack-app.js` (base comum), `js/{landing,acesso,portal,org,team,entrega,parceiros,credenciamento,offline}.js`, `vendor/jsQR.js`, `sw.js`, `manifest.webmanifest`.
 - Testes: `tests/hackathon.js` (unidade) e `tests/e2e-hack.js` (jornada com servidor e outbox de e-mail), ambos no `npm test`; `scripts/verify-hack.js` no `npm run verify` e no CI.
-- Ordem: LP (no ar, PR #6) → acesso e portal → avisos → equipes → entrega e avaliação → parceiros → credenciamento offline.
+- Ordem: LP (no ar, PR #6) → acesso, portal, avisos, equipes, entrega e avaliação (PR #7) → parceiros e credenciamento (PR empilhado sobre o #7).
 
 ## Global Constraints
 

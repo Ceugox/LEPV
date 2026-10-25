@@ -21,6 +21,7 @@ const PAGES = ['/hack/', '/hack/?inscricoes=encerradas', '/hack/acesso', '/hack/
 const APP_PAGES = [
   '/hack/portal#inicio', '/hack/portal#avisos', '/hack/portal#agenda',
   '/hack/organizacao#pessoas', '/hack/organizacao#equipes', '/hack/organizacao#entregas', '/hack/organizacao#avaliacao',
+  '/hack/organizacao#parceiros', '/hack/credenciamento#leitura',
   '/hack/organizacao#avisos', '/hack/organizacao#whatsapp', '/hack/organizacao#programacao',
 ];
 // Telas que só aparecem para participante ou jurado: entram com pessoas de
@@ -45,7 +46,7 @@ async function measure(page) {
     const shown = el => {
       const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
-      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && !el.closest('dialog:not([open])');
+      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && !el.closest('dialog:not([open])') && !el.closest('[aria-hidden="true"]');
     };
     const CONTROLS = 'button, input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea, .btn, .tab';
     const FIELDS = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea';
@@ -59,7 +60,7 @@ async function measure(page) {
       smallControls: [...document.querySelectorAll(CONTROLS)].filter(shown)
         .filter(el => el.getBoundingClientRect().height < 43.5)
         .map(el => (el.textContent || el.name || el.tagName).trim().slice(0, 24) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px'),
-      fieldFont: Math.min(16, ...[...document.querySelectorAll(FIELDS)].map(el => parseFloat(getComputedStyle(el).fontSize))),
+      fieldFont: Math.min(16, ...[...document.querySelectorAll(FIELDS)].filter(el => !el.closest('[aria-hidden="true"]')).map(el => parseFloat(getComputedStyle(el).fontSize))),
       // Só o painel visível: os escondidos guardam o "Carregando…" inicial.
       loading: /Carregando…/.test((document.querySelector('.panel:not([hidden])') || document.querySelector('main') || document.body).textContent),
       // Valor de programação vazando na tela ("null", "undefined", "NaN").
@@ -168,6 +169,80 @@ async function contextWithLink(browser, mode, token) {
     await ctx.close();
     if (partCtx) await partCtx.close();
     if (judgeCtx) await judgeCtx.close();
+  }
+
+  // Fonte reserva larga (o Linux do CI não tem Arial Narrow; um visitante cuja
+  // fonte não carregou também cai nela): nenhum título pode ser cortado nem
+  // empurrar a página. Mede o texto contra a própria caixa e contra a tela.
+  for (const vp of [{ width: 1440, height: 900 }, { width: 360, height: 780 }]) {
+    const ctx = await browser.newContext({ viewport: vp });
+    for (const p of ['/hack/', '/hack/parceiros', '/hack/acesso']) {
+      const page = await ctx.newPage();
+      await page.goto(BASE + p, { waitUntil: 'load' });
+      await page.addStyleTag({ content: '*{font-family: Verdana, "DejaVu Sans", sans-serif !important}' });
+      await page.waitForTimeout(200);
+      const r = await page.evaluate(() => {
+        const W = document.documentElement.clientWidth;
+        const cut = [...document.querySelectorAll('h1, h2, h3, .sec-title, .hero__title, .origin__word')]
+          .filter((el) => el.getBoundingClientRect().width > 0)
+          .filter((el) => el.scrollWidth > el.clientWidth + 1 || el.getBoundingClientRect().right > W + 1)
+          .map((el) => (el.className || el.tagName).toString().slice(0, 30));
+        return { overflow: document.documentElement.scrollWidth - W, cut };
+      });
+      console.log(`\n[fonte reserva ${vp.width}px] ${p}`);
+      check(r.overflow <= 0, 'sem rolagem horizontal', r.overflow + 'px');
+      check(r.cut.length === 0, 'nenhum título cortado', r.cut.join(', ') || undefined);
+      await page.close();
+    }
+    await ctx.close();
+  }
+
+  // Credenciamento offline num navegador de verdade: prepara o aparelho, corta
+  // a rede, registra pela busca manual (cópia local), volta a rede e sincroniza.
+  if (process.env.LEPV_INSCRICAO_TOKEN) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.request.post(BASE + '/api/login', { data: { order: 1, password: ADMIN_PASS } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(String(e.message)));
+    console.log('\n[credenciamento offline]');
+    await page.goto(BASE + '/hack/credenciamento', { waitUntil: 'load' });
+    await page.waitForFunction(() => document.getElementById('dia').options.length > 0, null, { timeout: 8000 });
+    // Dia de trabalho: o que o servidor diz (num dia do evento é o de hoje e
+    // o seletor fica travado — a verificação não pode tentar trocá-lo).
+    const st = await (await ctx.request.get(BASE + '/hack/api/checkin/status')).json();
+    const workDay = st.dayLocked ? st.defaultDay : '2026-10-31';
+    // Ponto de partida conhecido: a participante de verificação sem entrada no
+    // dia (rodadas anteriores podem ter registrado; a diretoria desfaz).
+    const found = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=' + workDay)).json();
+    for (const p of found.people || []) {
+      if (p.checkin) await ctx.request.delete(BASE + '/hack/api/checkin/' + p.checkin.id);
+    }
+    if (!st.dayLocked) await page.selectOption('#dia', workDay);
+    await page.click('#prep');
+    const prepared = await page.waitForFunction(() => /ingressos/.test(document.getElementById('off-msg').textContent), null, { timeout: 8000 }).then(() => true, () => false);
+    check(prepared, 'aparelho preparado para offline');
+    await ctx.setOffline(true);
+    await page.fill('#busca', 'Participante Verifica');
+    await page.waitForFunction(() => document.querySelectorAll('#busca-res li button').length > 0, null, { timeout: 8000 }).catch(() => null);
+    const btn = await page.$('#busca-res li button');
+    check(Boolean(btn), 'busca manual funciona offline (cópia local)');
+    if (btn) {
+      await btn.click();
+      await page.waitForFunction(() => document.getElementById('result').className.includes('result--'), null, { timeout: 5000 }).catch(() => null);
+      const res = await page.evaluate(() => ({ cls: document.getElementById('result').className, pend: document.getElementById('pend').textContent }));
+      check(/result--pending/.test(res.cls), 'registro offline fica "sincronização pendente"', res.cls);
+      check(/1 leitura/.test(res.pend), 'uma leitura na fila', res.pend.slice(0, 60));
+      await ctx.setOffline(false);
+      await page.click('#sync');
+      await page.waitForFunction(() => /Nada pendente/.test(document.getElementById('pend').textContent), null, { timeout: 15000 }).catch(() => null);
+      const after = await page.evaluate(() => document.getElementById('pend').textContent);
+      check(/Nada pendente/.test(after), 'fila sincronizou ao voltar a rede', after.slice(0, 80));
+      const server = await (await ctx.request.get(BASE + '/hack/api/checkin/search?q=Participante%20Verifica&day=' + workDay)).json();
+      check((server.people || []).some((p) => p.checkin && p.checkin.source !== 'online'), 'servidor registrou a entrada vinda do offline');
+    }
+    check(errors.length === 0, 'sem erro de JS no credenciamento', errors.join(' | ') || undefined);
+    await ctx.close();
   }
 
   // Countdown com relógio simulado (15h de Brasília = 18h UTC): antes do

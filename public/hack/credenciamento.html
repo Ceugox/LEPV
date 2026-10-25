@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credenciamento · 1º Hackathon LEPV</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<link rel="manifest" href="/hack/manifest.webmanifest">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+</head>
+<body class="app">
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="app-top">
+  <div class="app-top__media" aria-hidden="true"><img src="/hack/img/urca-entardecer.jpg" alt="" width="2400" height="1800"></div>
+  <div class="app-top__bar">
+    <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+    <div class="app-top__who">
+      <span class="badge" id="net" role="status"></span>
+      <a class="btn btn--glass btn--sm" href="/hack/organizacao">Organização</a>
+      <button class="btn btn--ghost btn--sm" type="button" id="sair">Sair</button>
+    </div>
+  </div>
+  <div class="app-top__title">
+    <p class="eyebrow">1º Hackathon LEPV · entrada</p>
+    <h1>Entrada<br><em>no evento.</em></h1>
+  </div>
+</header>
+
+<main class="app-main" id="conteudo">
+  <div class="grid grid--2">
+    <section class="stack" aria-label="Leitura">
+      <div class="card">
+        <div class="row">
+          <label class="field" style="flex:1 1 180px"><span>Dia</span><select id="dia"></select></label>
+          <span class="muted small" id="stats" style="align-self:flex-end"></span>
+        </div>
+      </div>
+      <div class="result" id="result" role="status" aria-live="assertive" hidden></div>
+      <div class="card">
+        <div class="row">
+          <button class="btn btn--red" type="button" id="cam-on">Ler QR com a câmera</button>
+          <button class="btn btn--ghost btn--sm" type="button" id="cam-off" hidden>Parar câmera</button>
+        </div>
+        <div class="scanner" id="scanner" hidden><video id="video" playsinline muted></video><canvas id="canvas" hidden></canvas></div>
+        <p class="muted small" id="cam-msg"></p>
+      </div>
+      <form class="card form" id="form-busca">
+        <label class="field"><span>Busca manual (nome, e-mail ou telefone)</span><input id="busca" type="search" autocomplete="off" minlength="2"></label>
+        <ul class="list" id="busca-res"></ul>
+      </form>
+    </section>
+    <section class="stack" aria-label="Offline">
+      <div class="card">
+        <p class="card__k">Sem internet</p>
+        <p id="off-msg" class="muted">Prepare este aparelho para continuar lendo QRs se a rede cair. As leituras ficam guardadas aqui e sincronizam quando a internet voltar.</p>
+        <div class="row">
+          <button class="btn btn--ghost btn--sm" type="button" id="prep">Preparar para offline</button>
+          <button class="btn btn--red btn--sm" type="button" id="sync" hidden>Sincronizar agora</button>
+        </div>
+        <p class="small" id="pend"></p>
+      </div>
+      <div class="card" id="refused-card" hidden><p class="card__k">Recusadas na sincronização</p><ul class="list" id="refused"></ul></div>
+      <div class="card"><p class="card__k">Últimas leituras neste aparelho</p><ul class="list" id="hist"></ul></div>
+    </section>
+  </div>
+</main>
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/offline.js"></script>
+<script src="/hack/vendor/jsQR.js"></script>
+<script src="/hack/js/credenciamento.js"></script>
+</body>
+</html>
