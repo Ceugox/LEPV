@@ -712,6 +712,7 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   const gil = await enterAs("gil@ex.com");
   const hugo = await enterAs("hugo@ex.com");
   const hugoId = (await hugo.get("/hack/api/me")).data.me.id;
+  const gilId = (await gil.get("/hack/api/me")).data.me.id;
   eq((await S.c.davi.get("/hack/api/team/group-candidates")).status, 403, "sem grupo não vê a lista");
   eq((await S.c.davi.post("/hack/api/team/indicate", { personId: hugoId })).status, 403, "sem grupo não indica");
   const cand = (await gil.get("/hack/api/team/group-candidates")).data.people;
@@ -754,6 +755,18 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   eq(sim.status, 200);
   assert(sim.data.cancelled.some((c) => c.from === "Gil Grupo" && c.to === "Hugo Grupo"), "simulação lista Gil → Hugo: " + JSON.stringify(sim.data));
   assert(!(await S.admin.get("/hack/api/admin/teams")).data.teams.some((x) => x.members.some((m) => m.id === hugoId)), "simulação não grava");
+  // Também em incluir (PATCH), juntar (merge) e desfazer (DELETE).
+  const g2 = (await S.admin.post("/hack/api/admin/teams", { name: "Gama Teste", memberIds: [ivoId] })).data.team;
+  const simAdd = await S.admin.patch("/hack/api/admin/teams/" + g2.id, { addMember: hugoId, dryRun: true });
+  assert(simAdd.data.cancelled.some((c) => c.to === "Hugo Grupo"), "PATCH simula: " + JSON.stringify(simAdd.data));
+  const g3 = (await S.admin.post("/hack/api/admin/teams", { name: "Delta Teste", memberIds: [gilId] })).data.team;
+  const simMerge = await S.admin.post("/hack/api/admin/teams/" + g2.id + "/merge", { otherId: g3.id, dryRun: true });
+  eq(simMerge.status, 200);
+  assert(Array.isArray(simMerge.data.cancelled), "merge simula");
+  const simDel = await S.admin.raw("DELETE", "/hack/api/admin/teams/" + g3.id, { dryRun: true });
+  assert(simDel.data.cancelled.some((c) => c.from === "Gil Grupo"), "DELETE simula: " + JSON.stringify(simDel.data));
+  eq((await S.admin.get("/hack/api/admin/teams")).data.teams.filter((x) => x.id === g2.id || x.id === g3.id).length, 2, "nada gravado");
+  for (const id of [g2.id, g3.id]) eq((await S.admin.del("/hack/api/admin/teams/" + id)).status, 200);
   // Arrastar na organização: duas pessoas sem equipe, sem nome → nome provisório.
   const dragged = await S.admin.post("/hack/api/admin/teams", { memberIds: [hugoId, ivoId] });
   eq(dragged.status, 200, JSON.stringify(dragged.data));

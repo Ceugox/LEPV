@@ -543,7 +543,8 @@
       try { const r = await api(url, { method, body }); await onDone(r); await loadTeams(); }
       catch (e) { toast(e.message, true); }
     };
-    if (!sim.cancelled || !sim.cancelled.length) { if (dlg.open) dlg.close(); return run(); }
+    if (!Array.isArray(sim.cancelled)) { toast('Não deu para conferir o efeito da mudança. Recarregue a página.', true); return; }
+    if (!sim.cancelled.length) { if (dlg.open) dlg.close(); return run(); }
     openDialog('Indicações pendentes',
       h('p', 'Isto cancela indicação de grupo ainda sem resposta:'),
       h('ul.list', sim.cancelled.map((c) => h('li', h('div.list__main', h('b', c.from + ' → ' + c.to))))),
@@ -597,9 +598,8 @@
       ev.preventDefault();
       teamOp('/hack/api/admin/teams/' + t.id + '/merge', 'POST', { otherId: ev.target.other.value }, () => toast('Equipes juntadas.'));
     });
-    const del = h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
-      try { await api('/hack/api/admin/teams/' + t.id, { method: 'DELETE' }); dlg.close(); toast('Equipe desfeita.'); await loadTeams(); }
-      catch (e) { toast(e.message, true); }
+    const del = h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: () => {
+      teamOp('/hack/api/admin/teams/' + t.id, 'DELETE', {}, () => toast('Equipe desfeita.'));
     } }, 'Desfazer equipe');
     openDialog('Ajustar ' + t.name, rename, add, merge, h('div.row', { style: 'margin-top:12px' }, del));
   }
