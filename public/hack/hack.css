@@ -189,13 +189,21 @@ a { color: inherit; }
 /* patrocínio: versões para fundo escuro, sem placa. NXTP e Norte são as
    versões oficiais da marca; na Teachy só a palavra ficou clara (o papagaio
    mantém as cores). */
-.sponsors { max-width: 1440px; margin: 0 auto; padding: 0 var(--gut) 120px; text-align: center; }
-.sponsors__list { list-style: none; margin: 28px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px clamp(48px, 8vw, 110px); }
+/* Patrocínio na primeira página, abaixo dos botões. */
+.hero__sponsors { margin-top: clamp(30px, 5vh, 52px); text-align: center; }
+.hero__sponsors .eyebrow { margin-bottom: 0; }
+.sponsors__list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px clamp(48px, 8vw, 110px); }
 .sponsor { display: block; opacity: .82; transition: opacity .25s; }
 .sponsor:hover, .sponsor:focus-visible { opacity: 1; }
 .sponsor img { height: 34px; width: auto; }
 .sponsor .sponsor__tall { height: 62px; }
 .sponsor .sponsor__low { height: 26px; }
+@media (max-width: 640px) {
+  .hero__sponsors .sponsors__list { gap: 18px 30px; }
+  .hero__sponsors .sponsor img { height: 24px; }
+  .hero__sponsors .sponsor .sponsor__tall { height: 44px; }
+  .hero__sponsors .sponsor .sponsor__low { height: 18px; }
+}
 
 /* ---------- faq ---------- */
 .faq { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: clamp(28px, 5vw, 80px); padding: 0 var(--gut) 130px; max-width: 1440px; margin: 0 auto; }
