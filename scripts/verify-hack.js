@@ -245,30 +245,30 @@ async function contextWithLink(browser, mode, token) {
     await ctx.close();
   }
 
-  // Countdown com relógio simulado (15h de Brasília = 18h UTC): antes do
+  // Countdown com relógio simulado (14h30 de Brasília = 17h30 UTC): antes do
   // início mostra a conta certa; depois, só a frase de início.
   {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await ctx.newPage();
-    await page.clock.install({ time: new Date('2026-10-29T16:58:30Z') });
+    await page.clock.install({ time: new Date('2026-10-29T16:28:30Z') });
     await page.goto(BASE + '/hack/', { waitUntil: 'load' });
     await page.waitForTimeout(300);
     const before = await page.evaluate(() => [...document.querySelectorAll('.hero [data-u]')].map(b => b.textContent).join(':'));
-    console.log('\n[relógio 29/10 13h58min30s BRT] countdown');
+    console.log('\n[relógio 29/10 13h28min30s BRT] countdown');
     // O relógio instalado anda: entre o goto e a leitura passa até 1-2s.
     check(/^01:01:01:(30|29|28)$/.test(before), 'faltam 1d 1h 1min ~30s', before);
     await ctx.close();
 
     const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page2 = await ctx2.newPage();
-    await page2.clock.install({ time: new Date('2026-10-30T18:00:05Z') });
+    await page2.clock.install({ time: new Date('2026-10-30T17:30:05Z') });
     await page2.goto(BASE + '/hack/', { waitUntil: 'load' });
     await page2.waitForTimeout(300);
     const c = await page2.evaluate(() => {
       const el = document.querySelector('.hero [data-count]');
       return { digits: el.querySelector('.count__d').offsetParent !== null, done: el.querySelector('.count__done').offsetParent !== null };
     });
-    console.log('\n[relógio 30/10 15h00min05s BRT] countdown');
+    console.log('\n[relógio 30/10 14h30min05s BRT] countdown');
     check(!c.digits && c.done, 'countdown troca para "O hackathon começou"', JSON.stringify(c));
     await ctx2.close();
   }

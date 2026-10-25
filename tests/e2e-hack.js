@@ -886,7 +886,7 @@ test("parceiros: formulário pede, não concede; diretoria aprova e o representa
   eq(mails().filter((m) => m.to === "rita@teachy.com").length, 0, "pendente não recebe link");
   // atividade da Teachy na programação
   const prog = (await S.admin.get("/hack/api/admin/program")).data.program;
-  const probl = prog.find((a) => /Problemática/.test(a.title));
+  const probl = prog.find((a) => /^Teachy: o mercado de educação/.test(a.title));
   eq((await S.admin.patch("/hack/api/admin/program/" + probl.id, { orgIds: [S.orgs.teachy.id] })).status, 200);
   const reqs = (await S.admin.get("/hack/api/admin/partners")).data.requests;
   const rita = reqs.find((x) => x.email === "rita@teachy.com");

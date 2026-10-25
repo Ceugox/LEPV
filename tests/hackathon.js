@@ -17,6 +17,7 @@ const { createPush } = require("../lib/hackathon/push");
 const { sendAccessLink } = require("../lib/hackathon/routes/access");
 const PT = require("../lib/hackathon/partners");
 const K = require("../lib/hackathon/admission");
+const { seedProgram, migrateProgram } = require("../lib/hackathon/program");
 const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
 
 const results = { pass: 0, fail: 0 };
@@ -1025,6 +1026,45 @@ test("credenciamento: desfeita não volta nem por aparelho preparado de novo", (
   const d2 = K.prepareDevice(s, staff.id, "cel", later(5)).device;
   eq1(K.syncOps(s, d2, staff.id, [op], later(10))[0].status, "undone");
   eq1(s.checkins.length, 0);
+});
+
+// ---------- programação: migração da sexta (revisão 2) ----------
+const REV1_FRIDAY = [
+  ["15:00", "15:40", "Recepção e cadastro", false],
+  ["16:00", "16:30", "Apresentação dos patrocinadores e regras", false],
+  ["16:30", "17:00", "Problemática, pela Teachy", true],
+  ["17:30", "22:00", "Hacking", true],
+];
+function rev1State() {
+  const s = emptyState();
+  s.program = REV1_FRIDAY.map(([start, end, title, highlight], i) => ({ id: "f" + i, day: "2026-10-30", start, end, title, place: "FGV", highlight, orgIds: title.startsWith("Problemática") ? ["org-teachy"] : [] }));
+  s.program.push({ id: "s1", day: "2026-10-31", start: "08:00", end: "13:00", title: "Hacking", place: "Instituto 12", highlight: true, orgIds: [] });
+  return s;
+}
+test("programação: base nova já nasce com a sexta revista e não migra", () => {
+  const s = emptyState();
+  seedProgram(s);
+  const fri = s.program.filter((a) => a.day === "2026-10-30");
+  eq1(fri[0].start, "14:30");
+  eq1(fri[fri.length - 1].end, "21:00");
+  eq1(migrateProgram(s), false);
+});
+test("programação: sexta da revisão 1 intacta vira a nova, sábado não muda, Teachy segue ligada", () => {
+  const s = rev1State();
+  eq1(migrateProgram(s), true);
+  const fri = s.program.filter((a) => a.day === "2026-10-30").map((a) => a.start + "-" + a.end);
+  assert.deepStrictEqual(fri, ["14:30-15:10", "15:20-15:30", "15:30-15:45", "15:45-16:00", "16:00-16:30", "17:00-21:00"]);
+  eq1(s.program.find((a) => a.id === "s1").start, "08:00");
+  assert.deepStrictEqual(s.program.find((a) => a.title.startsWith("Teachy:")).orgIds, ["org-teachy"]);
+  eq1(migrateProgram(s), false, "roda uma vez só");
+});
+test("programação: sexta editada pela diretoria não é sobrescrita", () => {
+  const s = rev1State();
+  s.program[0].start = "14:00";
+  const before = JSON.stringify(s.program);
+  eq1(migrateProgram(s), true, "marca a revisão para não tentar de novo");
+  eq1(JSON.stringify(s.program), before);
+  eq1(migrateProgram(s), false);
 });
 
 (async () => {
