@@ -469,7 +469,8 @@
   $('wa-pend').addEventListener('change', () => loadWhats().catch((e) => toast(e.message, true)));
 
   // ---------- equipes ----------
-  // Faculdade · ano · curso, do jeito que veio da inscrição ("—" se faltou).
+  // Faculdade (vínculo) · ano · curso da inscrição; campo vazio some da linha
+  // e, sem nenhum dos três, aparece "não informados".
   function academic(p) {
     const parts = [p.vinculo, p.anoFaculdade ? p.anoFaculdade + 'º ano' : '', p.curso].filter(Boolean);
     return h('span.academic', parts.length ? parts.join(' · ') : 'Faculdade, ano e curso não informados');

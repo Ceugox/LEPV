@@ -701,7 +701,9 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   eq(davi.vinculo, "FGV", "faculdade para montar equipe");
   eq(davi.curso, "Economia");
   eq(davi.anoFaculdade, "3", "ano da faculdade vem da inscrição");
-  assert(alfa.members.every((m) => "vinculo" in m && "anoFaculdade" in m && "curso" in m), "dados acadêmicos dos integrantes");
+  assert(alfa.members.every((m) => m.vinculo === "FGV" && m.anoFaculdade === "3" && m.curso === "Economia"), "dados acadêmicos dos integrantes: " + JSON.stringify(alfa.members));
+  const seen = (await S.c.ana.get("/hack/api/team")).data.team.members;
+  assert(seen.every((m) => !("email" in m) && !("phone" in m) && !("anoFaculdade" in m) && !("vinculo" in m)), "participante não vê contato nem dados acadêmicos dos colegas");
   const c = await S.admin.post("/hack/api/admin/teams", { name: "Beta", memberIds: [davi.id] });
   eq(c.status, 200);
   S.beta = c.data.team;
@@ -744,6 +746,7 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   eq(ivoInv.team.name, "Grupo de Gil");
   const soloNow = (await S.admin.get("/hack/api/admin/teams")).data.solo;
   eq(soloNow.find((x) => x.email === "ivo@ex.com").groupReceived, 1);
+  eq(soloNow.find((x) => x.email === "ivo@ex.com").anoFaculdade, "", "ano não informado vem vazio");
   const solo0 = (await S.admin.get("/hack/api/admin/teams")).data.solo;
   eq(solo0.find((x) => x.email === "ivo@ex.com").groupSent, 0);
   eq((await S.c.davi.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 403, "fora do grupo não cancela");
