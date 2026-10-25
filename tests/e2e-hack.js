@@ -741,6 +741,7 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   eq(dragged.data.team.name, "Equipe de Hugo");
   eq(dragged.data.team.size, 2);
   eq((await S.admin.del("/hack/api/admin/teams/" + dragged.data.team.id)).status, 200);
+  eq((await S.admin.post("/hack/api/admin/teams", { name: "  ", memberIds: [hugoId] })).status, 400, "nome em branco continua recusado");
   for (const email of ["gil@ex.com", "hugo@ex.com", "ivo@ex.com"]) {
     const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
     const sg = ev.signups.find((x) => x.email === email);

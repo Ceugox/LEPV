@@ -493,7 +493,7 @@
           t.status === 'confirmed'
             ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: false }, 'Voltou para formação.') }, 'Desconfirmar')
             : h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: true }, 'Confirmada.') }, 'Confirmar'))));
-      if (t.size < 4) dropTarget(card, (pid) => teamPatch(t.id, { addMember: pid }, 'Incluído na ' + t.name + '.'));
+      if (t.size < 4) dropTarget(card, (pid) => guardPending([pid], () => teamPatch(t.id, { addMember: pid }, 'Incluído na ' + t.name + '.')));
     });
     const solo = clear($('solo-list'));
     if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
@@ -512,7 +512,7 @@
         li.classList.add('is-dragging');
       });
       li.addEventListener('dragend', () => li.classList.remove('is-dragging'));
-      dropTarget(li, (pid) => pid !== p.id && soloPair(pid, p.id));
+      dropTarget(li, (pid) => pid !== p.id && guardPending([pid, p.id], () => soloPair(pid, p.id)));
     });
   }
 
@@ -526,9 +526,23 @@
       ev.preventDefault();
       depth = 0;
       el.classList.remove('drop-on');
+      // Só pessoas da lista "Sem equipe" (texto arrastado de fora é ignorado).
       const pid = ev.dataTransfer.getData('text/plain');
-      if (pid) onDrop(pid);
+      if (state.solo.some((x) => x.id === pid)) onDrop(pid);
     });
+  }
+
+  // Quem tem indicação de grupo pendente perde essa indicação ao entrar numa
+  // equipe: a organização confirma antes, sabendo quem é.
+  function guardPending(ids, go) {
+    const who = state.solo.filter((x) => ids.includes(x.id) && (x.groupSent || x.groupReceived));
+    if (!who.length) return go();
+    const names = who.map((x) => x.name + ' (' + (x.groupSent + x.groupReceived) + ')').join(', ');
+    openDialog('Indicações pendentes',
+      h('p', names + ' tem indicação de grupo ainda sem resposta. Juntar agora cancela essas indicações.'),
+      h('div.row', { style: 'margin-top:12px' },
+        h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => { dlg.close(); go(); } }, 'Juntar mesmo assim'),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => dlg.close() }, 'Cancelar')));
   }
 
   // Duas pessoas sem equipe viram uma equipe nova (nome provisório, renomeável).
@@ -553,8 +567,8 @@
       ev.preventDefault();
       const v = sel.value;
       dlg.close();
-      if (v.startsWith('t:')) teamPatch(v.slice(2), { addMember: p.id }, 'Incluído.');
-      else soloPair(p.id, v.slice(2));
+      if (v.startsWith('t:')) guardPending([p.id], () => teamPatch(v.slice(2), { addMember: p.id }, 'Incluído.'));
+      else guardPending([p.id, v.slice(2)], () => soloPair(p.id, v.slice(2)));
     });
     openDialog('Juntar com…', form);
   }
