@@ -1235,6 +1235,31 @@ test("grupo: aviso de vaga perdida aparece para os dois lados, só por 48 h", ()
   eq1(TM.lostSeatsFor(s, ps[4].id, T0).length, 0, "quem não tem nada a ver não vê");
   eq1(TM.lostSeatsFor(s, ps[5].id, new Date(T0.getTime() + 49 * 3600 * 1000)).length, 0, "some depois de 48 h");
 });
+test("grupo: junção da diretoria que lota a equipe marca todos os cortes como equipe cheia", () => {
+  const { s, ps } = groupState(8);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  const c1 = TM.indicate(s, ps[0].id, ps[6].id, T0);
+  const c2 = TM.indicate(s, ps[0].id, ps[7].id, new Date(T0.getTime() + 1000));
+  const a = TM.teamOf(s, ps[0].id);
+  const b = TM.createTeam(s, ps[2].id, "Beta", T0);
+  TM.join(s, b, ps[3].id, T0);
+  const at = new Date(T0.getTime() + 5000);
+  TM.merge(s, a.id, b.id, at);
+  eq1(a.members.length, 4);
+  eq1(c1.reason, "team_full");
+  eq1(c2.reason, "team_full");
+});
+test("grupo: aviso de vaga reservada aparece com o motivo certo", () => {
+  const { s, ps } = groupState(6);
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  TM.indicate(s, ps[0].id, ps[2].id, T0);
+  const d = TM.indicate(s, ps[0].id, ps[3].id, new Date(T0.getTime() + 1000));
+  TM.join(s, TM.teamOf(s, ps[0].id), ps[4].id, T0);
+  eq1(d.reason, "seats_reserved");
+  const lost = TM.lostSeatsFor(s, ps[3].id, T0);
+  eq1(lost.length, 1);
+  eq1(lost[0].reason, "seats_reserved");
+});
 test("grupo: resultado travado bloqueia indicar e aceitar", () => {
   const { s, ps } = groupState(3);
   const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
