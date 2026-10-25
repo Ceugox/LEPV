@@ -498,7 +498,11 @@
     if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
     r.solo.forEach((p) => solo.appendChild(h('li',
       h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
-      h('div.row', p.hasGroup ? h('span.badge', 'Disse que tem grupo') : null, p.published ? h('span.badge.badge--ok', 'Perfil visível') : null))));
+      h('div.row',
+        p.hasGroup ? h('span.badge', 'Disse que tem grupo') : null,
+        p.hasGroup && !p.groupSent && !p.groupReceived ? h('span.badge.badge--warn', 'Ninguém indicado') : null,
+        p.hasGroup && (p.groupSent || p.groupReceived) ? h('span.badge', 'Indicações pendentes: ' + (p.groupSent + p.groupReceived)) : null,
+        p.published ? h('span.badge.badge--ok', 'Perfil visível') : null))));
   }
 
   async function teamPatch(id, body, ok) {

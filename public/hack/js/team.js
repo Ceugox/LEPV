@@ -1,5 +1,6 @@
 /* Aba Equipe do portal: sem equipe (criar, código, descoberta, convites) ou
-   com equipe (integrantes, código para colegas, pedidos, confirmação).
+   com equipe (integrantes, código para colegas, pedidos, confirmação). Quem
+   declarou ter grupo indica os colegas, e o indicado aceita aqui.
    Exposto como window.HackTeam.render(container). */
 (function () {
   'use strict';
@@ -48,19 +49,61 @@
     return h('article.card.card--red',
       h('p.card__k', 'Equipe · ' + d.min + ' a ' + d.max + ' pessoas'),
       h('h3.card__title', 'Você ainda não está numa equipe'),
-      d.hasGroup ? h('p', 'Na inscrição você disse que já tem grupo. Uma pessoa do grupo cria a equipe aqui e passa o código para as outras.') : null,
+      d.hasGroup ? h('p', 'Na inscrição você disse que já tem grupo. Indique os colegas no quadro “Seu grupo”: quando um deles aceitar, a equipe se forma. Se preferir, uma pessoa cria a equipe e passa o código.') : null,
       h('div.grid.grid--2', create, join));
+  }
+
+  function inviteLine(i) {
+    if (i.kind === 'group') {
+      return h('div.list__main', h('b', i.from ? i.from.name : 'Um colega'),
+        h('span', 'Indicou você como colega de grupo' + (i.team ? ' · equipe ' + i.team.name + ' · ' + i.team.size + '/4' : '')));
+    }
+    return h('div.list__main', h('b', i.team ? i.team.name : 'Equipe'),
+      h('span', i.kind === 'invite' ? 'Convidou você · ' + (i.team ? i.team.size + '/4' : '') : 'Você pediu para entrar · aguardando a equipe'));
   }
 
   function invitesCard(d) {
     if (!d.invites.length) return null;
-    return h('article.card', h('p.card__k', 'Convites e pedidos'),
+    return h('article.card', h('p.card__k', 'Convites e indicações'),
       h('ul.list', d.invites.map((i) => h('li',
-        h('div.list__main', h('b', i.team ? i.team.name : 'Equipe'),
-          h('span', i.kind === 'invite' ? 'Convidou você · ' + (i.team ? i.team.size + '/4' : '') : 'Você pediu para entrar · aguardando a equipe')),
-        i.kind === 'invite' ? h('div.row',
+        inviteLine(i),
+        i.kind !== 'request' ? h('div.row',
           h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/invites/' + i.id, { method: 'POST', body: { accept: true } }), 'Você entrou na equipe.') }, 'Aceitar'),
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/invites/' + i.id, { method: 'POST', body: { accept: false } })) }, 'Recusar')) : null))));
+  }
+
+  // Busca sem acento e sem caixa: "joao" acha "João".
+  const fold = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  // Indicar colegas do grupo (só quem declarou grupo na inscrição).
+  async function groupCard(d) {
+    if (!d.hasGroup || d.locked || (d.team && !d.team.open)) return null;
+    let people = [];
+    try { people = (await api('/hack/api/team/group-candidates')).people; } catch (e) { return h('p.muted', e.message); }
+    const sentIds = new Set(d.sent.map((x) => x.person && x.person.id));
+    const results = h('ul.list');
+    const input = h('input', { type: 'search', placeholder: 'Nome do colega', autocomplete: 'off', 'aria-label': 'Buscar colega pelo nome' });
+    const draw = () => {
+      const q = fold(input.value.trim());
+      const found = q.length < 2 ? [] : people.filter((p) => !sentIds.has(p.id) && fold(p.name).includes(q)).slice(0, 8);
+      clear(results).append(...(q.length < 2
+        ? [h('li', h('p.muted', 'Digite pelo menos 2 letras do nome.'))]
+        : found.length ? found.map((p) => h('li',
+          h('div.list__main', h('b', p.name), h('span', [p.vinculo, p.curso].filter(Boolean).join(' · '))),
+          h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/indicate', { method: 'POST', body: { personId: p.id } }), 'Indicação enviada. Agora é só a pessoa aceitar.') }, 'Indicar')))
+        : [h('li', h('p.muted', 'Ninguém com esse nome entre os inscritos com grupo. A pessoa precisa se inscrever e marcar que tem grupo.'))]));
+    };
+    input.addEventListener('input', draw);
+    draw();
+    const sent = d.sent.length ? [h('h3.card__title', { style: 'margin-top:18px' }, 'Aguardando resposta'),
+      h('ul.list', d.sent.map((x) => h('li',
+        h('div.list__main', h('b', x.person ? x.person.name : '?'), h('span', 'Indicado(a) · ainda não aceitou')),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/indications/' + x.id + '/cancel', { method: 'POST' }), 'Indicação cancelada.') }, 'Cancelar'))))] : null;
+    return h('article.card',
+      h('p.card__k', 'Seu grupo'),
+      h('h3.card__title', d.team ? 'Indique quem falta do grupo' : 'Indique os colegas do seu grupo'),
+      h('p.muted', 'Busque entre os inscritos que também marcaram que têm grupo. Cada pessoa aceita no portal dela.'),
+      h('label.field', h('span', 'Buscar colega'), input), results, sent);
   }
 
   async function discoverCard(d, inTeam) {
@@ -124,10 +167,10 @@
     try { d = await api('/hack/api/team'); } catch (e) { if (e.status !== 401) toast(e.message, true); return; }
     const out = [];
     if (d.team) {
-      out.push(teamCard(d), requestsCard(d));
+      out.push(teamCard(d), requestsCard(d), await groupCard(d));
       if (d.team.open && !d.locked) out.push(await discoverCard(d, true));
     } else {
-      out.push(startCard(d), invitesCard(d));
+      out.push(invitesCard(d), await groupCard(d), startCard(d));
       if (d.canDiscover && !d.locked) out.push(profileCard(d), await discoverCard(d, false));
     }
     clear(box).append(...out.filter(Boolean));

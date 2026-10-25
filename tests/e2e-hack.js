@@ -691,6 +691,38 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   eq((await S.admin.post("/hack/api/admin/teams/" + S.beta.id + "/merge", { otherId: S.alfa.id })).status, 409, "passaria de 4");
 });
 
+test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {
+  const base = { phone: "21988880000", curso: "Engenharia", vinculo: "FGV", temGrupo: "Sim", awareLocation: true, awareTime: true };
+  for (const [name, email, phone] of [["Gil Grupo", "gil@ex.com", "21988880001"], ["Hugo Grupo", "hugo@ex.com", "21988880002"]]) {
+    eq((await client().post("/api/event-signup/" + S.signupToken, { ...base, name, email, phone })).status, 200, "inscrição " + name);
+  }
+  const gil = await enterAs("gil@ex.com");
+  const hugo = await enterAs("hugo@ex.com");
+  const hugoId = (await hugo.get("/hack/api/me")).data.me.id;
+  eq((await S.c.davi.get("/hack/api/team/group-candidates")).status, 403, "sem grupo não vê a lista");
+  const cand = (await gil.get("/hack/api/team/group-candidates")).data.people;
+  assert(cand.some((p) => p.id === hugoId), "Hugo aparece para o Gil");
+  assert(!cand.some((p) => p.name === "Bruno Participante"), "quem já tem equipe não aparece");
+  assert(cand.every((p) => !("email" in p) && !("phone" in p)), "sem contato na lista");
+  eq((await gil.post("/hack/api/team/indicate", { personId: hugoId })).status, 200);
+  eq((await gil.get("/hack/api/team")).data.sent.length, 1, "Gil vê a indicação pendente");
+  const inv = (await hugo.get("/hack/api/team")).data.invites.find((i) => i.kind === "group");
+  eq(inv.from.name, "Gil Grupo");
+  const solo = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  eq(solo.find((x) => x.email === "hugo@ex.com").groupReceived, 1, "organização vê a pendência");
+  eq((await hugo.post("/hack/api/team/invites/" + inv.id, { accept: true })).status, 200);
+  const t = (await gil.get("/hack/api/team")).data.team;
+  eq(t.size, 2);
+  eq(t.name, "Grupo de Gil");
+  // Limpa para não mexer nas contagens dos módulos seguintes.
+  eq((await S.admin.del("/hack/api/admin/teams/" + t.id)).status, 200);
+  for (const email of ["gil@ex.com", "hugo@ex.com"]) {
+    const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
+    const sg = ev.signups.find((x) => x.email === email);
+    eq((await S.admin.del("/api/events/" + ev.id + "/signups/" + sg.id)).status, 200);
+  }
+});
+
 test("equipes: depois do prazo de entrega a composição congela (só a diretoria mexe)", async () => {
   // Prazo: 31/10 13h de Brasília = 16h UTC.
   await restartServer({ HACK_NOW: "2026-10-31T16:05:00Z" });

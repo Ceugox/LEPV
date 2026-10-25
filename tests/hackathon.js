@@ -1027,6 +1027,99 @@ test("credenciamento: desfeita não volta nem por aparelho preparado de novo", (
   eq1(s.checkins.length, 0);
 });
 
+// ---------- grupo declarado: indicação de colegas ----------
+const groupState = (n) => teamState(n, () => ({ hasGroup: true, profile: { published: false, bio: "", skills: [], interests: [] } }));
+
+test("grupo: indicação aceita forma a equipe com quem indicou como dono", () => {
+  const { s, ps } = groupState(3);
+  const inv = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  eq1(TM.teamOf(s, ps[0].id), null, "nada de equipe antes do aceite");
+  TM.decide(s, inv.id, ps[1].id, true, T0);
+  const t = TM.teamOf(s, ps[0].id);
+  assert.deepStrictEqual(t.members, [ps[0].id, ps[1].id]);
+  eq1(t.ownerId, ps[0].id);
+  eq1(t.name, "Grupo de P0");
+  eq1(inv.status, "accepted");
+});
+test("grupo: segunda indicação aceita entra na mesma equipe; quem já entrou também indica", () => {
+  const { s, ps } = groupState(4);
+  const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  const b = TM.indicate(s, ps[0].id, ps[2].id, T0);
+  TM.decide(s, a.id, ps[1].id, true, T0);
+  const c = TM.indicate(s, ps[1].id, ps[3].id, T0);
+  TM.decide(s, b.id, ps[2].id, true, T0);
+  TM.decide(s, c.id, ps[3].id, true, T0);
+  eq1(TM.teamOf(s, ps[3].id).members.length, 4);
+  eq1(s.teams.length, 1);
+});
+test("grupo: só indica e é indicado quem tem grupo, sem equipe e confirmado", () => {
+  const { s, ps } = groupState(5);
+  ps[1].hasGroup = false;
+  ps[2].roles = ["judge"];
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[1].id, T0), /não pode ser indicada/);
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[2].id, T0), /não pode ser indicada/);
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[0].id, T0), /não você/);
+  assert.throws(() => TM.indicate(s, ps[1].id, ps[0].id, T0), /declarou ter grupo/);
+  TM.createTeam(s, ps[3].id, "Já Tem", T0);
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[3].id, T0), /não pode ser indicada/);
+});
+test("grupo: limite de 4 conta as indicações pendentes; repetida não duplica", () => {
+  const { s, ps } = groupState(6);
+  const first = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  eq1(TM.indicate(s, ps[0].id, ps[1].id, T0).id, first.id);
+  TM.indicate(s, ps[0].id, ps[2].id, T0);
+  TM.indicate(s, ps[0].id, ps[3].id, T0);
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[4].id, T0), /passaria de 4/);
+});
+test("grupo: quem já foi indicado por alguém não indica de volta, aceita", () => {
+  const { s, ps } = groupState(2);
+  TM.indicate(s, ps[0].id, ps[1].id, T0);
+  assert.throws(() => TM.indicate(s, ps[1].id, ps[0].id, T0), /já indicou você/);
+});
+test("grupo: recusa, cancelamento e só o indicado decide", () => {
+  const { s, ps } = groupState(3);
+  const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  assert.throws(() => TM.decide(s, a.id, ps[2].id, true, T0), /não pode decidir/);
+  TM.decide(s, a.id, ps[1].id, false, T0);
+  eq1(a.status, "declined");
+  eq1(s.teams.length, 0);
+  const b = TM.indicate(s, ps[0].id, ps[2].id, T0);
+  assert.throws(() => TM.cancelIndication(s, b.id, ps[2].id, T0), /Só o grupo/);
+  TM.cancelIndication(s, b.id, ps[0].id, T0);
+  eq1(b.status, "cancelled");
+});
+test("grupo: indicado que entra em outra equipe perde as indicações pendentes", () => {
+  const { s, ps } = groupState(3);
+  const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  const t = TM.createTeam(s, ps[2].id, "Outra", T0);
+  TM.join(s, t, ps[1].id, T0);
+  eq1(a.status, "cancelled");
+});
+test("grupo: equipe que lota cancela as indicações que sobraram", () => {
+  const { s, ps } = groupState(5);
+  const inv = [1, 2, 3].map((i) => TM.indicate(s, ps[0].id, ps[i].id, T0));
+  TM.decide(s, inv[0].id, ps[1].id, true, T0);
+  TM.decide(s, inv[1].id, ps[2].id, true, T0);
+  const t = TM.teamOf(s, ps[0].id);
+  TM.join(s, t, ps[4].id, T0);
+  eq1(t.members.length, 4);
+  eq1(inv[2].status, "cancelled");
+});
+test("grupo: nome provisório não colide", () => {
+  const { s, ps } = groupState(4);
+  ps[2].name = "P0 Outro";
+  TM.decide(s, TM.indicate(s, ps[0].id, ps[1].id, T0).id, ps[1].id, true, T0);
+  TM.decide(s, TM.indicate(s, ps[2].id, ps[3].id, T0).id, ps[3].id, true, T0);
+  eq1(TM.teamOf(s, ps[2].id).name, "Grupo de P0 2");
+});
+test("grupo: resultado travado bloqueia indicar e aceitar", () => {
+  const { s, ps } = groupState(3);
+  const a = TM.indicate(s, ps[0].id, ps[1].id, T0);
+  s.config.evaluation.resultsLocked = true;
+  assert.throws(() => TM.indicate(s, ps[0].id, ps[2].id, T0), /travado/);
+  assert.throws(() => TM.decide(s, a.id, ps[1].id, true, T0), /travado/);
+});
+
 (async () => {
   for (const t of tests) {
     try {

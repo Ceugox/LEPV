@@ -172,3 +172,13 @@ Infraestrutura física, pagamentos, venda de ingressos, gestão de contratos de 
 8. Provas em aparelhos, envio real autorizado dos canais, ensaio operacional, revisão e publicação pelo fluxo do repositório.
 
 Cada módulo recebe plano executável e ciclo de testes próprios. A ordem de desenvolvimento não significa que uma entrega parcial atende ao escopo completo.
+
+## Revisão 3 (25/10/2026): grupos e acompanhamento
+
+Aprovada pelo Marcell em 25/10, depois de grilling. Três entregas, nesta ordem, um PR cada.
+
+1. **Indicar colegas do grupo.** Quem marcou "tenho grupo" busca, no portal, os colegas entre os inscritos confirmados que também marcaram grupo e estão sem equipe (só nome, vínculo e curso). O indicado aceita ou recusa no portal dele; o primeiro aceite cria a equipe ("Grupo de <nome>", renomeável) com quem indicou como dono, e os aceites seguintes entram nela. Limite de 4 conta as indicações pendentes. Quem indicou cancela; quem foi indicado não indica de volta (aceita). O código de equipe continua valendo. A organização vê, na lista sem equipe, quem tem grupo e ninguém indicou. Colega não inscrito não pode ser indicado; pedido sem resposta não expira.
+2. **Arrastar para juntar (organização).** Pessoa sem grupo solta sobre outra cria equipe; sobre uma equipe, entra nela; equipe cheia recusa. No celular, botão "Juntar com…". Tirar alguém continua pelo botão atual.
+3. **Painel do superadmin.** Aba em /hack/organizacao só para quem tem a marca de superadmin no login da liga. Mostra grupos, acessos (link enviado/usado, último acesso), entregas, avisos, dúvidas e credenciamento, com as ações que a organização já tem. Dúvidas: canal novo e privado (participante pergunta no portal; diretoria e equipe com comunicação respondem; resposta no portal e por push). Último acesso: só o horário mais recente por pessoa.
+
+Fora do escopo: dúvidas públicas ou votadas, histórico de navegação, mover pessoa entre equipes arrastando, indicar no formulário de inscrição.
