@@ -11,7 +11,11 @@
   async function render(container) {
     box = container;
     let d;
-    try { d = await api('/hack/api/questions'); } catch (e) { if (e.status !== 401) toast(e.message, true); return; }
+    try { d = await api('/hack/api/questions'); } catch (e) {
+      if (e.status === 401) return;
+      clear(box).append(h('p.empty', 'Não deu para carregar suas dúvidas agora. Recarregue a página.'));
+      return;
+    }
     const text = h('textarea', { name: 'text', maxlength: 1000, rows: 4, required: true, placeholder: 'Ex.: posso usar uma API paga no projeto?' });
     const form = h('form.form', h('label.field', h('span', 'Sua dúvida'), text),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Enviar dúvida'));

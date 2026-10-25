@@ -840,23 +840,9 @@
   const stat = (n, label, warn) => h('div.ov-stat' + (warn ? '.ov-stat--warn' : ''), h('b', String(n)), h('span', label));
   const goTab = (name) => { location.hash = name; };
 
-  async function sendLink(p, how) {
-    try {
-      const r = await api('/hack/api/admin/people/' + p.id + '/link', { method: 'POST', body: { send: how } });
-      if (how === 'email') {
-        const ok = r.email && (r.email.status === 'sent' || r.email.status === 'outbox');
-        toast(ok ? 'Link enviado por e-mail para ' + p.name + '.' : 'E-mail não saiu (' + ((r.email && (r.email.error || r.email.status)) || 'erro') + '). Use o WhatsApp.', !ok);
-      } else if (r.whatsappUrl) {
-        window.open(r.whatsappUrl, '_blank', 'noopener');
-      } else {
-        toast('Sem telefone: copie o link na aba Pessoas.', true);
-      }
-      await loadOverview();
-    } catch (e) { toast(e.message, true); }
-  }
-
   async function loadOverview() {
     const o = await api('/hack/api/admin/overview');
+    state.emailEnabled = o.emailEnabled;
     $('ov-when').textContent = 'Atualizado em ' + fmtWhen(o.now);
     const g = o.groups, a = o.access, sub = o.submissions, q = o.questions;
     clear($('ov-stats')).append(
@@ -895,8 +881,7 @@
       h('article.card', h('p.card__k', 'Nunca entraram'), h('h3.card__title', a.neverIn.length + ' participante(s)'),
         people(a.neverIn, 'Todo mundo já entrou na plataforma.', (p) => h('div.row',
           h('span.muted.small', p.lastLinkAt ? 'Link enviado ' + fmtWhen(p.lastLinkAt) + (p.linkStatus === 'failed' ? ' · e-mail falhou' : '') : 'Sem link enviado'),
-          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => sendLink(p, 'email') }, 'E-mail'),
-          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => sendLink(p, 'none') }, 'WhatsApp')))),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => linkDialog(p) }, 'Enviar link')))),
       h('article.card', h('p.card__k', 'Grupo sem indicação'), h('h3.card__title', g.stuck.length + ' pessoa(s)'),
         h('p.muted.small', 'Disseram que têm grupo, estão sem equipe e ninguém indicou ninguém.'),
         people(g.stuck, 'Ninguém travado.')),
@@ -928,7 +913,13 @@
         ev.preventDefault();
         try {
           const res = await api('/hack/api/admin/questions/' + q.id + '/answer', { method: 'POST', body: { text: ta.value } });
-          const how = { sent: ' e notificada por push', no_device: '; a pessoa não ativou notificações (a resposta fica no portal dela)', failed: '; o push falhou (a resposta fica no portal dela)' }[res.push] || '';
+          const how = {
+            sent: ' e notificada por push',
+            no_device: '; a pessoa não ativou notificações (a resposta fica no portal dela)',
+            unknown: '; não deu para confirmar o push (a resposta fica no portal dela)',
+            failed: '; o push falhou (a resposta fica no portal dela)',
+            unavailable: '; notificações push não estão configuradas (a resposta fica no portal dela)',
+          }[res.push] || '';
           toast('Resposta enviada' + how + '.');
           await loadQuestions();
         } catch (e) { toast(e.message, true); }

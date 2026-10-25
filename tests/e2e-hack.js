@@ -416,6 +416,8 @@ test("dúvidas: participante pergunta, organização responde, resposta volta ao
   eq(q.answer, null);
   const ans = await S.admin.post("/hack/api/admin/questions/" + q.id + "/answer", { text: "Pode, desde que a equipe pague." });
   eq(ans.status, 200);
+  const again = await S.admin.post("/hack/api/admin/questions/" + q.id + "/answer", { text: "Outra" });
+  eq(again.status, 409, "segunda resposta recusada");
   const mine = (await ana.get("/hack/api/questions")).data.questions[0];
   eq(mine.answer.text, "Pode, desde que a equipe pague.");
 });

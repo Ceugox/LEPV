@@ -1383,6 +1383,8 @@ test("dúvidas: pergunta e resposta; texto curto recusado; limite de abertas", (
   eq1(Q.ownView(q).answer, null);
   Q.answer(s, q.id, "d1", "Pode, desde que pague.", T0);
   eq1(Q.ownView(q).answer.text, "Pode, desde que pague.");
+  assert.throws(() => Q.answer(s, q.id, "d2", "Outra resposta", T0), /já foi respondida/);
+  eq1(Q.ownView(q).answer.text, "Pode, desde que pague.", "a primeira resposta fica");
   for (let i = 0; i < Q.MAX_OPEN; i++) Q.ask(s, "p2", "dúvida " + i, T0);
   assert.throws(() => Q.ask(s, "p2", "mais uma", T0), /esperando resposta/);
   assert.throws(() => Q.answer(s, "nada", "d1", "x", T0), /não encontrada/);
