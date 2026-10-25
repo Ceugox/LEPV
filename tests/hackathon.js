@@ -17,7 +17,8 @@ const { createPush } = require("../lib/hackathon/push");
 const { sendAccessLink } = require("../lib/hackathon/routes/access");
 const PT = require("../lib/hackathon/partners");
 const K = require("../lib/hackathon/admission");
-const { seedProgram, migrateProgram } = require("../lib/hackathon/program");
+const { seedProgram, migrateProgram, fridayOutdated } = require("../lib/hackathon/program");
+const { migrateSchedule } = require("../lib/hackathon/migrations");
 const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
 
 const results = { pass: 0, fail: 0 };
@@ -1048,21 +1049,21 @@ test("programação: base nova já nasce com a sexta revista e não migra", () =
   const fri = s.program.filter((a) => a.day === "2026-10-30");
   eq1(fri[0].start, "14:30");
   eq1(fri[fri.length - 1].end, "21:00");
-  eq1(migrateProgram(s, QUIET), false);
+  eq1(migrateProgram(s, QUIET), "noop");
 });
 test("programação: sexta da revisão 1 intacta vira a nova, sábado não muda, Teachy segue ligada", () => {
   const s = rev1State();
-  eq1(migrateProgram(s, QUIET), true);
+  eq1(migrateProgram(s, QUIET), "applied");
   const fri = s.program.filter((a) => a.day === "2026-10-30").map((a) => a.start + "-" + a.end);
   assert.deepStrictEqual(fri, ["14:30-15:10", "15:20-15:30", "15:30-15:45", "15:45-16:00", "16:00-16:30", "17:00-21:00"]);
   eq1(s.program.find((a) => a.id === "s1").start, "08:00");
   assert.deepStrictEqual(s.program.find((a) => a.title.startsWith("Teachy:")).orgIds, ["org-teachy"]);
-  eq1(migrateProgram(s, QUIET), false, "roda uma vez só");
+  eq1(migrateProgram(s, QUIET), "noop", "roda uma vez só");
 });
 test("programação: local renomeado pela diretoria vale para a sexta nova", () => {
   const s = rev1State();
   s.config.venues = { "2026-10-30": { name: "FGV Botafogo", address: "Praia de Botafogo, 190", mapUrl: "" } };
-  eq1(migrateProgram(s, QUIET), true);
+  eq1(migrateProgram(s, QUIET), "applied");
   assert(s.program.filter((a) => a.day === "2026-10-30").every((a) => a.place === "FGV Botafogo"));
 });
 test("programação: organização ligada a outra atividade da sexta impede a troca", () => {
@@ -1070,7 +1071,7 @@ test("programação: organização ligada a outra atividade da sexta impede a tr
   s.program[1].orgIds = ["org-nxtp"];
   const before = JSON.stringify(s.program);
   const warns = [];
-  eq1(migrateProgram(s, { warn: (m) => warns.push(m), log() {} }), true);
+  eq1(migrateProgram(s, { warn: (m) => warns.push(m), log() {} }), "skipped");
   eq1(JSON.stringify(s.program), before);
   eq1(warns.length, 1, "deixa rastro no log");
 });
@@ -1081,24 +1082,41 @@ test("programação: linha duplicada não passa por sexta intacta", () => {
   migrateProgram(s, QUIET);
   eq1(JSON.stringify(s.program), before);
 });
-test("avisos: semente antiga de início às 15h vai para 14h30; editada fica", () => {
-  const s = emptyState();
-  s.announcements.push({ id: "n1", seeded: true, status: "scheduled", scheduledAt: "2026-10-30T18:00:00.000Z", title: "O hackathon começou!" });
-  eq1(A.migrateStartAnnouncement(s), true);
+const BEFORE = new Date("2026-10-26T12:00:00Z");
+const startAnn = (extra) => Object.assign({ id: "n1", seeded: true, status: "scheduled", scheduledAt: "2026-10-30T18:00:00.000Z",
+  title: "O hackathon começou!", body: "O hackathon começou! Confira a programação, o local e seu QR no portal." }, extra);
+test("avisos: início semeado às 15h vai para 14h30 junto com a sexta", () => {
+  const s = rev1State();
+  s.announcements.push(startAnn());
+  eq1(migrateSchedule(s, { now: BEFORE, log: QUIET }), true);
   eq1(s.announcements[0].scheduledAt, "2026-10-30T17:30:00.000Z");
-  eq1(A.migrateStartAnnouncement(s), false);
-  const t = emptyState();
-  t.announcements.push({ id: "n2", seeded: true, status: "scheduled", scheduledAt: "2026-10-30T18:10:00.000Z", title: "O hackathon começou!" });
-  eq1(A.migrateStartAnnouncement(t), false);
-  eq1(t.announcements[0].scheduledAt, "2026-10-30T18:10:00.000Z");
+  eq1(fridayOutdated(s), false);
+  eq1(migrateSchedule(s, { now: BEFORE, log: QUIET }), false, "uma vez só: depois a diretoria manda");
+});
+test("avisos: sexta editada mantém o início às 15h e a sexta fica marcada como antiga", () => {
+  const s = rev1State();
+  s.program[1].orgIds = ["org-nxtp"];
+  s.announcements.push(startAnn());
+  migrateSchedule(s, { now: BEFORE, log: QUIET });
+  eq1(s.announcements[0].scheduledAt, "2026-10-30T18:00:00.000Z");
+  eq1(fridayOutdated(s), true);
+});
+test("avisos: texto editado, horário mexido ou boot depois das 14h30 não movem o início", () => {
+  for (const [extra, now] of [[{ body: "Outro texto" }, BEFORE], [{ scheduledAt: "2026-10-30T18:10:00.000Z" }, BEFORE], [{}, new Date("2026-10-30T17:40:00Z")]]) {
+    const s = rev1State();
+    s.announcements.push(startAnn(extra));
+    const at = s.announcements[0].scheduledAt;
+    migrateSchedule(s, { now, log: QUIET });
+    eq1(s.announcements[0].scheduledAt, at);
+  }
 });
 test("programação: sexta editada pela diretoria não é sobrescrita", () => {
   const s = rev1State();
   s.program[0].start = "14:00";
   const before = JSON.stringify(s.program);
-  eq1(migrateProgram(s, QUIET), true, "marca a revisão para não tentar de novo");
+  eq1(migrateProgram(s, QUIET), "skipped", "marca a revisão para não tentar de novo");
   eq1(JSON.stringify(s.program), before);
-  eq1(migrateProgram(s, QUIET), false);
+  eq1(migrateProgram(s, QUIET), "noop");
 });
 
 (async () => {
