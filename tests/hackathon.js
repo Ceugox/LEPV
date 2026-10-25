@@ -1,0 +1,689 @@
+// Unidade da plataforma do hackathon (lib/hackathon). Sem servidor, sem rede:
+// funções puras e o estado em memória, com relógio injetado.
+//
+//   node tests/hackathon.js
+const assert = require("assert");
+const { emptyState } = require("../lib/hackathon/store");
+const { pickHackathonEvent, signupRedirect } = require("../lib/hackathon/event");
+const { syncParticipants, newPerson } = require("../lib/hackathon/people");
+const { issueLoginToken, consumeLoginToken, unconsumeLoginToken, revokeOtherTokens, revokeAllTokens, resolveActor, ensureActorPerson, perms } = require("../lib/hackathon/access");
+const { sha256 } = require("../lib/hackathon/store");
+const A = require("../lib/hackathon/announcements");
+const TM = require("../lib/hackathon/teams");
+const EV = require("../lib/hackathon/evaluation");
+const { createDelivery, MAX_ATTEMPTS } = require("../lib/hackathon/delivery");
+const { publicBaseFor, rateLimiter, networkOutcome } = require("../lib/hackathon/util");
+const { sendAccessLink } = require("../lib/hackathon/routes/access");
+const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
+
+const results = { pass: 0, fail: 0 };
+const tests = [];
+const test = (name, fn) => tests.push({ name, fn });
+
+// ---------- escolha do evento ----------
+const H = (id, date, extra) => Object.assign({ id, type: "hackathon", date, signups: { open: true, token: "tok" + id, list: [] } }, extra);
+
+test("evento: HACK_EVENT_ID vence a data", () => {
+  const evs = [H("a", "2026-10-30"), H("b", "2027-10-30")];
+  assert.strictEqual(pickHackathonEvent(evs, "2026-10-24", "b").id, "b");
+  assert.strictEqual(pickHackathonEvent(evs, "2026-10-24", "zz"), null);
+});
+test("evento: o próximo, não o mais distante", () => {
+  const evs = [H("b", "2027-10-30"), H("a", "2026-10-30"), { id: "r", type: "reuniao", date: "2026-10-25" }];
+  assert.strictEqual(pickHackathonEvent(evs, "2026-10-24").id, "a");
+});
+test("evento: no segundo dia (31/10) ainda é a edição atual", () => {
+  const evs = [H("a", "2026-10-30"), H("b", "2027-10-30")];
+  assert.strictEqual(pickHackathonEvent(evs, "2026-10-31").id, "a");
+  assert.strictEqual(pickHackathonEvent(evs, "2026-11-01").id, "b");
+});
+test("evento: todos passados → o último; nenhum → null", () => {
+  assert.strictEqual(pickHackathonEvent([H("a", "2025-10-30"), H("b", "2026-01-01")], "2026-12-01").id, "b");
+  assert.strictEqual(pickHackathonEvent([], "2026-12-01"), null);
+});
+test("inscrição: aberto vai ao formulário; o resto diz o motivo", () => {
+  assert.deepStrictEqual(signupRedirect(H("a", "2026-10-30")), { location: "/inscricao.html?t=toka", reason: "open" });
+  assert.strictEqual(signupRedirect(null).reason, "no_event");
+  assert.strictEqual(signupRedirect(H("a", "x", { signups: { open: true, token: "" } })).reason, "no_token");
+  assert.strictEqual(signupRedirect(H("a", "x", { signups: { open: false, token: "t" } })).reason, "closed");
+  assert.strictEqual(signupRedirect(H("a", "x", { signups: { open: true, token: "a&b" } })).location, "/inscricao.html?t=a%26b");
+});
+
+// ---------- sincronização das inscrições ----------
+const signup = (id, extra) =>
+  Object.assign({ id, type: "external", name: "Ana Souza " + id, email: id + "@ex.com", phone: "21999990000", status: "confirmed", temGrupo: "Não" }, extra);
+
+test("sync: confirmado vira participante; fila de espera não", () => {
+  const s = emptyState();
+  const ev = { signups: { list: [signup("s1"), signup("s2", { status: "waitlist", temGrupo: "Sim", consentPatrocinadores: true })] } };
+  assert.strictEqual(syncParticipants(s, ev), true);
+  const [a, b] = s.people;
+  assert.deepStrictEqual(a.roles, ["participant"]);
+  assert.deepStrictEqual(b.roles, []);
+  assert.strictEqual(b.signupStatus, "waitlist");
+  assert.strictEqual(b.hasGroup, true);
+  assert.strictEqual(b.consent, true);
+  assert.strictEqual(syncParticipants(s, ev), false, "segunda rodada não muda nada");
+});
+test("sync: promoção da fila e retirada da inscrição", () => {
+  const s = emptyState();
+  const ev = { signups: { list: [signup("s1"), signup("s2", { status: "waitlist" })] } };
+  syncParticipants(s, ev);
+  ev.signups.list[1].status = "confirmed";
+  ev.signups.list.shift();
+  syncParticipants(s, ev);
+  const a = s.people.find((p) => p.signupId === "s1");
+  const b = s.people.find((p) => p.signupId === "s2");
+  assert.strictEqual(a.signupStatus, "removed");
+  assert.deepStrictEqual(a.roles, []);
+  assert.deepStrictEqual(b.roles, ["participant"]);
+});
+test("sync: jurado que também se inscreveu vira uma pessoa só, com os dois papéis", () => {
+  const s = emptyState();
+  s.people.push(newPerson({ name: "Juíza", email: "s1@ex.com", roles: ["judge"] }));
+  syncParticipants(s, { signups: { list: [signup("s1")] } });
+  assert.strictEqual(s.people.length, 1);
+  assert.deepStrictEqual(s.people[0].roles.sort(), ["judge", "participant"]);
+});
+
+test("sync: inscrição pública não sequestra contato cadastrado pela diretoria", () => {
+  const s = emptyState();
+  const judge = newPerson({ name: "Júlia Jurada", email: "julia@ex.com", phone: "21911112222", roles: ["judge"], manual: ["name", "email", "phone"] });
+  s.people.push(judge);
+  syncParticipants(s, { signups: { list: [signup("s9", { email: "julia@ex.com", name: "Invasor Silva", phone: "21900000000" })] } });
+  eq1(s.people.length, 1);
+  eq1(judge.phone, "21911112222", "telefone da diretoria fica");
+  eq1(judge.name, "Júlia Jurada", "nome da diretoria fica");
+});
+test("sync: correção de e-mail pela diretoria sobrevive à próxima sincronização", () => {
+  const s = emptyState();
+  const ev = { signups: { list: [signup("s1", { email: "errado@ex.com" })] } };
+  syncParticipants(s, ev);
+  const p = s.people[0];
+  p.email = "certo@ex.com";
+  p.manual = ["email"];
+  syncParticipants(s, ev);
+  eq1(p.email, "certo@ex.com");
+});
+test("sync: participante já inscrito não é ligado a outra inscrição pelo e-mail", () => {
+  const s = emptyState();
+  syncParticipants(s, { signups: { list: [signup("s1")] } });
+  syncParticipants(s, { signups: { list: [signup("s1"), signup("s2", { email: "s1@ex.com" })] } });
+  eq1(s.people.length, 2, "segunda inscrição com o mesmo e-mail vira outra pessoa");
+});
+
+// ---------- link de acesso ----------
+const T0 = new Date("2026-10-24T12:00:00Z");
+const later = (ms) => new Date(T0.getTime() + ms);
+
+test("link: uso único", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  const raw = issueLoginToken(s, p.id, T0);
+  assert.strictEqual(consumeLoginToken(s, raw, later(1000)).id, p.id);
+  assert.throws(() => consumeLoginToken(s, raw, later(2000)), /Link inválido/);
+});
+test("link: expira em 7 dias", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  const raw = issueLoginToken(s, p.id, T0);
+  assert.throws(() => consumeLoginToken(s, raw, later(7 * 864e5 + 1)), /Link inválido/);
+});
+test("link: ainda vale um pouco antes dos 7 dias", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  const raw = issueLoginToken(s, p.id, T0);
+  eq1(consumeLoginToken(s, raw, later(7 * 864e5 - 1000)).id, p.id);
+});
+test("link: revokeOthers:false mantém o antigo até a entrega; unconsume devolve", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  const old = issueLoginToken(s, p.id, T0);
+  const fresh = issueLoginToken(s, p.id, later(1000), { revokeOthers: false });
+  eq1(consumeLoginToken(s, old, later(2000)).id, p.id, "antigo ainda vale");
+  unconsumeLoginToken(s, old);
+  revokeOtherTokens(s, p.id, sha256(fresh), later(3000));
+  assert.throws(() => consumeLoginToken(s, old, later(4000)), /Link inválido/);
+  eq1(consumeLoginToken(s, fresh, later(4000)).id, p.id);
+});
+test("link: lista de espera pode entrar; quem não tem papel nem inscrição não", () => {
+  const s = emptyState();
+  const w = newPerson({ signupStatus: "waitlist" });
+  const nobody = newPerson({});
+  s.people.push(w, nobody);
+  eq1(consumeLoginToken(s, issueLoginToken(s, w.id, T0), later(1)).id, w.id);
+  assert.throws(() => consumeLoginToken(s, issueLoginToken(s, nobody.id, T0), later(1)), /Link inválido/);
+});
+test("link: revokeAllTokens derruba os pendentes", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const raw = issueLoginToken(s, p.id, T0);
+  revokeAllTokens(s, p.id, later(1));
+  assert.throws(() => consumeLoginToken(s, raw, later(2)), /Link inválido/);
+});
+
+test("link: um novo invalida o anterior; lixo e pessoa bloqueada não entram", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  const old = issueLoginToken(s, p.id, T0);
+  const fresh = issueLoginToken(s, p.id, later(1000));
+  assert.throws(() => consumeLoginToken(s, old, later(2000)), /Link inválido/);
+  assert.throws(() => consumeLoginToken(s, "x".repeat(32), later(2000)), /Link inválido/);
+  assert.throws(() => consumeLoginToken(s, undefined, later(2000)), /Link inválido/);
+  p.disabled = true;
+  assert.throws(() => consumeLoginToken(s, fresh, later(2000)), /Link inválido/);
+});
+test("link: guardado só como hash", () => {
+  const s = emptyState();
+  const p = newPerson({});
+  s.people.push(p);
+  const raw = issueLoginToken(s, p.id, T0);
+  assert.ok(!JSON.stringify(s).includes(raw));
+});
+
+// ---------- ator ----------
+const req = (hack, member) => ({ session: { hack } , _member: member });
+const deps = { liveMember: (r) => r._member || null };
+
+test("ator: sessão do evento identifica; epoch velho não", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  assert.strictEqual(resolveActor(req({ pid: p.id, epoch: 1 }), s, deps).person.id, p.id);
+  p.sessionEpoch = 2;
+  assert.strictEqual(resolveActor(req({ pid: p.id, epoch: 1 }), s, deps), null);
+});
+test("ator: diretoria vem só do login da liga, nunca de papel gravado", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"], email: "dir@lepv.org" });
+  s.people.push(p);
+  let a = resolveActor(req({ pid: p.id, epoch: 1 }), s, deps);
+  assert.ok(!a.roles.includes("director"));
+  a = ensureActorPerson(s, resolveActor(req(null, { order: 4, name: "Dir Etor", director: true }), s, deps));
+  assert.ok(a.roles.includes("director"));
+  assert.strictEqual(perms(a).manage, true);
+  assert.ok(!a.person.roles.includes("director"), "papel de diretoria não é gravado");
+  // Membro comum logado não ganha nada.
+  assert.strictEqual(resolveActor(req(null, { order: 9, name: "X", director: false }), s, deps), null);
+});
+test("ator: diretoria logada vence link de participante aberto no mesmo navegador", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"] });
+  s.people.push(p);
+  const a = ensureActorPerson(s, resolveActor(req({ pid: p.id, epoch: 1 }, { order: 4, name: "Dir Etor", director: true }), s, deps));
+  assert.notStrictEqual(a.person.id, p.id);
+  assert.ok(a.roles.includes("director"));
+});
+
+test("ator: staff só publica/credencia com a permissão marcada", () => {
+  const p = newPerson({ roles: ["staff"] });
+  assert.strictEqual(perms({ person: p, roles: p.roles }).comms, false);
+  p.staffPerms.comms = true;
+  assert.strictEqual(perms({ person: p, roles: p.roles }).comms, true);
+  assert.strictEqual(perms({ person: p, roles: p.roles }).checkin, false);
+});
+
+// ---------- avisos ----------
+function annState() {
+  const s = emptyState();
+  const ana = newPerson({ name: "Ana", email: "ana@ex.com", phone: "21999990001", roles: ["participant"] });
+  const juju = newPerson({ name: "Juju", email: "juju@ex.com", phone: "", roles: ["participant", "judge"] });
+  const pat = newPerson({ name: "Pat", email: "pat@ex.com", roles: ["sponsor"] });
+  const off = newPerson({ name: "Off", email: "off@ex.com", roles: ["participant"], disabled: true });
+  s.people.push(ana, juju, pat, off);
+  return { s, ana, juju, pat, off };
+}
+const draft = (extra) => A.validateDraft(Object.assign({ title: "Aviso teste", body: "Corpo do aviso", audiences: ["participant", "judge"], channels: { email: true, whatsapp: true } }, extra), T0);
+
+test("avisos: dois papéis selecionados recebem uma vez por canal; bloqueado fora", () => {
+  const { s, juju, off, pat } = annState();
+  const ann = A.createAnnouncement(s, draft(), null, T0);
+  eq1(ann.status, "published");
+  eq1(ann.recipientCount, 2);
+  eq1(s.deliveries.filter((d) => d.personId === juju.id && d.channel === "email").length, 1);
+  eq1(s.deliveries.filter((d) => d.personId === juju.id && d.channel === "whatsapp").length, 0, "sem telefone, sem WhatsApp");
+  eq1(s.deliveries.some((d) => d.personId === off.id || d.personId === pat.id), false);
+  A.publish(s, ann, later(10));
+  eq1(s.deliveries.length, 3, "publicar de novo não duplica");
+});
+test("avisos: público não selecionado não vê", () => {
+  const { s } = annState();
+  const ann = A.createAnnouncement(s, draft({ audiences: ["sponsor"] }), null, T0);
+  eq1(A.canSee(ann, ["participant", "judge"]), false);
+  eq1(A.canSee(ann, ["sponsor"]), true);
+  eq1(A.canSee(Object.assign({}, ann, { status: "scheduled" }), ["sponsor"]), false);
+});
+test("avisos: Todos vira os quatro públicos; público vazio ou inválido é recusado", () => {
+  eq1(A.normalizeAudiences(["all"]).length, 4);
+  assert.throws(() => A.normalizeAudiences([]), /público/);
+  assert.throws(() => A.normalizeAudiences(["director"]), /público/);
+});
+test("avisos: urgente marca push; agendamento no passado é recusado", () => {
+  eq1(draft({ urgent: true }).channels.push, true);
+  assert.throws(() => draft({ scheduledAt: "2026-10-01T10:00:00-03:00" }), /futuro/);
+});
+test("avisos: agendador publica na hora, nunca antes, e vencido vira overdue", () => {
+  const { s } = annState();
+  A.seedAnnouncements(s);
+  const [first, second] = s.announcements;
+  eq1(first.scheduledAt, "2026-10-30T18:00:00.000Z");
+  eq1(second.scheduledAt, "2026-10-31T11:00:00.000Z");
+  eq1(A.tick(s, new Date("2026-10-30T17:59:59Z")).length, 0);
+  eq1(A.tick(s, new Date("2026-10-30T18:00:00Z")).length, 1);
+  eq1(first.status, "published");
+  eq1(first.recipientCount, 2, "só participantes ativos");
+  eq1(A.tick(s, new Date("2026-10-30T18:00:30Z")).length, 0, "não republica");
+  eq1(A.tick(s, new Date("2026-10-31T11:06:00Z")).length, 0, "passou da folga de 5 min");
+  eq1(second.status, "overdue");
+});
+test("avisos: semente só para participantes, sem e-mail, sem duplicar", () => {
+  const { s } = annState();
+  A.seedAnnouncements(s);
+  s.announcements.forEach((a) => {
+    assert.deepStrictEqual(a.audiences, ["participant"]);
+    eq1(a.channels.email, false);
+  });
+  A.seedAnnouncements(s);
+  eq1(s.announcements.length, 2);
+});
+
+// ---------- equipes ----------
+function teamState(n, extra) {
+  const s = emptyState();
+  const ps = [];
+  for (let i = 0; i < n; i++) {
+    const p = newPerson(Object.assign({ name: "P" + i, roles: ["participant"], profile: { published: true, bio: "", skills: [], interests: [] } }, extra && extra(i)));
+    s.people.push(p);
+    ps.push(p);
+  }
+  return { s, ps };
+}
+
+test("equipes: confirmação só com 2 a 4 (1, 2, 4 e 5)", () => {
+  const { s, ps } = teamState(6);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  assert.throws(() => TM.confirm(s, t, T0), /2 a 4/);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  eq1(TM.confirm(s, t, T0).status, "confirmed");
+  TM.joinByCode(s, ps[2].id, t.code.toLowerCase(), T0);
+  TM.joinByCode(s, ps[3].id, t.code, T0);
+  eq1(TM.confirm(s, t, T0).members.length, 4);
+  assert.throws(() => TM.joinByCode(s, ps[4].id, t.code, T0), /4 pessoas/);
+});
+test("equipes: uma equipe por pessoa", () => {
+  const { s, ps } = teamState(3);
+  TM.createTeam(s, ps[0].id, "Alfa", T0);
+  const b = TM.createTeam(s, ps[1].id, "Beta", T0);
+  assert.throws(() => TM.joinByCode(s, ps[0].id, b.code, T0), /outra equipe/);
+  assert.throws(() => TM.createTeam(s, ps[0].id, "Gama", T0), /já está/);
+  assert.throws(() => TM.createTeam(s, ps[2].id, "alfa", T0), /mesmo nome|nome/);
+});
+test("equipes: duas aceitações para a última vaga — só uma entra", () => {
+  const { s, ps } = teamState(6);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  TM.joinByCode(s, ps[2].id, t.code, T0);
+  const i1 = TM.invite(s, t, ps[0].id, ps[3].id, T0);
+  const i2 = TM.invite(s, t, ps[0].id, ps[4].id, T0);
+  TM.decide(s, i1.id, ps[3].id, true, T0);
+  eq1(t.members.length, 4);
+  eq1(s.invites.find((i) => i.id === i2.id).status, "cancelled", "equipe cheia cancela os outros convites");
+  assert.throws(() => TM.decide(s, i2.id, ps[4].id, true, T0), /não encontrado/);
+});
+test("equipes: aceitar convite de duas equipes — a segunda é recusada pelo sistema", () => {
+  const { s, ps } = teamState(3);
+  const a = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  const b = TM.createTeam(s, ps[1].id, "Beta", T0);
+  const ia = TM.invite(s, a, ps[0].id, ps[2].id, T0);
+  const ib = TM.invite(s, b, ps[1].id, ps[2].id, T0);
+  TM.decide(s, ia.id, ps[2].id, true, T0);
+  eq1(s.invites.find((i) => i.id === ib.id).status, "cancelled");
+  assert.throws(() => TM.decide(s, ib.id, ps[2].id, true, T0), /não encontrado/);
+  eq1(TM.teamOf(s, ps[2].id).id, a.id);
+});
+test("equipes: quem declarou grupo não é descoberto nem convidado, mas entra por código", () => {
+  const { s, ps } = teamState(2, (i) => (i === 1 ? { hasGroup: true } : {}));
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  eq1(TM.discoverable(s, ps[1]), false);
+  assert.throws(() => TM.invite(s, t, ps[0].id, ps[1].id, T0), /disponível/);
+  assert.throws(() => TM.request(s, t, ps[1].id, T0), /código/);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  eq1(t.members.length, 2);
+});
+test("equipes: perfil escondido não é descoberto; pedido decidido por membro da equipe", () => {
+  const { s, ps } = teamState(3, (i) => (i === 2 ? { profile: { published: false, skills: [] } } : {}));
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  eq1(TM.discoverable(s, ps[2]), false);
+  const r = TM.request(s, t, ps[1].id, T0);
+  assert.throws(() => TM.decide(s, r.id, ps[1].id, true, T0), /não pode/);
+  TM.decide(s, r.id, ps[0].id, true, T0);
+  eq1(t.members.length, 2);
+});
+test("equipes: saída abaixo de 2 desconfirma; vazia some; dono passa adiante", () => {
+  const { s, ps } = teamState(2);
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, t.code, T0);
+  TM.confirm(s, t, T0);
+  TM.leave(s, t, ps[0].id, T0);
+  eq1(t.status, "forming");
+  eq1(t.ownerId, ps[1].id);
+  TM.leave(s, t, ps[1].id, T0);
+  eq1(s.teams.length, 0);
+});
+test("equipes: não participante não entra; diretoria junta equipes até 4", () => {
+  const { s, ps } = teamState(5);
+  const judge = newPerson({ roles: ["judge"] });
+  s.people.push(judge);
+  assert.throws(() => TM.createTeam(s, judge.id, "Banca", T0), /participantes/);
+  const a = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.joinByCode(s, ps[1].id, a.code, T0);
+  const b = TM.createTeam(s, ps[2].id, "Beta", T0);
+  TM.joinByCode(s, ps[3].id, b.code, T0);
+  const c = TM.createTeam(s, ps[4].id, "Gama", T0);
+  TM.merge(s, a.id, b.id, T0);
+  eq1(a.members.length, 4);
+  eq1(s.teams.some((t) => t.id === b.id), false);
+  assert.throws(() => TM.merge(s, a.id, c.id, T0), /passariam/);
+});
+
+// ---------- entrega e avaliação ----------
+function evalState(nTeams) {
+  const { s, ps } = teamState(nTeams * 2);
+  const teams = [];
+  for (let i = 0; i < nTeams; i++) {
+    const t = TM.createTeam(s, ps[i * 2].id, "Equipe " + i, T0);
+    TM.joinByCode(s, ps[i * 2 + 1].id, t.code, T0);
+    TM.confirm(s, t, T0);
+    EV.upsertSubmission(s, t.id, { repoUrl: "https://github.com/x/" + i, slides: { file: "f.pdf", name: "s.pdf", size: 10 } }, ps[i * 2].id, T0);
+    teams.push(t);
+  }
+  const judges = [0, 1, 2].map((i) => {
+    const j = newPerson({ name: "J" + i, roles: ["judge"] });
+    s.people.push(j);
+    return j;
+  });
+  return { s, teams, judges };
+}
+const vals = (s, a, b) => {
+  const [c1, c2] = s.config.evaluation.criteria;
+  return { values: { [c1.id]: a, [c2.id]: b } };
+};
+
+test("avaliação: critérios travados antes de abrir; com nota, não destravam", () => {
+  const { s, teams, judges } = evalState(1);
+  assert.throws(() => EV.setOpen(s, true), /Trave/);
+  assert.throws(() => EV.lockCriteria(s, true), /pelo menos um/);
+  EV.addCriterion(s, { name: "Aderência", weight: 2 });
+  EV.addCriterion(s, { name: "Execução", weight: 1, scaleMax: 10 });
+  EV.lockCriteria(s, true);
+  assert.throws(() => EV.addCriterion(s, { name: "Outro" }), /travados/);
+  eq1(s.config.evaluation.tiebreakCriterionId, s.config.evaluation.criteria[0].id, "desempate padrão é o primeiro");
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 3, 3), T0), /não está aberta/);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 10), T0);
+  assert.throws(() => EV.lockCriteria(s, false), /notas/);
+});
+test("avaliação: nota fora da escala ou faltando critério é recusada", () => {
+  const { s, teams, judges } = evalState(1);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta", scaleMax: 10 });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 6, 3), T0), /1 a 5/);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 2.5, 3), T0), /inteira/);
+  const [c1] = s.config.evaluation.criteria;
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, { values: { [c1.id]: 3 } }, T0), /Beta/);
+});
+test("avaliação: só equipe confirmada com entrega completa é avaliada", () => {
+  const { s, teams, judges } = evalState(2);
+  s.submissions.find((x) => x.teamId === teams[1].id).slides = null;
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  eq1(EV.evaluableTeams(s).length, 1);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 3, 3), T0), /não está em avaliação/);
+});
+test("avaliação: ranking por média ponderada, desempate pelo critério escolhido", () => {
+  const { s, teams, judges } = evalState(3);
+  EV.addCriterion(s, { name: "Aderência", weight: 1 });
+  EV.addCriterion(s, { name: "Pitch", weight: 1 });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  // T0: (5,1) e T1: (1,5) empatam na média; desempate = Aderência → T0 na frente.
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 1), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 1, 5), T0);
+  EV.submitScore(s, judges[0].id, teams[2].id, vals(s, 5, 5), T0);
+  const r = EV.ranking(s);
+  eq1(r[0].teamId, teams[2].id);
+  eq1(r[0].score, 100);
+  eq1(r[1].teamId, teams[0].id);
+  eq1(r[2].teamId, teams[1].id);
+  eq1(r[1].position, 2);
+  eq1(r[2].position, 3);
+});
+test("avaliação: impedimento tira a nota e não conta no total de jurados", () => {
+  const { s, teams, judges } = evalState(1);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 1, 1), T0);
+  EV.submitScore(s, judges[1].id, teams[0].id, vals(s, 5, 5), T0);
+  eq1(EV.ranking(s)[0].score, 50);
+  EV.setConflict(s, judges[0].id, teams[0].id, true, T0);
+  const row = EV.ranking(s)[0];
+  eq1(row.score, 100);
+  eq1(row.eligibleJudges, 2);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 3, 3), T0), /impedido/);
+});
+test("avaliação: fase final usa a nota da final para finalistas; travar fecha a banca", () => {
+  const { s, teams, judges } = evalState(3);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 5), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 4, 4), T0);
+  EV.submitScore(s, judges[0].id, teams[2].id, vals(s, 1, 1), T0);
+  assert.throws(() => EV.setPhase(s, "final"), /2 finalistas/);
+  EV.setFinalists(s, [teams[0].id, teams[1].id]);
+  EV.setPhase(s, "final");
+  eq1(EV.evaluableTeams(s).length, 2);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 2, 2), T0);
+  EV.submitScore(s, judges[0].id, teams[1].id, vals(s, 5, 5), T0);
+  const r = EV.ranking(s);
+  eq1(r[0].teamId, teams[1].id, "vence a final, não a fase única");
+  eq1(r[2].teamId, teams[2].id, "não finalista depois");
+  EV.lockResults(s, true, T0);
+  eq1(s.config.evaluation.open, false);
+  assert.throws(() => EV.setOpen(s, true), /travado/);
+  eq1(EV.podium(s), null, "nada público antes de revelar");
+  EV.reveal(s, T0);
+  const pod = EV.podium(s);
+  eq1(pod.length, 3);
+  eq1(pod[0].name, teams[1].name);
+  eq1(pod[0].score, undefined, "pódio não mostra nota");
+  assert.throws(() => EV.lockResults(s, false, T0), /revelado/);
+});
+test("avaliação: jurado que é integrante não avalia a própria equipe", () => {
+  const { s, teams } = evalState(1);
+  const member = s.people.find((p) => p.id === teams[0].members[0]);
+  member.roles.push("judge");
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta" });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  eq1(EV.hasConflict(s, member.id, teams[0].id), true);
+  assert.throws(() => EV.submitScore(s, member.id, teams[0].id, vals(s, 5, 5), T0), /impedido/);
+});
+test("entrega: PDF de verdade e links http(s)", () => {
+  eq1(EV.isPdf(Buffer.from("%PDF-1.7 ...")), true);
+  eq1(EV.isPdf(Buffer.from("<html>")), false);
+  assert.throws(() => EV.validateSubmissionFields({ repoUrl: "javascript:alert(1)" }), /inválido/);
+  eq1(EV.validateSubmissionFields({ repoUrl: "https://github.com/a/b" }).repoUrl, "https://github.com/a/b");
+});
+
+// ---------- revisão 2: entrega, base, limites, revogação ----------
+// Store em memória com o mesmo contrato do real (get/mutate com rollback).
+function memStore(state, opts) {
+  let st = state;
+  return {
+    get: () => st,
+    mutate(fn) {
+      const snap = JSON.stringify(st);
+      try {
+        const r = fn(st);
+        if (opts && opts.failWrite && opts.failWrite()) throw new Error("disco cheio");
+        return r;
+      } catch (e) {
+        st = JSON.parse(snap);
+        throw e;
+      }
+    },
+  };
+}
+function deliveryCtx(state, mailResult, opts) {
+  const sent = [];
+  const ctx = {
+    store: memStore(state, opts),
+    now: () => (opts && opts.now ? opts.now() : T0),
+    baseUrl: () => "https://lepv.example",
+    report: () => {},
+    mail: {
+      emailEnabled: () => true,
+      layout: () => "<html>",
+      sendEmail: async (m) => {
+        sent.push(m);
+        return typeof mailResult === "function" ? mailResult() : mailResult;
+      },
+    },
+  };
+  const push = { enabled: () => false, publicKey: () => "", send: async () => ({ status: "sent" }) };
+  return { ctx, sent, push };
+}
+function stateWithEmailDelivery() {
+  const { s } = annState();
+  A.createAnnouncement(s, draft({ audiences: ["sponsor"], channels: { email: true } }), null, T0);
+  return s;
+}
+
+test("entrega: sucesso marca enviado; e-mail usa a base pública", async () => {
+  const s = stateWithEmailDelivery();
+  const { ctx, sent, push } = deliveryCtx(s, { status: "outbox" });
+  await createDelivery(ctx, push).runOnce();
+  eq1(ctx.store.get().deliveries[0].status, "sent");
+  assert.ok(sent[0].text.includes("https://lepv.example/hack/portal#avisos"));
+});
+test("entrega: falha reenvia com espera; incerto não reenvia sozinho", async () => {
+  const s = stateWithEmailDelivery();
+  let t = T0.getTime();
+  const { ctx, sent, push } = deliveryCtx(s, { status: "failed", error: "HTTP 500" }, { now: () => new Date(t) });
+  const d = createDelivery(ctx, push);
+  await d.runOnce();
+  eq1(ctx.store.get().deliveries[0].status, "failed");
+  await d.runOnce();
+  eq1(sent.length, 1, "espera antes da segunda tentativa");
+  t += 61 * 1000;
+  await d.runOnce();
+  eq1(sent.length, 2);
+  t += 6 * 60 * 1000;
+  await d.runOnce();
+  await d.runOnce();
+  eq1(sent.length, MAX_ATTEMPTS, "para no máximo de tentativas");
+
+  const s2 = stateWithEmailDelivery();
+  const u = deliveryCtx(s2, { status: "unknown", error: "timeout" });
+  const d2 = createDelivery(u.ctx, u.push);
+  await d2.runOnce();
+  await d2.runOnce();
+  eq1(u.sent.length, 1);
+  eq1(u.ctx.store.get().deliveries[0].status, "unknown");
+});
+test("entrega: se gravar o resultado falha, o recibo fica 'enviando' e não sai de novo", async () => {
+  const s = stateWithEmailDelivery();
+  let writes = 0;
+  // Gravações: 1ª no boot da entrega, 2ª "enviando", 3ª o resultado (falha).
+  const { ctx, sent, push } = deliveryCtx(s, { status: "sent" }, { failWrite: () => ++writes === 3 });
+  const d = createDelivery(ctx, push);
+  await d.runOnce().catch(() => {});
+  await d.runOnce().catch(() => {});
+  eq1(sent.length, 1, "não reenviou");
+  eq1(ctx.store.get().deliveries[0].status, "sending");
+  // Reinício: "enviando" vira "incerto".
+  createDelivery(Object.assign({}, ctx, { store: memStore(ctx.store.get()) }), push);
+  eq1(ctx.store.get().deliveries[0].status, "unknown");
+});
+test("rede: sem conexão tenta de novo; timeout é incerto", () => {
+  eq1(networkOutcome({ code: "ECONNREFUSED", message: "x" }).status, "failed");
+  eq1(networkOutcome({ cause: { code: "ENOTFOUND" }, message: "fetch failed" }).status, "failed");
+  eq1(networkOutcome({ name: "TimeoutError", message: "aborted" }).status, "unknown");
+});
+test("base dos links: variável vence; Railway usa o domínio; Host só em dev", () => {
+  const req = { protocol: "http", get: () => "evil.example" };
+  eq1(publicBaseFor({ HACK_PUBLIC_URL: "https://lepv.org/" }, req), "https://lepv.org");
+  eq1(publicBaseFor({ RAILWAY_ENVIRONMENT_NAME: "production" }, req), "https://lepv.org");
+  eq1(publicBaseFor({}, req), "http://evil.example");
+  eq1(publicBaseFor({}, null), "https://lepv.org");
+});
+test("limite: estoura depois do teto na janela", () => {
+  const lim = rateLimiter(3, 60000);
+  eq1([lim("a"), lim("a"), lim("a"), lim("a")].join(), "false,false,false,true");
+  eq1(lim("b"), false, "chave separada");
+});
+test("link por e-mail: falha mantém o link antigo; sucesso o revoga", async () => {
+  const s = emptyState();
+  const p = newPerson({ email: "x@ex.com", roles: ["participant"] });
+  s.people.push(p);
+  const old = issueLoginToken(s, p.id, T0);
+  const bad = deliveryCtx(s, { status: "failed", error: "HTTP 422" });
+  const r = await sendAccessLink(bad.ctx, "https://lepv.example", p.id);
+  eq1(r.result.status, "failed");
+  eq1(bad.ctx.store.get().people[0].lastLinkEmail.status, "failed");
+  eq1(consumeLoginToken(bad.ctx.store.get(), old, later(1)).id, p.id, "antigo ainda vale");
+  const s2 = emptyState();
+  const p2 = newPerson({ email: "y@ex.com", roles: ["participant"] });
+  s2.people.push(p2);
+  const old2 = issueLoginToken(s2, p2.id, T0);
+  const ok = deliveryCtx(s2, { status: "sent" });
+  await sendAccessLink(ok.ctx, "https://lepv.example", p2.id);
+  assert.throws(() => consumeLoginToken(ok.ctx.store.get(), old2, later(1)), /Link inválido/);
+});
+test("ator: inscrição retirada derruba a sessão; membro bloqueado não entra", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["participant"], signupStatus: "confirmed" });
+  s.people.push(p);
+  assert.ok(resolveActor(req({ pid: p.id, epoch: 1 }), s, deps));
+  p.roles = [];
+  p.signupStatus = "removed";
+  eq1(resolveActor(req({ pid: p.id, epoch: 1 }), s, deps), null);
+  const m = newPerson({ roles: ["participant"], memberOrder: 7 });
+  s.people.push(m);
+  assert.ok(resolveActor(req(null, { order: 7, name: "M", director: false }), s, deps));
+  m.disabled = true;
+  eq1(resolveActor(req(null, { order: 7, name: "M", director: false }), s, deps), null);
+  const d = newPerson({ memberOrder: 8, disabled: true });
+  s.people.push(d);
+  eq1(resolveActor(req(null, { order: 8, name: "D", director: true }), s, deps), null, "diretor bloqueado aqui também");
+});
+
+(async () => {
+  for (const t of tests) {
+    try {
+      await t.fn();
+      results.pass++;
+      console.log("  ok   " + t.name);
+    } catch (err) {
+      results.fail++;
+      console.log("  FALHA " + t.name + "\n        " + err.message);
+    }
+  }
+  console.log("\nhackathon: " + results.pass + " passaram, " + results.fail + " falharam");
+  process.exitCode = results.fail ? 1 : 0;
+})();

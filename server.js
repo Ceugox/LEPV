@@ -3526,7 +3526,22 @@ app.get("/api/board/meetings/:id.ics", requireDirectorApi, (req, res) => {
   sendIcs(res, "lepv-" + meeting.id + ".ics", ical.singleEvent(meeting, { ownerNames: boardOwnerNames(boardRoster()) }));
 });
 
-registerHackathonRoutes(app, { publicDir: PUBLIC_DIR, readEventsStore, todayBR });
+registerHackathonRoutes(app, {
+  publicDir: PUBLIC_DIR,
+  storageDir: STORAGE_DIR,
+  readStore,
+  writeStore,
+  readEventsStore,
+  todayBR,
+  // Membro da liga logado no site, com papel atual (não o do login).
+  // Quem ainda precisa trocar a senha provisória não passa daqui, como no resto do site.
+  liveMember: (req) => {
+    const u = req.session && req.session.user ? liveRole(req) : null;
+    if (!u || u.mustChangePassword) return null;
+    return { order: u.order, name: u.name, director: isDirectorRole(u) };
+  },
+  recordFailure,
+});
 
 app.use(express.static(PUBLIC_DIR, { index: false }));
 

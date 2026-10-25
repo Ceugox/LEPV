@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal · 1º Hackathon LEPV</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<link rel="manifest" href="/hack/manifest.webmanifest">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+</head>
+<body class="app">
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="app-top">
+  <div class="app-top__media" aria-hidden="true"><img src="/hack/img/pao-acucar-noite.jpg" alt="" width="2400" height="1350"></div>
+  <div class="app-top__bar">
+    <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+    <div class="app-top__who">
+      <span class="app-top__name" id="who"></span>
+      <a class="btn btn--glass btn--sm" id="link-org" href="/hack/organizacao" hidden>Organização</a>
+      <button class="btn btn--ghost btn--sm" type="button" id="sair">Sair</button>
+    </div>
+  </div>
+  <div class="app-top__title">
+    <p class="eyebrow">1º Hackathon LEPV · portal</p>
+    <h1 id="ola">Seu<br><em>portal.</em></h1>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Seções do portal">
+  <div class="tabs__in" role="tablist">
+    <button class="tab" type="button" role="tab" data-tab="inicio">Início</button>
+    <button class="tab" type="button" role="tab" data-tab="avisos">Avisos <span class="tab__n" id="n-avisos" hidden></span></button>
+    <button class="tab" type="button" role="tab" data-tab="equipe" data-perm="participant" hidden>Equipe</button>
+    <button class="tab" type="button" role="tab" data-tab="entrega" data-perm="participant" hidden>Entrega</button>
+    <button class="tab" type="button" role="tab" data-tab="banca" data-perm="judge" hidden>Banca</button>
+    <button class="tab" type="button" role="tab" data-tab="agenda">Agenda e locais</button>
+  </div>
+</nav>
+
+<main class="app-main" id="conteudo">
+  <section class="panel" data-panel="inicio" aria-label="Início">
+    <div class="grid grid--2" id="inicio-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="avisos" aria-label="Avisos" hidden>
+    <div class="card" id="push-card" hidden style="margin-bottom:18px">
+      <p class="card__k">Notificações neste aparelho</p>
+      <p id="push-msg" class="muted"></p>
+      <div class="row"><button class="btn btn--red btn--sm" type="button" id="push-on" hidden>Ativar notificações</button>
+      <button class="btn btn--ghost btn--sm" type="button" id="push-off" hidden>Desativar neste aparelho</button></div>
+    </div>
+    <div class="stack" id="avisos-list"></div>
+  </section>
+  <section class="panel" data-panel="equipe" aria-label="Equipe" hidden>
+    <div class="grid grid--2" id="equipe-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="entrega" aria-label="Entrega" hidden>
+    <div class="grid grid--2" id="entrega-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="banca" aria-label="Banca" hidden>
+    <div class="grid grid--2" id="banca-grid"><p class="empty">Carregando…</p></div>
+  </section>
+  <section class="panel" data-panel="agenda" aria-label="Agenda e locais" hidden>
+    <div class="grid grid--2" id="agenda-grid"></div>
+  </section>
+</main>
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/team.js"></script>
+<script src="/hack/js/entrega.js"></script>
+<script src="/hack/js/portal.js"></script>
+</body>
+</html>

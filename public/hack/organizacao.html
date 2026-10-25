@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organização · 1º Hackathon LEPV</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/hack/img/logo-mark.png">
+<meta name="theme-color" content="#0b0b0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;800;900&family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+</head>
+<body class="app">
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="app-top">
+  <div class="app-top__media" aria-hidden="true"><img src="/hack/img/sala-vermelha.jpg" alt="" width="2400" height="1600"></div>
+  <div class="app-top__bar">
+    <a class="app-top__brand" href="/hack/"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+    <div class="app-top__who">
+      <span class="app-top__name" id="who"></span>
+      <a class="btn btn--glass btn--sm" href="/hack/portal">Portal</a>
+      <button class="btn btn--ghost btn--sm" type="button" id="sair">Sair</button>
+    </div>
+  </div>
+  <div class="app-top__title">
+    <p class="eyebrow">1º Hackathon LEPV · organização</p>
+    <h1>Painel da<br><em>organização.</em></h1>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Seções da organização">
+  <div class="tabs__in" role="tablist">
+    <button class="tab" type="button" role="tab" data-tab="pessoas" data-perm="manage">Pessoas</button>
+    <button class="tab" type="button" role="tab" data-tab="equipes" data-perm="manage">Equipes</button>
+    <button class="tab" type="button" role="tab" data-tab="entregas" data-perm="manage">Entregas</button>
+    <button class="tab" type="button" role="tab" data-tab="avaliacao" data-perm="manage">Avaliação</button>
+    <button class="tab" type="button" role="tab" data-tab="avisos" data-perm="comms">Avisos</button>
+    <button class="tab" type="button" role="tab" data-tab="whatsapp" data-perm="comms">WhatsApp</button>
+    <button class="tab" type="button" role="tab" data-tab="programacao" data-perm="manage">Programação</button>
+  </div>
+</nav>
+
+<main class="app-main" id="conteudo">
+  <section class="panel" data-panel="pessoas" aria-label="Pessoas" hidden>
+    <div class="row" style="margin-bottom:16px">
+      <label class="field" style="flex:1 1 240px"><span>Buscar</span><input id="busca" type="search" placeholder="Nome, e-mail ou telefone"></label>
+      <label class="field" style="flex:0 1 220px"><span>Filtrar</span>
+        <select id="filtro">
+          <option value="">Todos</option>
+          <option value="participant">Participantes</option>
+          <option value="waitlist">Lista de espera</option>
+          <option value="judge">Jurados</option>
+          <option value="staff">Staff</option>
+          <option value="sponsor">Patrocinadores</option>
+          <option value="supporter">Apoiadores</option>
+          <option value="nolink">Sem link enviado</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn btn--red btn--sm" type="button" id="add-pessoa">Adicionar jurado ou staff</button>
+      <button class="btn btn--ghost btn--sm" type="button" id="lote">Enviar links por e-mail…</button>
+      <span class="spacer"></span>
+      <span class="muted small" id="contagem"></span>
+    </div>
+    <p class="muted small" id="email-status"></p>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="lista-pessoas"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="equipes" aria-label="Equipes" hidden>
+    <div class="row" style="margin-bottom:16px">
+      <button class="btn btn--red btn--sm" type="button" id="add-team">Montar equipe</button>
+      <span class="spacer"></span><span class="muted small" id="teams-sum"></span>
+    </div>
+    <div class="grid grid--3" id="teams-grid"></div>
+    <h2 class="sec-h">Sem equipe</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="solo-list"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="entregas" aria-label="Entregas" hidden>
+    <form class="card form" id="form-deadline" style="margin-bottom:18px">
+      <p class="card__k">Prazo de entrega</p>
+      <div class="row">
+        <label class="field" style="flex:1 1 240px"><span>Data e hora (Brasília)</span><input type="datetime-local" id="deadline-in" required></label>
+        <button class="btn btn--red btn--sm" type="submit" style="align-self:flex-end">Salvar prazo</button>
+      </div>
+      <p class="muted small" id="subs-sum"></p>
+    </form>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="subs-list"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="avaliacao" aria-label="Avaliação" hidden>
+    <div class="grid grid--2">
+      <article class="card">
+        <p class="card__k">Critérios</p>
+        <ul class="list" id="crit-list"></ul>
+        <div class="row" style="margin-top:12px">
+          <button class="btn btn--ghost btn--sm" type="button" id="add-crit">Adicionar critério</button>
+          <button class="btn btn--red btn--sm" type="button" id="lock-crit">Travar critérios</button>
+        </div>
+      </article>
+      <article class="card">
+        <p class="card__k">Andamento</p>
+        <div class="row" id="eval-status" style="margin-bottom:14px"></div>
+        <div class="row">
+          <button class="btn btn--red btn--sm" type="button" id="toggle-open">Abrir avaliação</button>
+          <button class="btn btn--ghost btn--sm" type="button" id="phase-btn">Abrir fase final</button>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn btn--ghost btn--sm" type="button" id="lock-results">Travar resultado</button>
+          <button class="btn btn--red btn--sm" type="button" id="reveal">Revelar resultado</button>
+        </div>
+        <form class="row" id="form-podium" style="margin-top:12px">
+          <label class="field" style="flex:0 1 160px"><span>Tamanho do pódio</span><input type="number" id="podium-in" min="1" max="10"></label>
+          <button class="btn btn--ghost btn--sm" type="submit" style="align-self:flex-end">Salvar</button>
+        </form>
+      </article>
+    </div>
+    <h2 class="sec-h">Banca</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="judges-list"></ul></div>
+    <h2 class="sec-h">Ranking (só a organização vê)</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="rank-body"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="avisos" aria-label="Avisos" hidden>
+    <div class="grid grid--2">
+      <form class="card form" id="form-aviso" novalidate>
+        <p class="card__k">Novo aviso</p>
+        <label class="field"><span>Título</span><input name="title" maxlength="120" required></label>
+        <label class="field"><span>Texto</span><textarea name="body" maxlength="2000" required></textarea></label>
+        <fieldset class="stack" style="border:0;padding:0;margin:0">
+          <legend class="card__k">Para quem</legend>
+          <label class="check"><input type="checkbox" name="aud" value="all"><span>Todos</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="participant" checked><span>Participantes</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="judge"><span>Jurados</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="sponsor"><span>Patrocinadores</span></label>
+          <label class="check"><input type="checkbox" name="aud" value="supporter"><span>Apoiadores</span></label>
+        </fieldset>
+        <fieldset class="stack" style="border:0;padding:0;margin:0">
+          <legend class="card__k">Canais além da central do portal</legend>
+          <label class="check"><input type="checkbox" name="ch" value="push"><span>Notificação no celular <small id="ch-push"></small></span></label>
+          <label class="check"><input type="checkbox" name="ch" value="email"><span>E-mail <small id="ch-email"></small></span></label>
+          <label class="check"><input type="checkbox" name="ch" value="whatsapp"><span>WhatsApp (envio assistido)</span></label>
+        </fieldset>
+        <label class="check"><input type="checkbox" name="urgent"><span>Urgente (marca notificação no celular)</span></label>
+        <label class="field"><span>Agendar para (horário de Brasília) — vazio publica agora</span><input type="datetime-local" name="when"></label>
+        <p class="muted small" id="alcance" role="status"></p>
+        <div class="row"><button class="btn btn--red btn--sm" type="submit">Publicar</button></div>
+      </form>
+      <div class="stack" id="avisos-admin"></div>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="whatsapp" aria-label="WhatsApp" hidden>
+    <p class="muted" style="margin-top:0">Envio assistido: cada botão abre a conversa com a mensagem pronta. Envie e marque como enviado — abrir a conversa não conta como entrega.</p>
+    <div class="row" style="margin-bottom:12px"><label class="check"><input type="checkbox" id="wa-pend" checked><span>Só pendentes</span></label></div>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="wa-list"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="programacao" aria-label="Programação" hidden>
+    <div class="row" style="margin-bottom:16px"><button class="btn btn--red btn--sm" type="button" id="add-atividade">Adicionar atividade</button></div>
+    <div class="grid grid--2" id="prog-grid"></div>
+  </section>
+</main>
+
+<dialog class="dlg" id="dlg"><div class="dlg__in" id="dlg-in"></div></dialog>
+
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/org.js"></script>
+</body>
+</html>
