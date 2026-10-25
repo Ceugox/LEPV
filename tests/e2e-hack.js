@@ -403,6 +403,36 @@ test("inscrição: aceita UFPE e Outra universidade, recusa vínculo fora da lis
   eq(r3.data.error, "invalid_vinculo");
 });
 
+test("dúvidas: participante pergunta, organização responde, resposta volta ao portal", async () => {
+  const ana = await enterAs("ana@ex.com");
+  const bruno = await enterAs("bruno@ex.com");
+  const ask = await ana.post("/hack/api/questions", { text: "Posso usar uma API paga no projeto?" });
+  eq(ask.status, 200, JSON.stringify(ask.data));
+  eq((await bruno.get("/hack/api/questions")).data.questions.length, 0, "cada um vê só as suas");
+  eq((await ana.get("/hack/api/admin/questions")).status, 403, "participante não lê as dos outros");
+  const list = (await S.admin.get("/hack/api/admin/questions")).data.questions;
+  const q = list.find((x) => x.text.startsWith("Posso usar"));
+  eq(q.person.name, "Ana Participante");
+  eq(q.answer, null);
+  const ans = await S.admin.post("/hack/api/admin/questions/" + q.id + "/answer", { text: "Pode, desde que a equipe pague." });
+  eq(ans.status, 200);
+  const mine = (await ana.get("/hack/api/questions")).data.questions[0];
+  eq(mine.answer.text, "Pode, desde que a equipe pague.");
+});
+
+test("superadmin: visão geral só para o superadmin; último acesso aparece", async () => {
+  const ana = await enterAs("ana@ex.com");
+  eq((await ana.get("/hack/api/admin/overview")).status, 403);
+  const me = await S.admin.get("/hack/api/me");
+  eq(me.data.perms.superadmin, true, "order 1 é superadmin");
+  const o = await S.admin.get("/hack/api/admin/overview");
+  eq(o.status, 200);
+  for (const k of ["groups", "access", "submissions", "announcements", "questions", "checkin"]) assert(k in o.data, "falta " + k);
+  eq(o.data.questions.answered >= 1, true);
+  const people = (await S.admin.get("/hack/api/admin/people")).data.people;
+  assert(people.find((p) => p.email === "ana@ex.com").lastSeenAt, "último acesso da Ana registrado");
+});
+
 test("acesso: sair encerra a sessão; /session diz isso sem 401", async () => {
   const c = await enterAs("elisa@ex.com");
   eq((await c.get("/hack/api/session")).data.authenticated, true);

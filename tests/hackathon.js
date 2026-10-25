@@ -19,6 +19,8 @@ const PT = require("../lib/hackathon/partners");
 const K = require("../lib/hackathon/admission");
 const { seedProgram, migrateProgram, fridayOutdated } = require("../lib/hackathon/program");
 const { migrateSchedule } = require("../lib/hackathon/migrations");
+const Q = require("../lib/hackathon/questions");
+const { overview } = require("../lib/hackathon/routes/overview");
 const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
 
 const results = { pass: 0, fail: 0 };
@@ -1358,6 +1360,55 @@ test("programação: sexta editada pela diretoria não é sobrescrita", () => {
   eq1(migrateProgram(s, QUIET), "skipped", "marca a revisão para não tentar de novo");
   eq1(JSON.stringify(s.program), before);
   eq1(migrateProgram(s, QUIET), "noop");
+});
+
+// ---------- superadmin, dúvidas e visão geral ----------
+test("superadmin: só o superadmin da liga ganha a permissão; diretoria comum não", () => {
+  const s = emptyState();
+  const dir = resolveActor(req(null, { order: 7, name: "Dir", director: true, superadmin: false }), s, deps);
+  eq1(perms(dir).superadmin, false);
+  eq1(perms(dir).manage, true);
+  const sup = resolveActor(req(null, { order: 1, name: "Sup", director: true, superadmin: true }), s, deps);
+  eq1(perms(sup).superadmin, true);
+  const p = newPerson({ name: "Ana", roles: ["participant"], memberOrder: 1 });
+  s.people.push(p);
+  const supP = resolveActor(req(null, { order: 1, name: "Sup", director: true, superadmin: true }), s, deps);
+  assert(supP.roles.includes("superadmin") && supP.roles.includes("director"));
+  eq1(p.roles.includes("superadmin"), false, "papel derivado nunca é gravado");
+});
+test("dúvidas: pergunta e resposta; texto curto recusado; limite de abertas", () => {
+  const s = emptyState();
+  assert.throws(() => Q.ask(s, "p1", " oi ".slice(0, 2), T0), /pelo menos 3/);
+  const q = Q.ask(s, "p1", "Posso usar API paga?", T0);
+  eq1(Q.ownView(q).answer, null);
+  Q.answer(s, q.id, "d1", "Pode, desde que pague.", T0);
+  eq1(Q.ownView(q).answer.text, "Pode, desde que pague.");
+  for (let i = 0; i < Q.MAX_OPEN; i++) Q.ask(s, "p2", "dúvida " + i, T0);
+  assert.throws(() => Q.ask(s, "p2", "mais uma", T0), /esperando resposta/);
+  assert.throws(() => Q.answer(s, "nada", "d1", "x", T0), /não encontrada/);
+});
+test("visão geral: grupos, acessos, entregas e dúvidas contam certo", () => {
+  const { s, ps } = teamState(5, (i) => ({ hasGroup: i < 3, profile: { published: false, bio: "", skills: [], interests: [] } }));
+  TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.indicate(s, ps[1].id, ps[2].id, T0);
+  ps[0].lastLoginAt = T0.toISOString();
+  ps[0].lastSeenAt = T0.toISOString();
+  ps[1].lastLinkAt = T0.toISOString();
+  Q.ask(s, ps[3].id, "Onde fica a FGV?", T0);
+  const o = overview(s, new Date(T0.getTime() + 3600 * 1000));
+  eq1(o.groups.teams, 1);
+  eq1(o.groups.small, 1, "equipe de 1 pessoa");
+  eq1(o.groups.solo, 4);
+  eq1(o.groups.pendingIndications, 1);
+  assert.deepStrictEqual(o.groups.stuck.map((p) => p.name), [], "P1 e P2 estão numa indicação; P3 e P4 não têm grupo");
+  eq1(o.access.participants, 5);
+  eq1(o.access.loggedIn, 1);
+  eq1(o.access.active24h, 1);
+  eq1(o.access.linkSent, 1);
+  eq1(o.access.neverIn.length, 4);
+  eq1(o.submissions.missing.length, 1);
+  eq1(o.questions.open, 1);
+  eq1(o.checkin.length, 2);
 });
 
 (async () => {

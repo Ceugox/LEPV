@@ -834,8 +834,111 @@
   }
   $('add-org').addEventListener('click', () => orgDialog(null));
 
+  // ---------- visão geral (superadmin) ----------
+  const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+  // Número grande + rótulo; "alerta" quando o número pede ação.
+  const stat = (n, label, warn) => h('div.ov-stat' + (warn ? '.ov-stat--warn' : ''), h('b', String(n)), h('span', label));
+  const goTab = (name) => { location.hash = name; };
+
+  async function sendLink(p, how) {
+    try {
+      const r = await api('/hack/api/admin/people/' + p.id + '/link', { method: 'POST', body: { send: how } });
+      if (how === 'email') {
+        const ok = r.email && (r.email.status === 'sent' || r.email.status === 'outbox');
+        toast(ok ? 'Link enviado por e-mail para ' + p.name + '.' : 'E-mail não saiu (' + ((r.email && (r.email.error || r.email.status)) || 'erro') + '). Use o WhatsApp.', !ok);
+      } else if (r.whatsappUrl) {
+        window.open(r.whatsappUrl, '_blank', 'noopener');
+      } else {
+        toast('Sem telefone: copie o link na aba Pessoas.', true);
+      }
+      await loadOverview();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function loadOverview() {
+    const o = await api('/hack/api/admin/overview');
+    $('ov-when').textContent = 'Atualizado em ' + fmtWhen(o.now);
+    const g = o.groups, a = o.access, sub = o.submissions, q = o.questions;
+    clear($('ov-stats')).append(
+      h('article.card', h('p.card__k', 'Grupos'),
+        h('div.ov-row', stat(g.teams, 'equipes'), stat(g.confirmed, 'confirmadas'), stat(g.solo, 'sem equipe', g.solo > 0)),
+        h('p.muted.small', g.soloWithGroup + ' sem equipe disseram ter grupo · ' + g.pendingIndications + ' indicação(ões) pendente(s)' + (g.small ? ' · ' + g.small + ' equipe(s) com 1 pessoa' : '')),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('equipes') }, 'Abrir Equipes →')),
+      h('article.card', h('p.card__k', 'Acessos'),
+        h('div.ov-row', stat(a.participants, 'participantes'), stat(a.loggedIn, 'já entraram'), stat(a.active24h, 'ativos em 24 h')),
+        h('p.muted.small', a.linkSent + ' com link enviado · ' + a.neverIn.length + ' nunca entraram' + (a.linkFailed ? ' · ' + a.linkFailed + ' e-mail(s) com falha' : '')),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('pessoas') }, 'Abrir Pessoas →')),
+      h('article.card', h('p.card__k', 'Entregas'),
+        h('div.ov-row', stat(sub.complete, 'completas'), stat(sub.draft, 'rascunho'), stat(sub.missing.length, 'sem entrega', sub.missing.length > 0)),
+        h('p.muted.small', 'Prazo: ' + fmtWhen(sub.deadline)),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('entregas') }, 'Abrir Entregas →')),
+      h('article.card', h('p.card__k', 'Dúvidas'),
+        h('div.ov-row', stat(q.open, 'sem resposta', q.open > 0), stat(q.answered, 'respondidas')),
+        h('p.muted.small', q.oldestOpenAt ? 'Mais antiga sem resposta: ' + fmtWhen(q.oldestOpenAt) : 'Nenhuma esperando.'),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('duvidas') }, 'Responder →')),
+      h('article.card', h('p.card__k', 'Credenciamento'),
+        h('div.ov-row', o.checkin.map((c) => stat(c.in + '/' + c.expected, c.place + ' · ' + c.day.slice(8, 10) + '/' + c.day.slice(5, 7))))),
+      h('article.card', h('p.card__k', 'Avisos'),
+        o.announcements.length ? h('ul.list', o.announcements.slice(0, 6).map((n) => {
+          const st = n.stats || {};
+          const sum = (ch, k) => (st[ch] && st[ch][k]) || 0;
+          const sent = ['push', 'email', 'whatsapp'].reduce((t, ch) => t + sum(ch, 'sent'), 0);
+          const failed = ['push', 'email', 'whatsapp'].reduce((t, ch) => t + sum(ch, 'failed'), 0);
+          return h('li', h('div.list__main', h('b', n.title),
+            h('span', n.status === 'published' ? 'Publicado ' + fmtWhen(n.publishedAt) + ' · ' + n.recipients + ' pessoa(s) · ' + n.read + ' leram · ' + sent + ' entregue(s)' + (failed ? ' · ' + failed + ' falha(s)' : '') : 'Agendado para ' + fmtWhen(n.scheduledAt))));
+        })) : h('p.muted', 'Nenhum aviso.'),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('avisos') }, 'Abrir Avisos →')));
+    const people = (list, empty, actions) => list.length
+      ? h('ul.list', list.map((p) => h('li', h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))), actions ? actions(p) : null)))
+      : h('p.muted', empty);
+    clear($('ov-lists')).append(
+      h('article.card', h('p.card__k', 'Nunca entraram'), h('h3.card__title', a.neverIn.length + ' participante(s)'),
+        people(a.neverIn, 'Todo mundo já entrou na plataforma.', (p) => h('div.row',
+          h('span.muted.small', p.lastLinkAt ? 'Link enviado ' + fmtWhen(p.lastLinkAt) + (p.linkStatus === 'failed' ? ' · e-mail falhou' : '') : 'Sem link enviado'),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => sendLink(p, 'email') }, 'E-mail'),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => sendLink(p, 'none') }, 'WhatsApp')))),
+      h('article.card', h('p.card__k', 'Grupo sem indicação'), h('h3.card__title', g.stuck.length + ' pessoa(s)'),
+        h('p.muted.small', 'Disseram que têm grupo, estão sem equipe e ninguém indicou ninguém.'),
+        people(g.stuck, 'Ninguém travado.')),
+      h('article.card', h('p.card__k', 'Equipes sem entrega'), h('h3.card__title', sub.missing.length + ' equipe(s)'),
+        sub.missing.length ? h('ul.list', sub.missing.map((t) => h('li', h('div.list__main', h('b', t.name), h('span', t.size + ' pessoa(s)'))))) : h('p.muted', 'Toda equipe já começou a entrega.')));
+  }
+  $('ov-reload').addEventListener('click', () => loadOverview().catch((e) => toast(e.message, true)));
+
+  // ---------- dúvidas ----------
+  async function loadQuestions() {
+    const r = await api('/hack/api/admin/questions');
+    const open = r.questions.filter((q) => !q.answer);
+    $('q-sum').textContent = open.length + ' sem resposta · ' + (r.questions.length - open.length) + ' respondida(s)';
+    const n = $('n-duvidas');
+    n.hidden = !open.length;
+    n.textContent = String(open.length);
+    const box = clear($('q-list'));
+    if (!r.questions.length) { box.appendChild(h('p.empty', 'Nenhuma dúvida ainda.')); return; }
+    r.questions.forEach((q) => {
+      const who = q.person ? q.person.name + ' · ' + [q.person.email, q.person.phone].filter(Boolean).join(' · ') : '?';
+      if (q.answer) {
+        box.appendChild(h('article.card', h('p.card__k', who + ' · ' + fmtWhen(q.createdAt)), h('p', q.text),
+          h('p.answer', h('span.badge.badge--ok', 'Respondida por ' + q.answer.by + ' · ' + fmtWhen(q.answer.at)), ' ', q.answer.text)));
+        return;
+      }
+      const ta = h('textarea', { name: 'text', rows: 3, maxlength: 1000, required: true });
+      const form = h('form.form', h('label.field', h('span', 'Resposta'), ta), h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Responder'));
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        try {
+          const res = await api('/hack/api/admin/questions/' + q.id + '/answer', { method: 'POST', body: { text: ta.value } });
+          const how = { sent: ' e notificada por push', no_device: '; a pessoa não ativou notificações (a resposta fica no portal dela)', failed: '; o push falhou (a resposta fica no portal dela)' }[res.push] || '';
+          toast('Resposta enviada' + how + '.');
+          await loadQuestions();
+        } catch (e) { toast(e.message, true); }
+      });
+      box.appendChild(h('article.card.card--red', h('p.card__k', who + ' · ' + fmtWhen(q.createdAt)), h('p', q.text), form));
+    });
+  }
+
   // ---------- carga ----------
-  const loaders = { pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });
