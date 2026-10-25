@@ -77,9 +77,14 @@
       <button class="btn btn--red btn--sm" type="button" id="add-team">Montar equipe</button>
       <span class="spacer"></span><span class="muted small" id="teams-sum"></span>
     </div>
-    <div class="grid grid--3" id="teams-grid"></div>
-    <h2 class="sec-h">Sem equipe</h2>
-    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="solo-list"></ul></div>
+    <div class="board">
+      <aside class="board__solo" aria-labelledby="h-solo">
+        <h2 class="sec-h" id="h-solo">Sem equipe</h2>
+        <p class="muted small board__hint">Arraste uma pessoa sobre outra para formar uma equipe, ou sobre uma equipe com vaga para incluir. No celular, use “Juntar com…”.</p>
+        <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="solo-list"></ul></div>
+      </aside>
+      <div class="grid grid--2 board__teams" id="teams-grid"></div>
+    </div>
   </section>
 
   <section class="panel" data-panel="entregas" aria-label="Entregas" hidden>

@@ -704,6 +704,90 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   eq((await S.admin.post("/hack/api/admin/teams/" + S.beta.id + "/merge", { otherId: S.alfa.id })).status, 409, "passaria de 4");
 });
 
+test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {
+  const base = { phone: "21988880000", curso: "Engenharia", vinculo: "FGV", temGrupo: "Sim", awareLocation: true, awareTime: true };
+  for (const [name, email, phone] of [["Gil Grupo", "gil@ex.com", "21988880001"], ["Hugo Grupo", "hugo@ex.com", "21988880002"], ["Ivo Grupo", "ivo@ex.com", "21988880003"]]) {
+    eq((await client().post("/api/event-signup/" + S.signupToken, { ...base, name, email, phone })).status, 200, "inscrição " + name);
+  }
+  const gil = await enterAs("gil@ex.com");
+  const hugo = await enterAs("hugo@ex.com");
+  const hugoId = (await hugo.get("/hack/api/me")).data.me.id;
+  const gilId = (await gil.get("/hack/api/me")).data.me.id;
+  eq((await S.c.davi.get("/hack/api/team/group-candidates")).status, 403, "sem grupo não vê a lista");
+  eq((await S.c.davi.post("/hack/api/team/indicate", { personId: hugoId })).status, 403, "sem grupo não indica");
+  const cand = (await gil.get("/hack/api/team/group-candidates")).data.people;
+  assert(cand.some((p) => p.id === hugoId), "Hugo aparece para o Gil");
+  assert(!cand.some((p) => p.name === "Bruno Participante"), "quem já tem equipe não aparece");
+  assert(cand.every((p) => !("email" in p) && !("phone" in p)), "sem contato na lista");
+  eq((await gil.post("/hack/api/team/indicate", { personId: hugoId })).status, 200);
+  eq((await gil.get("/hack/api/team")).data.sent.length, 1, "Gil vê a indicação pendente");
+  const inv = (await hugo.get("/hack/api/team")).data.invites.find((i) => i.kind === "group");
+  eq(inv.from.name, "Gil Grupo");
+  const solo = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  eq(solo.find((x) => x.email === "hugo@ex.com").groupReceived, 1, "organização vê a pendência");
+  eq((await hugo.post("/hack/api/team/invites/" + inv.id, { accept: true })).status, 200);
+  const t = (await gil.get("/hack/api/team")).data.team;
+  eq(t.size, 2);
+  eq(t.name, "Grupo de Gil");
+  // Hugo, já na equipe, indica o Ivo: o Gil vê a pendência, o Ivo vê a equipe.
+  const ivo = await enterAs("ivo@ex.com");
+  const ivoId = (await ivo.get("/hack/api/me")).data.me.id;
+  eq((await hugo.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  const sentByTeam = (await gil.get("/hack/api/team")).data.sent;
+  eq(sentByTeam.length, 1, "colega de equipe vê a indicação");
+  eq(sentByTeam[0].person.name, "Ivo Grupo");
+  const ivoInv = (await ivo.get("/hack/api/team")).data.invites.find((i) => i.kind === "group");
+  eq(ivoInv.team.name, "Grupo de Gil");
+  const soloNow = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  eq(soloNow.find((x) => x.email === "ivo@ex.com").groupReceived, 1);
+  const solo0 = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  eq(solo0.find((x) => x.email === "ivo@ex.com").groupSent, 0);
+  eq((await S.c.davi.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 403, "fora do grupo não cancela");
+  eq((await gil.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 200, "colega de equipe cancela");
+  eq((await gil.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  const again = await gil.post("/hack/api/team/indicate", { personId: ivoId });
+  eq(again.data.duplicate, true, "repetida avisa");
+  // Limpa para não mexer nas contagens dos módulos seguintes.
+  eq((await S.admin.del("/hack/api/admin/teams/" + t.id)).status, 200);
+  // Simulação (dryRun) mostra a indicação que a junção cancelaria e não grava.
+  eq((await gil.post("/hack/api/team/indicate", { personId: hugoId })).status, 200, "Gil indica Hugo de novo");
+  const sim = await S.admin.post("/hack/api/admin/teams", { memberIds: [hugoId, ivoId], dryRun: true });
+  eq(sim.status, 200);
+  assert(sim.data.cancelled.some((c) => c.from === "Gil Grupo" && c.to === "Hugo Grupo"), "simulação lista Gil → Hugo: " + JSON.stringify(sim.data));
+  assert(!(await S.admin.get("/hack/api/admin/teams")).data.teams.some((x) => x.members.some((m) => m.id === hugoId)), "simulação não grava");
+  // Também em incluir (PATCH), juntar (merge) e desfazer (DELETE).
+  const g2 = (await S.admin.post("/hack/api/admin/teams", { name: "Gama Teste", memberIds: [ivoId] })).data.team;
+  const simAdd = await S.admin.patch("/hack/api/admin/teams/" + g2.id, { addMember: hugoId, dryRun: true });
+  assert(simAdd.data.cancelled.some((c) => c.to === "Hugo Grupo"), "PATCH simula: " + JSON.stringify(simAdd.data));
+  const g3 = (await S.admin.post("/hack/api/admin/teams", { name: "Delta Teste", memberIds: [gilId] })).data.team;
+  const simMerge = await S.admin.post("/hack/api/admin/teams/" + g2.id + "/merge", { otherId: g3.id, dryRun: true });
+  eq(simMerge.status, 200);
+  assert(Array.isArray(simMerge.data.cancelled), "merge simula");
+  const simDel = await S.admin.raw("DELETE", "/hack/api/admin/teams/" + g3.id, { dryRun: true });
+  assert(simDel.data.cancelled.some((c) => c.from === "Gil Grupo"), "DELETE simula: " + JSON.stringify(simDel.data));
+  eq((await S.admin.get("/hack/api/admin/teams")).data.teams.filter((x) => x.id === g2.id || x.id === g3.id).length, 2, "nada gravado");
+  for (const id of [g2.id, g3.id]) eq((await S.admin.del("/hack/api/admin/teams/" + id)).status, 200);
+  // Gil e Hugo indicam o Ivo; juntar Gil e Hugo corta a repetida (do Hugo),
+  // mas a do Gil segue valendo: a prévia não lista nada.
+  eq((await gil.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  eq((await hugo.post("/hack/api/team/indicate", { personId: ivoId })).status, 200);
+  const simDup = await S.admin.post("/hack/api/admin/teams", { memberIds: [gilId, hugoId], dryRun: true });
+  eq(simDup.data.cancelled.length, 0, "repetida fora da prévia: " + JSON.stringify(simDup.data));
+  eq((await ivo.get("/hack/api/team")).data.invites.filter((i) => i.kind === "group").length, 2, "simulação não mexe nas indicações");
+  // Arrastar na organização: duas pessoas sem equipe, sem nome → nome provisório.
+  const dragged = await S.admin.post("/hack/api/admin/teams", { memberIds: [hugoId, ivoId] });
+  eq(dragged.status, 200, JSON.stringify(dragged.data));
+  eq(dragged.data.team.name, "Equipe de Hugo");
+  eq(dragged.data.team.size, 2);
+  eq((await S.admin.del("/hack/api/admin/teams/" + dragged.data.team.id)).status, 200);
+  eq((await S.admin.post("/hack/api/admin/teams", { name: "  ", memberIds: [hugoId] })).status, 400, "nome em branco continua recusado");
+  for (const email of ["gil@ex.com", "hugo@ex.com", "ivo@ex.com"]) {
+    const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
+    const sg = ev.signups.find((x) => x.email === email);
+    eq((await S.admin.del("/api/events/" + ev.id + "/signups/" + sg.id)).status, 200);
+  }
+});
+
 test("equipes: depois do prazo de entrega a composição congela (só a diretoria mexe)", async () => {
   // Prazo: 31/10 13h de Brasília = 16h UTC.
   await restartServer({ HACK_NOW: "2026-10-31T16:05:00Z" });
@@ -711,6 +795,10 @@ test("equipes: depois do prazo de entrega a composição congela (só a diretori
   eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200);
   const ana = await enterAs("ana@ex.com");
   eq((await ana.post("/hack/api/team/leave")).status, 409);
+  const brunoLate = await enterAs("bruno@ex.com");
+  const late = await brunoLate.post("/hack/api/team/indicate", { personId: "qualquer" });
+  eq(late.status, 409, "indicar depois do prazo");
+  eq(late.data.error, "teams_locked");
   eq((await ana.get("/hack/api/team")).data.locked, true);
   // Prorrogação só da Alfa: ela volta a editar a entrega; as outras não.
   eq((await S.admin.patch("/hack/api/admin/teams/" + S.alfa.id, { deadlineOverride: "2026-10-31T16:30:00Z" })).status, 200);

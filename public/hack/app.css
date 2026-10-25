@@ -156,3 +156,17 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.7); }
 .result--pending { background: rgba(120,170,255,.13); border-color: #78aaff; }
 .scanner { margin-top: 14px; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 1 / 1; max-width: 420px; }
 .scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Equipes (organização): "Sem equipe" fixa ao lado das equipes, para
+   arrastar sem rolar a página. No celular, empilha e usa "Juntar com…". */
+.board { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.board__solo { position: sticky; top: 76px; max-height: calc(100vh - 96px); overflow-y: auto; }
+.board__solo .sec-h { margin-top: 0; }
+.board__hint { margin: 0 0 10px; }
+.solo-item[draggable="true"] { cursor: grab; }
+.solo-item.is-dragging { opacity: .45; }
+.drop-on { outline: 2px dashed var(--red-lit, #ff6b70); outline-offset: 3px; }
+@media (max-width: 900px) {
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .board__solo { position: static; max-height: none; overflow: visible; }
+}
