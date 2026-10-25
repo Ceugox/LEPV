@@ -170,12 +170,16 @@
         setup.refused = (setup.refused || []).concat(lines.map((l) => ({ line: l, at: new Date().toISOString() }))).slice(-50);
         renderRefused();
       }
+      let storeFailed = false;
       try {
         await OFF.set('setup', setup);
       } catch (e) {
-        toast('Sincronizado, mas não consegui guardar o histórico neste aparelho: anote as recusas da tela.', true);
+        storeFailed = true;
       }
-      toast(ok.length + ' sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + (refused.length ? ' · ' + refused.length + ' recusada(s)' : '') + '.', refused.length > 0);
+      // Um aviso só: a falha de armazenamento vai junto do resumo (um toast
+      // sobrescreveria o outro).
+      toast(ok.length + ' sincronizada(s)' + (dups.length ? ' · ' + dups.length + ' já registrada(s) em outro aparelho' : '') + (refused.length ? ' · ' + refused.length + ' recusada(s)' : '') + '.' +
+        (storeFailed ? ' Não consegui guardar o histórico neste aparelho: anote as recusas da tela.' : ''), refused.length > 0 || storeFailed);
       refreshStats();
       // O resto da fila (lote que falhou) segue o tratamento normal de erro.
       if (batchError) throw batchError;
