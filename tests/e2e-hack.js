@@ -735,6 +735,12 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   eq(again.data.duplicate, true, "repetida avisa");
   // Limpa para não mexer nas contagens dos módulos seguintes.
   eq((await S.admin.del("/hack/api/admin/teams/" + t.id)).status, 200);
+  // Arrastar na organização: duas pessoas sem equipe, sem nome → nome provisório.
+  const dragged = await S.admin.post("/hack/api/admin/teams", { memberIds: [hugoId, ivoId] });
+  eq(dragged.status, 200, JSON.stringify(dragged.data));
+  eq(dragged.data.team.name, "Equipe de Hugo");
+  eq(dragged.data.team.size, 2);
+  eq((await S.admin.del("/hack/api/admin/teams/" + dragged.data.team.id)).status, 200);
   for (const email of ["gil@ex.com", "hugo@ex.com", "ivo@ex.com"]) {
     const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
     const sg = ev.signups.find((x) => x.email === email);

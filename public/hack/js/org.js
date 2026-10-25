@@ -480,7 +480,7 @@
     const g = clear($('teams-grid'));
     if (!r.teams.length) g.appendChild(h('p.empty', 'Nenhuma equipe ainda.'));
     r.teams.forEach((t) => {
-      g.appendChild(h('article.card' + (t.status === 'confirmed' ? '' : '.card--red'),
+      const card = g.appendChild(h('article.card' + (t.status === 'confirmed' ? '' : '.card--red'), { 'data-team': t.id },
         h('div.row', { style: 'margin-bottom:8px' },
           t.status === 'confirmed' ? h('span.badge.badge--ok', 'Confirmada') : h('span.badge.badge--warn', 'Em formação'),
           h('span.muted.small', t.size + '/4 · código ' + t.code)),
@@ -493,16 +493,70 @@
           t.status === 'confirmed'
             ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: false }, 'Voltou para formação.') }, 'Desconfirmar')
             : h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { confirm: true }, 'Confirmada.') }, 'Confirmar'))));
+      if (t.size < 4) dropTarget(card, (pid) => teamPatch(t.id, { addMember: pid }, 'Incluído na ' + t.name + '.'));
     });
     const solo = clear($('solo-list'));
     if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
-    r.solo.forEach((p) => solo.appendChild(h('li',
+    r.solo.forEach((p) => {
+      const li = solo.appendChild(h('li.solo-item', { draggable: 'true', 'data-person': p.id },
       h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
       h('div.row',
         p.hasGroup ? h('span.badge', 'Disse que tem grupo') : null,
         p.hasGroup && !p.groupSent && !p.groupReceived ? h('span.badge.badge--warn', 'Ninguém indicado') : null,
         p.hasGroup && (p.groupSent || p.groupReceived) ? h('span.badge', 'Indicações pendentes: ' + (p.groupSent + p.groupReceived)) : null,
-        p.published ? h('span.badge.badge--ok', 'Perfil visível') : null))));
+        p.published ? h('span.badge.badge--ok', 'Perfil visível') : null,
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => joinDialog(p) }, 'Juntar com…'))));
+      li.addEventListener('dragstart', (ev) => {
+        ev.dataTransfer.setData('text/plain', p.id);
+        ev.dataTransfer.effectAllowed = 'move';
+        li.classList.add('is-dragging');
+      });
+      li.addEventListener('dragend', () => li.classList.remove('is-dragging'));
+      dropTarget(li, (pid) => pid !== p.id && soloPair(pid, p.id));
+    });
+  }
+
+  // Alvo de soltura: realça enquanto a pessoa arrastada está em cima.
+  function dropTarget(el, onDrop) {
+    let depth = 0;
+    el.addEventListener('dragover', (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; });
+    el.addEventListener('dragenter', (ev) => { ev.preventDefault(); depth++; el.classList.add('drop-on'); });
+    el.addEventListener('dragleave', () => { if (--depth <= 0) { depth = 0; el.classList.remove('drop-on'); } });
+    el.addEventListener('drop', (ev) => {
+      ev.preventDefault();
+      depth = 0;
+      el.classList.remove('drop-on');
+      const pid = ev.dataTransfer.getData('text/plain');
+      if (pid) onDrop(pid);
+    });
+  }
+
+  // Duas pessoas sem equipe viram uma equipe nova (nome provisório, renomeável).
+  async function soloPair(draggedId, targetId) {
+    try {
+      const r = await api('/hack/api/admin/teams', { method: 'POST', body: { memberIds: [targetId, draggedId] } });
+      toast('Equipe “' + r.team.name + '” criada. Renomeie em Ajustar.');
+      await loadTeams();
+    } catch (e) { toast(e.message, true); }
+  }
+
+  // Mesma coisa sem arrastar (celular e teclado).
+  function joinDialog(p) {
+    const others = state.solo.filter((x) => x.id !== p.id);
+    const open = state.teams.filter((t) => t.size < 4);
+    const sel = h('select', { name: 'to' },
+      open.length ? h('optgroup', { label: 'Equipes com vaga' }, open.map((t) => h('option', { value: 't:' + t.id }, t.name + ' (' + t.size + '/4)'))) : null,
+      others.length ? h('optgroup', { label: 'Pessoas sem equipe (forma equipe nova)' }, others.map((x) => h('option', { value: 'p:' + x.id }, x.name + (x.hasGroup ? ' (tem grupo)' : '')))) : null);
+    const form = h('form.form', h('label.field', h('span', 'Juntar ' + p.name + ' com'), sel),
+      h('button.btn.btn--red.btn--sm', { type: 'submit', disabled: !open.length && !others.length }, 'Juntar'));
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const v = sel.value;
+      dlg.close();
+      if (v.startsWith('t:')) teamPatch(v.slice(2), { addMember: p.id }, 'Incluído.');
+      else soloPair(p.id, v.slice(2));
+    });
+    openDialog('Juntar com…', form);
   }
 
   async function teamPatch(id, body, ok) {
