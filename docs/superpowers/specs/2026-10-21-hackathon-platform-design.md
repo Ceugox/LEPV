@@ -182,3 +182,17 @@ Aprovada pelo Marcell em 25/10, depois de grilling. Três entregas, nesta ordem,
 3. **Painel do superadmin.** Aba em /hack/organizacao só para quem tem a marca de superadmin no login da liga. Mostra grupos, acessos (link enviado/usado, último acesso), entregas, avisos, dúvidas e credenciamento, com as ações que a organização já tem. Dúvidas: canal novo e privado (participante pergunta no portal; diretoria e equipe com comunicação respondem; resposta no portal e por push). Último acesso: só o horário mais recente por pessoa.
 
 Fora do escopo: dúvidas públicas ou votadas, histórico de navegação, mover pessoa entre equipes arrastando, indicar no formulário de inscrição.
+
+## Revisão 4 (26/10/2026): senha e e-mails
+
+Aprovada pelo Marcell em 26/10, depois de grilling.
+
+- **Senha opcional para todos os papéis.** Cada pessoa entra com e-mail e senha **ou** pelo link do e-mail; os dois caminhos convivem. A diretoria que entra pelo login da liga continua entrando assim.
+- **Primeiro acesso pelo link:** sem senha, a tela "Crie sua senha" aparece depois do link, com "Agora não". Volta a cada entrada pelo link enquanto a senha não existir.
+- **`/hack/acesso`:** e-mail e senha como entrada principal; "Receber link de acesso por e-mail" logo abaixo é também o "esqueci minha senha".
+- **Portal:** criar ou trocar a senha no cartão "Você" (Início). Trocar pede a atual, salvo nos 30 min depois de entrar pelo link; desconecta os outros aparelhos e mantém este. Quem já está conectado sem senha vê um aviso depois do QR, que se fecha e não volta na mesma sessão.
+- **Regras:** mínimo de 8 caracteres, recusa senhas óbvias e igual ao e-mail; hash bcrypt; limite por e-mail (`HACK_LOGIN_EMAIL_MAX`, padrão 10 em 15 min) e por IP (`HACK_LINK_IP_MAX`); resposta idêntica para e-mail inexistente, sem senha, bloqueado e senha errada.
+- **Validade do link:** 7 dias quando a organização envia; 24 horas quando a própria pessoa pede.
+- **E-mails:** link de acesso e avisos usam um molde novo (foto do Pão de Açúcar, título em serifa, botão em tabela, endereço por extenso, data e local por dia, prévia de caixa de entrada). O do link traz o primeiro nome no assunto.
+
+Fora do escopo: avisar os inscritos da novidade (decisão do Marcell, pela central de avisos), login social, verificação em duas etapas, mudança no login da liga.

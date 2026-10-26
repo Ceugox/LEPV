@@ -14,7 +14,8 @@ const EV = require("../lib/hackathon/evaluation");
 const { createDelivery, MAX_ATTEMPTS } = require("../lib/hackathon/delivery");
 const { publicBaseFor, rateLimiter, networkOutcome, route, setReporter, HackError } = require("../lib/hackathon/util");
 const { createPush } = require("../lib/hackathon/push");
-const { sendAccessLink } = require("../lib/hackathon/routes/access");
+const { sendAccessLink, freshLink, liveEventSession, FRESH_LINK_MS } = require("../lib/hackathon/routes/access");
+const PW = require("../lib/hackathon/password");
 const PT = require("../lib/hackathon/partners");
 const K = require("../lib/hackathon/admission");
 const { seedProgram, migrateProgram, fridayOutdated } = require("../lib/hackathon/program");
@@ -109,6 +110,55 @@ test("sync: correção de e-mail pela diretoria sobrevive à próxima sincroniza
   p.manual = ["email"];
   syncParticipants(s, ev);
   eq1(p.email, "certo@ex.com");
+});
+test("sync: e-mail trocado na inscrição derruba a sessão e apaga a senha; o mesmo e-mail não", () => {
+  const s = emptyState();
+  syncParticipants(s, { signups: { list: [signup("s1", { email: "velho@ex.com" })] } });
+  const p = s.people[0];
+  p.passwordHash = "hash-de-quem-recebeu-o-link";
+  const epoch = p.sessionEpoch;
+  syncParticipants(s, { signups: { list: [signup("s1", { email: "velho@ex.com" })] } });
+  eq1(p.passwordHash, "hash-de-quem-recebeu-o-link", "nada mudou: a senha fica");
+  eq1(p.sessionEpoch, epoch);
+  const raw = issueLoginToken(s, p.id, new Date());
+  syncParticipants(s, { signups: { list: [signup("s1", { email: "novo@ex.com" })] } });
+  eq1(p.email, "novo@ex.com");
+  assert.throws(() => consumeLoginToken(s, raw, new Date()), /Link inválido/, "link mandado ao endereço antigo cai");
+  eq1(p.passwordHash, undefined, "senha criada pelo endereço antigo some");
+  eq1(p.sessionEpoch, epoch + 1, "quem entrou pelo endereço antigo sai");
+});
+test("senha: dispensa da atual só dentro de 30 min do link e com a sessão ainda valendo", () => {
+  const p = newPerson({ roles: ["participant"], email: "x@ex.com" });
+  const t0 = new Date("2026-10-26T12:00:00Z");
+  const hs = { pid: p.id, epoch: p.sessionEpoch, linkAt: t0.toISOString() };
+  eq1(freshLink(new Date(t0.getTime() + FRESH_LINK_MS - 1000), hs, p), true, "dentro da janela");
+  eq1(freshLink(new Date(t0.getTime() + FRESH_LINK_MS), hs, p), false, "janela acabou");
+  eq1(freshLink(t0, { pid: p.id, epoch: p.sessionEpoch }, p), false, "sessão por senha não é link");
+  p.sessionEpoch += 1;
+  eq1(freshLink(t0, hs, p), false, "sessão revogada não vale como link recente");
+});
+test("senha: sessão do evento revogada ou de outra pessoa não é regravada", () => {
+  const p = newPerson({ roles: ["participant"] });
+  eq1(liveEventSession({ pid: p.id, epoch: p.sessionEpoch }, p), true);
+  eq1(liveEventSession({ pid: p.id, epoch: p.sessionEpoch - 1 }, p), false, "epoch velho (Desconectar)");
+  eq1(liveEventSession({ pid: "outra", epoch: p.sessionEpoch }, p), false);
+  eq1(liveEventSession(undefined, p), false, "só login da liga");
+});
+test("senha: regras, hash fora do store e erro igual para quem não tem senha", async () => {
+  const p = newPerson({ roles: ["participant"], email: "maria.silva@ex.com" });
+  for (const bad of ["curta", "12345678", "zzzzzzzz", "maria.silva", "MARIA.SILVA@EX.COM", "é".repeat(37)]) {
+    await assert.rejects(PW.hashPassword(bad, p), /senha|Senha/, "recusa: " + bad);
+  }
+  const hash = await PW.hashPassword("uma-senha-boa", p);
+  const s = emptyState();
+  s.people.push(p);
+  const store = { get: () => s };
+  eq1(await PW.authenticate(store, "maria.silva@ex.com", "uma-senha-boa"), null, "sem hash gravado ainda");
+  PW.applyPassword(p, hash, new Date());
+  eq1((await PW.authenticate(store, "MARIA.SILVA@ex.com", "uma-senha-boa")).id, p.id);
+  eq1(await PW.authenticate(store, "maria.silva@ex.com", "errada-errada"), null);
+  p.disabled = true;
+  eq1(await PW.authenticate(store, "maria.silva@ex.com", "uma-senha-boa"), null, "bloqueada");
 });
 test("sync: participante já inscrito não é ligado a outra inscrição pelo e-mail", () => {
   const s = emptyState();
