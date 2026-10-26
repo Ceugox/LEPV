@@ -1361,6 +1361,32 @@ test("senha: desconectar, trocar o e-mail e promover a jurado apagam a senha", a
   eq(p.hasPassword, false);
 });
 
+test("exclusão: só o superadmin, com o nome digitado; inscrição sai e não volta", async () => {
+  const signup = await client().post("/api/event-signup/" + S.signupToken, {
+    name: "Zeca Exclusão", email: "zeca@ex.com", phone: "21999990077", vinculo: "UFPE", temGrupo: "Não", awareLocation: true, awareTime: true,
+  });
+  eq(signup.status, 200);
+  const findZeca = async () => (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "zeca@ex.com");
+  const z = await findZeca();
+  assert(z, "inscrição virou pessoa no /hack");
+  const url = "/hack/api/admin/people/" + z.id;
+  eq((await client().raw("DELETE", url, { confirmName: "Zeca Exclusão" })).status, 401);
+  eq((await S.people.ana.raw("DELETE", url, { confirmName: "Zeca Exclusão" })).status, 403, "participante não exclui");
+  eq((await S.admin.raw("DELETE", url, { confirmName: "Zeca" })).status, 400, "nome incompleto");
+  eq((await S.admin.raw("DELETE", url, {})).status, 400, "sem confirmação");
+  // Jurado ou staff não se exclui: Bloquear.
+  const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
+  eq((await S.admin.raw("DELETE", "/hack/api/admin/people/" + sofia.id, { confirmName: sofia.name })).status, 409);
+  const r = await S.admin.raw("DELETE", url, { confirmName: "  zeca   EXCLUSÃO " });
+  eq(r.status, 200, "nome confere ignorando caixa e espaços: " + JSON.stringify(r.data));
+  eq(await findZeca(), undefined, "some da lista (e a sincronização não traz de volta)");
+  const ev = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
+  assert(!ev.signups.some((x) => x.email === "zeca@ex.com"), "inscrição apagada do evento");
+  const o = (await S.admin.get("/hack/api/admin/overview")).data;
+  assert(o.removals.some((x) => x.name === "Zeca Exclusão" && x.by), "registro na visão geral");
+  eq((await S.admin.raw("DELETE", url, { confirmName: "Zeca Exclusão" })).status, 404, "já não existe");
+});
+
 // ================= execução =================
 (async () => {
   setupVolume();

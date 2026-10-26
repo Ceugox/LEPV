@@ -209,3 +209,14 @@ Aprovada pelo Marcell em 26/10, depois de grilling.
 - **Sozinho na instituição:** vai para a menor equipe proposta com vaga, marcado "fora da afinidade"; sem vaga, os sozinhos formam uma equipe "Mista"; um só, sem vaga, fica de fora para a diretoria decidir.
 - **Nomes:** "IME 1", "FGV 2"…, pulando os que já existem; os integrantes renomeiam.
 - **Criação:** tudo ou nada; cada equipe com 2 a 4; nasce em formação, como a montada à mão. Nenhum aviso sai sozinho: se quiser, a diretoria publica pela central.
+
+## Revisão 6 (26/10/2026): exclusão de participante
+
+Aprovada pelo Marcell em 26/10, depois de grilling.
+
+- **Só o superadmin** exclui, pelo botão "Excluir participante…" na ficha da pessoa (Pessoas → Editar), confirmando com o nome completo digitado (sem diferença de caixa ou espaços).
+- **Definitivo:** apaga a pessoa e os dados dela no /hack (links, sessões, aparelhos de notificação, recibos de aviso, presenças, dúvidas, convites e indicações) e a inscrição no evento, senão a sincronização a recriaria. A versão reversível continua sendo "Bloquear".
+- **Fila de espera:** a vaga aberta promove o primeiro da fila, como o "remover inscrição" da liga.
+- **Quem pode ser excluído:** participante confirmado ou na fila, sem outro papel. Jurado, staff e representante de parceiro: Bloquear.
+- **Equipe:** a pessoa sai da equipe; se for a última integrante de uma equipe com entrega, a exclusão é recusada até a entrega ser desfeita.
+- **Registro:** nome, data e quem excluiu, na Visão geral do superadmin. Nada além do nome do excluído.

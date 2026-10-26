@@ -152,7 +152,39 @@
         await loadPeople();
       } catch (e) { toast(e.message, true); }
     });
-    openDialog('Editar ' + p.name.split(' ')[0], form);
+    openDialog('Editar ' + p.name.split(' ')[0], form, removeBlock(p));
+  }
+
+  // Exclusão definitiva (só superadmin, só participante sem outro papel).
+  // Confirma digitando o nome completo; a inscrição no evento sai junto.
+  function removeBlock(p) {
+    const onlyParticipant = p.roles.every((r) => r === 'participant') && (p.roles.includes('participant') || p.signupStatus === 'waitlist');
+    if (!(state.perms && state.perms.superadmin) || !onlyParticipant) return null;
+    const box = h('div', { style: 'margin-top:22px;padding-top:16px;border-top:1px solid var(--line)' },
+      h('p.card__k', 'Excluir participante'),
+      h('p.muted.small', 'Apaga a pessoa, a inscrição no evento e os dados dela na plataforma (links, presenças, dúvidas). Não tem volta. Para só tirar o acesso, use “Bloquear”.'));
+    const start = h('button.btn.btn--danger.btn--sm', { type: 'button' }, 'Excluir participante…');
+    start.addEventListener('click', () => {
+      const err = h('p.muted.small', { role: 'alert', hidden: true });
+      const input = h('input', { name: 'confirm', autocomplete: 'off' });
+      const go = h('button.btn.btn--danger.btn--sm', { type: 'submit' }, 'Excluir definitivamente');
+      const confirmForm = h('form.form', { style: 'margin-top:10px' },
+        h('label.field', h('span', 'Digite o nome completo: ' + p.name), input), err, go);
+      confirmForm.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        go.disabled = true;
+        try {
+          await api('/hack/api/admin/people/' + p.id, { method: 'DELETE', body: { confirmName: input.value } });
+          dlg.close();
+          toast(p.name + ' foi excluído(a).');
+          loadPeople().catch(() => toast('Excluído, mas a lista não recarregou. Atualize a página.', true));
+        } catch (e) { err.textContent = e.message; err.hidden = false; go.disabled = false; }
+      });
+      start.replaceWith(confirmForm);
+      input.focus();
+    });
+    box.appendChild(start);
+    return box;
   }
 
   $('add-pessoa').addEventListener('click', () => {
@@ -955,7 +987,11 @@
         h('p.muted.small', 'Disseram que têm grupo, estão sem equipe e ninguém indicou ninguém.'),
         people(g.stuck, 'Ninguém travado.')),
       h('article.card', h('p.card__k', 'Equipes sem entrega'), h('h3.card__title', sub.missing.length + ' equipe(s)'),
-        sub.missing.length ? h('ul.list', sub.missing.map((t) => h('li', h('div.list__main', h('b', t.name), h('span', t.size + ' pessoa(s)'))))) : h('p.muted', 'Toda equipe já começou a entrega.')));
+        sub.missing.length ? h('ul.list', sub.missing.map((t) => h('li', h('div.list__main', h('b', t.name), h('span', t.size + ' pessoa(s)'))))) : h('p.muted', 'Toda equipe já começou a entrega.')),
+      h('article.card', h('p.card__k', 'Exclusões'), h('h3.card__title', (o.removals || []).length + ' participante(s) excluído(s)'),
+        (o.removals || []).length
+          ? h('ul.list', o.removals.slice().reverse().map((x) => h('li', h('div.list__main', h('b', x.name), h('span', fmtWhen(x.at) + (x.by ? ' · por ' + x.by : ''))))))
+          : h('p.muted', 'Ninguém excluído.')));
   }
   $('ov-reload').addEventListener('click', () => loadOverview().catch((e) => toast(e.message, true)));
 
