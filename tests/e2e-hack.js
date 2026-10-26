@@ -742,6 +742,24 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   eq((await S.admin.post("/hack/api/admin/teams/" + S.beta.id + "/merge", { otherId: S.alfa.id })).status, 409, "passaria de 4");
 });
 
+test("equipes: montagem por afinidade é só da diretoria; a prévia não grava nada", async () => {
+  eq((await client().get("/hack/api/admin/teams/affinity")).status, 401);
+  eq((await S.c.ana.get("/hack/api/admin/teams/affinity")).status, 403);
+  eq((await S.c.ana.post("/hack/api/admin/teams/affinity", { teams: [] })).status, 403);
+  const before = (await S.admin.get("/hack/api/admin/teams")).data;
+  const p = await S.admin.get("/hack/api/admin/teams/affinity");
+  eq(p.status, 200);
+  assert(Array.isArray(p.data.teams) && Array.isArray(p.data.unassigned) && Array.isArray(p.data.withGroup), "formato da prévia");
+  const inPreview = p.data.teams.flatMap((t) => t.members).concat(p.data.unassigned);
+  const soloNoGroup = before.solo.filter((x) => !x.hasGroup).map((x) => x.id).sort();
+  eq(JSON.stringify(inPreview.map((x) => x.id).sort()), JSON.stringify(soloNoGroup), "prévia cobre exatamente quem está sem equipe e sem grupo");
+  assert(p.data.withGroup.every((x) => before.solo.some((y) => y.id === x.id && y.hasGroup)), "quem tem grupo fica à parte");
+  const after = (await S.admin.get("/hack/api/admin/teams")).data;
+  eq(after.teams.length, before.teams.length, "prévia não cria equipe");
+  eq((await S.admin.post("/hack/api/admin/teams/affinity", { teams: [{ name: "Solo", memberIds: [soloNoGroup[0] || "x"] }] })).status, 400, "equipe de 1 é recusada");
+  eq((await S.admin.post("/hack/api/admin/teams/affinity", {})).status, 400, "sem equipes");
+});
+
 test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {
   const base = { phone: "21988880000", curso: "Engenharia", vinculo: "FGV", temGrupo: "Sim", awareLocation: true, awareTime: true };
   for (const [name, email, phone] of [["Gil Grupo", "gil@ex.com", "21988880001"], ["Hugo Grupo", "hugo@ex.com", "21988880002"], ["Ivo Grupo", "ivo@ex.com", "21988880003"]]) {

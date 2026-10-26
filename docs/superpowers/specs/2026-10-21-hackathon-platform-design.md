@@ -196,3 +196,16 @@ Aprovada pelo Marcell em 26/10, depois de grilling.
 - **E-mails:** link de acesso e avisos usam um molde novo (foto do Pão de Açúcar, título em serifa, botão em tabela, endereço por extenso, data e local por dia, prévia de caixa de entrada). O do link traz o primeiro nome no assunto.
 
 Fora do escopo: avisar os inscritos da novidade (decisão do Marcell, pela central de avisos), login social, verificação em duas etapas, mudança no login da liga.
+
+## Revisão 5 (26/10/2026): equipes por afinidade
+
+Aprovada pelo Marcell em 26/10, depois de grilling.
+
+- **"Montar por afinidade"** na aba Equipes da organização (diretoria, inclusive o superadmin) gera uma **prévia**; nada é criado antes de "Criar". Na prévia a diretoria renomeia, move pessoas entre equipes ou deixa alguém de fora.
+- **Quem entra:** participante confirmado, sem equipe, que respondeu "não tenho grupo". Quem marcou "tenho grupo" e está sem equipe fica à parte, listado na prévia, esperando a indicação dos colegas.
+- **Afinidade:** IME (Ativa + Reserva) com IME, FGV com FGV, UFPE com UFPE, "Outra universidade" entre si.
+- **Tamanho:** o menor número de equipes de até 4, equilibradas (5 → 3+2, 6 → 3+3, 7 → 4+3, 9 → 3+3+3, 10 → 4+3+3).
+- **Dentro da instituição:** ano próximo e cursos misturados.
+- **Sozinho na instituição:** vai para a menor equipe proposta com vaga, marcado "fora da afinidade"; sem vaga, os sozinhos formam uma equipe "Mista"; um só, sem vaga, fica de fora para a diretoria decidir.
+- **Nomes:** "IME 1", "FGV 2"…, pulando os que já existem; os integrantes renomeiam.
+- **Criação:** tudo ou nada; cada equipe com 2 a 4; nasce em formação, como a montada à mão. Nenhum aviso sai sozinho: se quiser, a diretoria publica pela central.
