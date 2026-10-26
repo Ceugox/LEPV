@@ -3538,7 +3538,7 @@ registerHackathonRoutes(app, {
   liveMember: (req) => {
     const u = req.session && req.session.user ? liveRole(req) : null;
     if (!u || u.mustChangePassword) return null;
-    return { order: u.order, name: u.name, director: isDirectorRole(u) };
+    return { order: u.order, name: u.name, director: isDirectorRole(u), superadmin: u.superadmin === true };
   },
   recordFailure,
 });

@@ -205,7 +205,7 @@ test("prepara: diretoria cria o hackathon e 5 pessoas se inscrevem", async () =>
   S.signupToken = h.signupUrl.split("t=")[1];
   for (const p of PARTICIPANTS) {
     const r = await client().post("/api/event-signup/" + S.signupToken, {
-      name: p.name, email: p.email, phone: p.phone, vinculo: "FGV", curso: "Economia", temGrupo: p.temGrupo,
+      name: p.name, email: p.email, phone: p.phone, vinculo: "FGV", curso: "Economia", anoFaculdade: "3", temGrupo: p.temGrupo,
       consentPatrocinadores: p.consent, awareLocation: true, awareTime: true,
     });
     eq(r.status, 200, "inscrição de " + p.name + ": " + JSON.stringify(r.data));
@@ -401,6 +401,38 @@ test("inscrição: aceita UFPE e Outra universidade, recusa vínculo fora da lis
   const r3 = await client().post("/api/event-signup/" + S.signupToken, { ...base, name: "Xis Fora", email: "xis@ex.com", phone: "21988885555", vinculo: "Qualquer" });
   eq(r3.status, 400, "vínculo fora da lista");
   eq(r3.data.error, "invalid_vinculo");
+});
+
+test("dúvidas: participante pergunta, organização responde, resposta volta ao portal", async () => {
+  const ana = await enterAs("ana@ex.com");
+  const bruno = await enterAs("bruno@ex.com");
+  const ask = await ana.post("/hack/api/questions", { text: "Posso usar uma API paga no projeto?" });
+  eq(ask.status, 200, JSON.stringify(ask.data));
+  eq((await bruno.get("/hack/api/questions")).data.questions.length, 0, "cada um vê só as suas");
+  eq((await ana.get("/hack/api/admin/questions")).status, 403, "participante não lê as dos outros");
+  const list = (await S.admin.get("/hack/api/admin/questions")).data.questions;
+  const q = list.find((x) => x.text.startsWith("Posso usar"));
+  eq(q.person.name, "Ana Participante");
+  eq(q.answer, null);
+  const ans = await S.admin.post("/hack/api/admin/questions/" + q.id + "/answer", { text: "Pode, desde que a equipe pague." });
+  eq(ans.status, 200);
+  const again = await S.admin.post("/hack/api/admin/questions/" + q.id + "/answer", { text: "Outra" });
+  eq(again.status, 409, "segunda resposta recusada");
+  const mine = (await ana.get("/hack/api/questions")).data.questions[0];
+  eq(mine.answer.text, "Pode, desde que a equipe pague.");
+});
+
+test("superadmin: visão geral só para o superadmin; último acesso aparece", async () => {
+  const ana = await enterAs("ana@ex.com");
+  eq((await ana.get("/hack/api/admin/overview")).status, 403);
+  const me = await S.admin.get("/hack/api/me");
+  eq(me.data.perms.superadmin, true, "order 1 é superadmin");
+  const o = await S.admin.get("/hack/api/admin/overview");
+  eq(o.status, 200);
+  for (const k of ["groups", "access", "submissions", "announcements", "questions", "checkin"]) assert(k in o.data, "falta " + k);
+  eq(o.data.questions.answered >= 1, true);
+  const people = (await S.admin.get("/hack/api/admin/people")).data.people;
+  assert(people.find((p) => p.email === "ana@ex.com").lastSeenAt, "último acesso da Ana registrado");
 });
 
 test("acesso: sair encerra a sessão; /session diz isso sem 401", async () => {
@@ -698,6 +730,12 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   assert(alfa.members.every((m) => m.email), "contatos para a organização");
   const davi = r.data.solo.find((p) => p.email === "davi@ex.com");
   assert(davi, "Davi sem equipe");
+  eq(davi.vinculo, "FGV", "faculdade para montar equipe");
+  eq(davi.curso, "Economia");
+  eq(davi.anoFaculdade, "3", "ano da faculdade vem da inscrição");
+  assert(alfa.members.every((m) => m.vinculo === "FGV" && m.anoFaculdade === "3" && m.curso === "Economia"), "dados acadêmicos dos integrantes: " + JSON.stringify(alfa.members));
+  const seen = (await S.c.ana.get("/hack/api/team")).data.team.members;
+  assert(seen.every((m) => !("email" in m) && !("phone" in m) && !("anoFaculdade" in m) && !("vinculo" in m)), "participante não vê contato nem dados acadêmicos dos colegas");
   const c = await S.admin.post("/hack/api/admin/teams", { name: "Beta", memberIds: [davi.id] });
   eq(c.status, 200);
   S.beta = c.data.team;
@@ -740,6 +778,7 @@ test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async ()
   eq(ivoInv.team.name, "Grupo de Gil");
   const soloNow = (await S.admin.get("/hack/api/admin/teams")).data.solo;
   eq(soloNow.find((x) => x.email === "ivo@ex.com").groupReceived, 1);
+  eq(soloNow.find((x) => x.email === "ivo@ex.com").anoFaculdade, "", "ano não informado vem vazio");
   const solo0 = (await S.admin.get("/hack/api/admin/teams")).data.solo;
   eq(solo0.find((x) => x.email === "ivo@ex.com").groupSent, 0);
   eq((await S.c.davi.post("/hack/api/team/indications/" + ivoInv.id + "/cancel")).status, 403, "fora do grupo não cancela");

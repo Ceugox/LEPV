@@ -61,7 +61,7 @@ const ADMIN_PASS = process.env.LEPV_CI_ADMIN_PASS || 'ci-admin';
   // fixture via API: lançamento do membro aparece no extrato dele
   const fixture = await p.evaluate(async () => {
     const r = await fetch('/api/reimbursements', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: 'Gasto de verificação', amountCents: 1234, spentAt: new Date().toISOString().slice(0, 10) }) });
+      body: JSON.stringify({ description: 'Gasto de verificação', amountCents: 1234, spentAt: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()) }) });
     return { status: r.status, id: r.ok ? (await r.json()).expense.id : null };
   });
   check(fixture.status === 200, 'gasto de fixture criado', fixture.status);

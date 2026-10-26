@@ -86,7 +86,8 @@
   $('busca').addEventListener('input', renderPeople);
   $('filtro').addEventListener('change', renderPeople);
 
-  function linkDialog(p) {
+  // onDone: quem abriu o diálogo recarrega a própria tela (Pessoas, Visão geral).
+  function linkDialog(p, onDone) {
     const out = h('div.stack');
     const gen = async (send) => {
       try {
@@ -101,7 +102,7 @@
           r.email ? h('p.small', 'E-mail: ' + ({ sent: 'enviado', outbox: 'gravado (teste)', unconfigured: 'não configurado', failed: 'falhou', unknown: 'incerto' }[r.email.status] || r.email.status)) : null,
           h('p.muted.small', 'Gerar outro link invalida este.')
         );
-        await loadPeople();
+        await (onDone || loadPeople)();
       } catch (e) { toast(e.message, true); }
     };
     openDialog('Link de ' + p.name.split(' ')[0],
@@ -469,6 +470,13 @@
   $('wa-pend').addEventListener('change', () => loadWhats().catch((e) => toast(e.message, true)));
 
   // ---------- equipes ----------
+  // Faculdade (vínculo) · ano · curso da inscrição; campo vazio some da linha
+  // e, sem nenhum dos três, aparece "não informados".
+  function academic(p) {
+    const parts = [p.vinculo, p.anoFaculdade ? p.anoFaculdade + 'º ano' : '', p.curso].filter(Boolean);
+    return h('span.academic', parts.length ? parts.join(' · ') : 'Faculdade, ano e curso não informados');
+  }
+
   state.teams = [];
   state.solo = [];
   async function loadTeams() {
@@ -486,7 +494,7 @@
           h('span.muted.small', t.size + '/4 · código ' + t.code)),
         h('h3.card__title', t.name),
         h('ul.list', t.members.map((m) => h('li',
-          h('div.list__main', h('b', m.name + (m.owner ? ' · criou' : '')), h('span', [m.email, m.phone].filter(Boolean).join(' · '))),
+          h('div.list__main', h('b', m.name + (m.owner ? ' · criou' : '')), academic(m), h('span', [m.email, m.phone].filter(Boolean).join(' · '))),
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamPatch(t.id, { removeMember: m.id }, 'Removido.') }, 'Tirar')))),
         h('div.row', { style: 'margin-top:12px' },
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => teamDialog(t) }, 'Ajustar'),
@@ -499,7 +507,7 @@
     if (!r.solo.length) solo.appendChild(h('li', h('p.muted', 'Todo participante está numa equipe.')));
     r.solo.forEach((p) => {
       const li = solo.appendChild(h('li.solo-item', { draggable: 'true', 'data-person': p.id },
-      h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
+      h('div.list__main', h('b', p.name), academic(p), h('span', [p.email, p.phone].filter(Boolean).join(' · '))),
       h('div.row',
         p.hasGroup ? h('span.badge', 'Disse que tem grupo') : null,
         p.hasGroup && !p.groupSent && !p.groupReceived ? h('span.badge.badge--warn', 'Ninguém indicado') : null,
@@ -581,7 +589,7 @@
     return teamOp('/hack/api/admin/teams/' + id, 'PATCH', body, () => { if (ok) toast(ok); });
   }
 
-  const soloOptions = () => state.solo.map((p) => h('option', { value: p.id }, p.name + (p.hasGroup ? ' (tem grupo)' : '')));
+  const soloOptions = () => state.solo.map((p) => h('option', { value: p.id }, p.name + (p.vinculo ? ' · ' + p.vinculo : '') + (p.anoFaculdade ? ' · ' + p.anoFaculdade + 'º' : '') + (p.hasGroup ? ' (tem grupo)' : '')));
 
   function teamDialog(t) {
     const rename = h('form.form', h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: t.name, required: true })),
@@ -827,8 +835,106 @@
   }
   $('add-org').addEventListener('click', () => orgDialog(null));
 
+  // ---------- visão geral (superadmin) ----------
+  const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+  // Número grande + rótulo; "alerta" quando o número pede ação.
+  const stat = (n, label, warn) => h('div.ov-stat' + (warn ? '.ov-stat--warn' : ''), h('b', String(n)), h('span', label));
+  const goTab = (name) => { location.hash = name; };
+
+  async function loadOverview() {
+    const o = await api('/hack/api/admin/overview');
+    state.emailEnabled = o.emailEnabled;
+    $('ov-when').textContent = 'Atualizado em ' + fmtWhen(o.now);
+    const g = o.groups, a = o.access, sub = o.submissions, q = o.questions;
+    clear($('ov-stats')).append(
+      h('article.card', h('p.card__k', 'Grupos'),
+        h('div.ov-row', stat(g.teams, 'equipes'), stat(g.confirmed, 'confirmadas'), stat(g.solo, 'sem equipe', g.solo > 0)),
+        h('p.muted.small', g.soloWithGroup + ' sem equipe disseram ter grupo · ' + g.pendingIndications + ' indicação(ões) pendente(s)' + (g.small ? ' · ' + g.small + ' equipe(s) com 1 pessoa' : '')),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('equipes') }, 'Abrir Equipes →')),
+      h('article.card', h('p.card__k', 'Acessos'),
+        h('div.ov-row', stat(a.participants, 'participantes'), stat(a.loggedIn, 'já entraram'), stat(a.active24h, 'ativos em 24 h')),
+        h('p.muted.small', a.linkSent + ' com link enviado · ' + a.neverIn.length + ' nunca entraram' + (a.linkFailed ? ' · ' + a.linkFailed + ' e-mail(s) com falha' : '')),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('pessoas') }, 'Abrir Pessoas →')),
+      h('article.card', h('p.card__k', 'Entregas'),
+        h('div.ov-row', stat(sub.complete, 'completas'), stat(sub.draft, 'rascunho'), stat(sub.missing.length, 'sem entrega', sub.missing.length > 0)),
+        h('p.muted.small', 'Prazo: ' + fmtWhen(sub.deadline)),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('entregas') }, 'Abrir Entregas →')),
+      h('article.card', h('p.card__k', 'Dúvidas'),
+        h('div.ov-row', stat(q.open, 'sem resposta', q.open > 0), stat(q.answered, 'respondidas')),
+        h('p.muted.small', q.oldestOpenAt ? 'Mais antiga sem resposta: ' + fmtWhen(q.oldestOpenAt) : 'Nenhuma esperando.'),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('duvidas') }, 'Responder →')),
+      h('article.card', h('p.card__k', 'Credenciamento'),
+        h('div.ov-row', o.checkin.map((c) => stat(c.in + '/' + c.expected, c.place + ' · ' + c.day.slice(8, 10) + '/' + c.day.slice(5, 7))))),
+      h('article.card', h('p.card__k', 'Avisos'),
+        o.announcements.length ? h('ul.list', o.announcements.slice(0, 6).map((n) => {
+          const st = n.stats || {};
+          const sum = (ch, k) => (st[ch] && st[ch][k]) || 0;
+          const sent = ['push', 'email', 'whatsapp'].reduce((t, ch) => t + sum(ch, 'sent'), 0);
+          const failed = ['push', 'email', 'whatsapp'].reduce((t, ch) => t + sum(ch, 'failed'), 0);
+          return h('li', h('div.list__main', h('b', n.title),
+            h('span', n.status === 'published' ? 'Publicado ' + fmtWhen(n.publishedAt) + ' · ' + n.recipients + ' pessoa(s) · ' + n.read + ' leram · ' + sent + ' entregue(s)' + (failed ? ' · ' + failed + ' falha(s)' : '') : 'Agendado para ' + fmtWhen(n.scheduledAt))));
+        })) : h('p.muted', 'Nenhum aviso.'),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => goTab('avisos') }, 'Abrir Avisos →')));
+    const people = (list, empty, actions) => list.length
+      ? h('ul.list', list.map((p) => h('li', h('div.list__main', h('b', p.name), h('span', [p.email, p.phone].filter(Boolean).join(' · '))), actions ? actions(p) : null)))
+      : h('p.muted', empty);
+    clear($('ov-lists')).append(
+      h('article.card', h('p.card__k', 'Nunca entraram'), h('h3.card__title', a.neverIn.length + ' participante(s)'),
+        people(a.neverIn, 'Todo mundo já entrou na plataforma.', (p) => h('div.row',
+          h('span.muted.small', p.lastLinkAt ? 'Link enviado ' + fmtWhen(p.lastLinkAt) + (p.linkStatus === 'failed' ? ' · e-mail falhou' : '') : 'Sem link enviado'),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => linkDialog(p, loadOverview) }, 'Enviar link')))),
+      h('article.card', h('p.card__k', 'Grupo sem indicação'), h('h3.card__title', g.stuck.length + ' pessoa(s)'),
+        h('p.muted.small', 'Disseram que têm grupo, estão sem equipe e ninguém indicou ninguém.'),
+        people(g.stuck, 'Ninguém travado.')),
+      h('article.card', h('p.card__k', 'Equipes sem entrega'), h('h3.card__title', sub.missing.length + ' equipe(s)'),
+        sub.missing.length ? h('ul.list', sub.missing.map((t) => h('li', h('div.list__main', h('b', t.name), h('span', t.size + ' pessoa(s)'))))) : h('p.muted', 'Toda equipe já começou a entrega.')));
+  }
+  $('ov-reload').addEventListener('click', () => loadOverview().catch((e) => toast(e.message, true)));
+
+  // ---------- dúvidas ----------
+  async function loadQuestions() {
+    const r = await api('/hack/api/admin/questions');
+    const open = r.questions.filter((q) => !q.answer);
+    $('q-sum').textContent = open.length + ' sem resposta · ' + (r.questions.length - open.length) + ' respondida(s)';
+    const n = $('n-duvidas');
+    n.hidden = !open.length;
+    n.textContent = String(open.length);
+    const box = clear($('q-list'));
+    if (!r.questions.length) { box.appendChild(h('p.empty', 'Nenhuma dúvida ainda.')); return; }
+    r.questions.forEach((q) => {
+      const who = q.person ? q.person.name + ' · ' + [q.person.email, q.person.phone].filter(Boolean).join(' · ') : '?';
+      if (q.answer) {
+        box.appendChild(h('article.card', h('p.card__k', who + ' · ' + fmtWhen(q.createdAt)), h('p', q.text),
+          h('p.answer', h('span.badge.badge--ok', 'Respondida por ' + q.answer.by + ' · ' + fmtWhen(q.answer.at)), ' ', q.answer.text)));
+        return;
+      }
+      const ta = h('textarea', { name: 'text', rows: 3, maxlength: 1000, required: true });
+      const form = h('form.form', h('label.field', h('span', 'Resposta'), ta), h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Responder'));
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        try {
+          const res = await api('/hack/api/admin/questions/' + q.id + '/answer', { method: 'POST', body: { text: ta.value } });
+          const how = {
+            sent: ' e notificada por push',
+            no_device: '; a pessoa não ativou notificações (a resposta fica no portal dela)',
+            unknown: '; não deu para confirmar o push (a resposta fica no portal dela)',
+            failed: '; o push falhou (a resposta fica no portal dela)',
+            unavailable: '; notificações push não estão configuradas (a resposta fica no portal dela)',
+          }[res.push] || '';
+          toast('Resposta enviada' + how + '.');
+          await loadQuestions();
+        } catch (e) {
+          toast(e.message, true);
+          // Outra pessoa respondeu antes: mostra a resposta que valeu.
+          if (e.status === 409) await loadQuestions();
+        }
+      });
+      box.appendChild(h('article.card.card--red', h('p.card__k', who + ' · ' + fmtWhen(q.createdAt)), h('p', q.text), form));
+    });
+  }
+
   // ---------- carga ----------
-  const loaders = { pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });
