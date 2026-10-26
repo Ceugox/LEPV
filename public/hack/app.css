@@ -29,7 +29,10 @@ body.app { min-height: 100vh; background: var(--ink); }
 .app-top__title { max-width: 1180px; margin: 26px auto 0; }
 .app-top__title h1 { margin: 0; font: condensed 900 clamp(40px, 6vw, 76px)/.9 var(--f-disp); text-transform: uppercase; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .app-top__title h1 em { font: 400 .82em/1 var(--f-serif); text-transform: none; color: #ffd0d2; }
-.app-top__title p { margin: 10px 0 0; color: var(--text-2); }
+.app-top__title p:not(.eyebrow) { margin: 10px 0 0; color: var(--text-2); }
+/* Rótulo sobre a foto: respiro até o acento do título (entrelinha .9) e
+   sombra para não sumir nas luzes da cidade. */
+.app-top__title .eyebrow { margin: 0 0 14px; text-shadow: 0 1px 12px rgba(0,0,0,.7); }
 
 /* ---------- abas ---------- */
 .tabs { position: sticky; top: 0; z-index: 30; background: rgba(11,11,13,.92); border-bottom: 1px solid var(--line);
