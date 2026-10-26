@@ -758,6 +758,21 @@ test("equipes: montagem por afinidade é só da diretoria; a prévia não grava 
   eq(after.teams.length, before.teams.length, "prévia não cria equipe");
   eq((await S.admin.post("/hack/api/admin/teams/affinity", { teams: [{ name: "Solo", memberIds: [soloNoGroup[0] || "x"] }] })).status, 400, "equipe de 1 é recusada");
   eq((await S.admin.post("/hack/api/admin/teams/affinity", {})).status, 400, "sem equipes");
+  // Criação de verdade pela rota (e desfeita no fim: a jornada segue com
+  // essas pessoas sem equipe).
+  const pair = soloNoGroup.slice(0, 2);
+  assert(pair.length === 2, "precisa de duas pessoas sem equipe e sem grupo na jornada");
+  const made = await S.admin.post("/hack/api/admin/teams/affinity", { teams: [{ name: "Afinidade Teste", memberIds: pair }] });
+  eq(made.status, 200);
+  eq(made.data.created.length, 1);
+  eq(made.data.created[0].name, "Afinidade Teste");
+  eq(made.data.created[0].status, "forming");
+  const mid = (await S.admin.get("/hack/api/admin/teams")).data;
+  eq(mid.teams.length, before.teams.length + 1, "uma equipe a mais");
+  assert(!mid.solo.some((x) => pair.includes(x.id)), "as duas saíram da lista sem equipe");
+  eq((await S.admin.post("/hack/api/admin/teams/affinity", { teams: [{ name: "De Novo", memberIds: pair }] })).status, 409, "prévia velha: já estão numa equipe");
+  eq((await S.admin.del("/hack/api/admin/teams/" + made.data.created[0].id)).status, 200);
+  eq((await S.admin.get("/hack/api/admin/teams")).data.solo.length, before.solo.length, "estado da jornada restaurado");
 });
 
 test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {

@@ -202,7 +202,7 @@ Fora do escopo: avisar os inscritos da novidade (decisão do Marcell, pela centr
 Aprovada pelo Marcell em 26/10, depois de grilling.
 
 - **"Montar por afinidade"** na aba Equipes da organização (diretoria, inclusive o superadmin) gera uma **prévia**; nada é criado antes de "Criar". Na prévia a diretoria renomeia, move pessoas entre equipes ou deixa alguém de fora.
-- **Quem entra:** participante confirmado, sem equipe, que respondeu "não tenho grupo". Quem marcou "tenho grupo" e está sem equipe fica à parte, listado na prévia, esperando a indicação dos colegas.
+- **Quem entra:** participante confirmado, sem equipe, que não marcou "tenho grupo" (inclui quem deixou em branco ou foi cadastrado à mão). Quem marcou "tenho grupo" e está sem equipe fica à parte, listado na prévia, esperando a indicação dos colegas.
 - **Afinidade:** IME (Ativa + Reserva) com IME, FGV com FGV, UFPE com UFPE, "Outra universidade" entre si.
 - **Tamanho:** o menor número de equipes de até 4, equilibradas (5 → 3+2, 6 → 3+3, 7 → 4+3, 9 → 3+3+3, 10 → 4+3+3).
 - **Dentro da instituição:** ano próximo e cursos misturados.

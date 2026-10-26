@@ -639,7 +639,7 @@
     const render = () => {
       clear(box);
       if (!plan.length && !out.length) {
-        box.append(h('p.muted', 'Ninguém sem equipe para juntar: todo participante que respondeu “não tenho grupo” já está numa equipe.'));
+        box.append(h('p.muted', 'Ninguém para juntar: todo participante sem equipe marcou “tenho grupo”, ou já está numa equipe.'));
       }
       const targets = () => plan.map((t, i) => h('option', { value: String(i) }, t.name)).concat([h('option', { value: 'out' }, 'Deixar sem equipe')]);
       const move = (p, from, to) => {
@@ -676,18 +676,21 @@
       go.addEventListener('click', async () => {
         if (ready.some((t) => t.members.length < 2 || t.members.length > 4)) { err.textContent = 'Cada equipe precisa ter de 2 a 4 pessoas. Mova alguém ou deixe a equipe vazia.'; err.hidden = false; return; }
         go.disabled = true;
+        let res;
         try {
-          const res = await api('/hack/api/admin/teams/affinity', { method: 'POST', body: { teams: ready.map((t) => ({ name: t.name, memberIds: t.members.map((p) => p.id) })) } });
-          dlg.close();
-          toast(res.created.length + ' equipe(s) criada(s), em formação. Os integrantes já veem a equipe no portal.');
-          await loadTeams();
-        } catch (e) { err.textContent = e.message; err.hidden = false; go.disabled = false; }
+          res = await api('/hack/api/admin/teams/affinity', { method: 'POST', body: { teams: ready.map((t) => ({ name: t.name, memberIds: t.members.map((p) => p.id) })) } });
+        } catch (e) { err.textContent = e.message; err.hidden = false; go.disabled = false; return; }
+        dlg.close();
+        toast(res.created.length + ' equipe(s) criada(s), em formação. Os integrantes já veem a equipe no portal.');
+        // As equipes já existem: falha ao recarregar a grade não pode parecer
+        // falha ao criar (e o diálogo já fechou).
+        loadTeams().catch(() => toast('Equipes criadas, mas a lista não recarregou. Atualize a página.', true));
       });
       box.append(err, h('div.row', { style: 'margin-top:14px' }, go));
     };
     render();
     openDialog('Montar por afinidade',
-      h('p.muted', 'Proposta para quem respondeu “não tenho grupo”: IME com IME, FGV com FGV, UFPE com UFPE, outras universidades entre si. Ajuste antes de criar.'),
+      h('p.muted', 'Proposta para quem está sem equipe e não marcou “tenho grupo” (inclui quem deixou em branco): IME com IME, FGV com FGV, UFPE com UFPE, outras universidades entre si. Ajuste antes de criar.'),
       box);
   });
 

@@ -1546,6 +1546,30 @@ test("afinidade: criar é tudo ou nada; tamanho, repetição e prévia velha sã
   eq1(store.state.teams[0].status, "forming", "nasce em formação, como a montada à mão");
   assert.throws(() => run([{ name: "FGV 3", memberIds: [ids[0], ids[1]] }]), /já entrou numa equipe/);
 });
+test("afinidade: pelo store de verdade, lote com erro não grava nada", () => {
+  const { createStore } = require("../lib/hackathon/store");
+  const { s, ps } = teamState(4, () => ({ vinculo: "FGV" }));
+  const disk = { file: JSON.parse(JSON.stringify(s)), writes: 0 };
+  const store = createStore({
+    filePath: "/mem/hackathon.json",
+    fs: { existsSync: () => true },
+    readStore: () => JSON.parse(JSON.stringify(disk.file)),
+    writeStore: (_, st) => { disk.writes += 1; disk.file = JSON.parse(JSON.stringify(st)); },
+  });
+  const ids = ps.map((p) => p.id);
+  const w0 = disk.writes;
+  assert.throws(() => store.mutate((st) => AF.apply(st, [{ name: "FGV 1", memberIds: ids.slice(0, 2) }, { name: "x", memberIds: ids.slice(2) }], T0)), /nome/);
+  eq1(store.get().teams.length, 0, "memória volta ao estado anterior");
+  eq1(disk.writes, w0, "nada gravado em disco");
+  store.mutate((st) => AF.apply(st, [{ name: "FGV 1", memberIds: ids.slice(0, 2) }, { name: "FGV 2", memberIds: ids.slice(2) }], T0));
+  eq1(disk.file.teams.length, 2, "lote válido gravado");
+});
+test("afinidade: resultado travado bloqueia prévia e criação", () => {
+  const { s, ps } = teamState(4, () => ({ vinculo: "FGV" }));
+  s.config.evaluation.resultsLocked = true;
+  assert.throws(() => AF.preview(s), /travado/);
+  assert.throws(() => AF.apply(s, [{ name: "FGV 1", memberIds: [ps[0].id, ps[1].id] }], T0), /travado/);
+});
 
 (async () => {
   for (const t of tests) {
