@@ -49,7 +49,11 @@
         <p class="muted small" id="erro-entrar" role="alert" hidden></p>
         <button class="btn btn--red" type="submit">Entrar <span aria-hidden="true">→</span></button>
       </form>
-      <p class="muted small" style="margin-top:22px">Ainda não tem senha ou esqueceu? <a href="#link" id="ir-link">Receba um link de acesso por e-mail</a>.</p>
+      <div class="gate__alt">
+        <p class="gate__or"><span>ou</span></p>
+        <a class="btn btn--ghost gate__alt-btn" href="#link" id="ir-link">Receber link de acesso por e-mail</a>
+        <p class="muted small gate__hint">Primeiro acesso ou esqueceu a senha? O link entra direto, sem senha.</p>
+      </div>
     </div>
 
     <div id="pedir" hidden>
@@ -62,9 +66,12 @@
         <button class="btn btn--red" type="submit">Receber link de acesso <span aria-hidden="true">→</span></button>
       </form>
       <p class="muted small" id="pedir-ok" role="status" hidden></p>
-      <p class="muted small" style="margin-top:22px"><a href="#" id="ir-senha">Entrar com e-mail e senha</a></p>
+      <div class="gate__alt">
+        <p class="gate__or"><span>ou</span></p>
+        <a class="btn btn--ghost gate__alt-btn" href="#" id="ir-senha">Entrar com e-mail e senha</a>
+      </div>
     </div>
-    <p class="muted small" style="margin-top:22px" id="inscricao-nota">Ainda não se inscreveu? <a href="/hack/inscricao">Faça sua inscrição</a>.</p>
+    <p class="gate__foot" id="inscricao-nota"><span>Ainda não se inscreveu?</span> <a href="/hack/inscricao">Fazer inscrição <span aria-hidden="true">→</span></a></p>
   </div>
 </main>
 <script src="/hack/js/hack-app.js"></script>

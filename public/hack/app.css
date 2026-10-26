@@ -29,7 +29,10 @@ body.app { min-height: 100vh; background: var(--ink); }
 .app-top__title { max-width: 1180px; margin: 26px auto 0; }
 .app-top__title h1 { margin: 0; font: condensed 900 clamp(40px, 6vw, 76px)/.9 var(--f-disp); text-transform: uppercase; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .app-top__title h1 em { font: 400 .82em/1 var(--f-serif); text-transform: none; color: #ffd0d2; }
-.app-top__title p { margin: 10px 0 0; color: var(--text-2); }
+.app-top__title p:not(.eyebrow) { margin: 10px 0 0; color: var(--text-2); }
+/* Rótulo sobre a foto: respiro até o acento do título (entrelinha .9) e
+   sombra para não sumir nas luzes da cidade. */
+.app-top__title .eyebrow { margin: 0 0 14px; text-shadow: 0 1px 12px rgba(0,0,0,.7); }
 
 /* ---------- abas ---------- */
 .tabs { position: sticky; top: 0; z-index: 30; background: rgba(11,11,13,.92); border-bottom: 1px solid var(--line);
@@ -137,6 +140,16 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.7); }
 .gate__media { position: absolute; inset: 0; z-index: -1; }
 .gate__media img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 62%; filter: brightness(.5); }
 .gate__card { width: min(520px, 100%); padding: clamp(24px, 5vw, 40px); border-radius: 22px; background: rgba(11,11,13,.84); }
+/* Saída alternativa (link por e-mail / senha): botão secundário depois de um
+   "ou", nunca um link solto no meio do texto. */
+.gate__alt { margin-top: 18px; }
+.gate__or { display: flex; align-items: center; gap: 14px; margin: 0 0 18px; color: var(--text-2); font: 600 12px/1 var(--f-body); letter-spacing: .14em; text-transform: uppercase; }
+.gate__or::before, .gate__or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.gate__alt-btn { width: 100%; }
+.gate__hint { margin: 10px 0 0; text-align: center; }
+.gate__foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; margin: 28px 0 0; padding-top: 18px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 14px; }
+.gate__foot a { color: #fff; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.gate__foot a:hover { text-decoration: underline; }
 
 @media (max-width: 560px) {
   .agenda li { grid-template-columns: 1fr; gap: 2px; }
