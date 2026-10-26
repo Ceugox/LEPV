@@ -111,6 +111,7 @@
   // ---------- senha da conta ----------
   const BANNER_KEY = 'hack-senha-aviso-fechado';
   function bannerClosed() {
+    if (state.bannerClosed) return true;
     try { return sessionStorage.getItem(BANNER_KEY) === '1'; } catch (e) { return false; }
   }
   function closeBanner() {

@@ -1275,6 +1275,13 @@ test("senha: desconectar, trocar o e-mail e promover a jurado apagam a senha", a
   eq((await login("davi.novo@ex.com", "senha-dois-davi-x")).status, 401, "a senha criada pelo e-mail antigo não vale no novo");
   eq((await S.admin.patch("/hack/api/admin/people/" + id, { email: "davi@ex.com" })).status, 200);
 
+  await withPassword("senha-bloq-davi-x");
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { disabled: true })).status, 200);
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { disabled: false })).status, 200);
+  eq((await login("davi@ex.com", "senha-bloq-davi-x")).status, 401, "desbloquear não devolve a senha antiga");
+
+  // O limite de 3 links por hora do Davi acabou acima.
+  await freshServer();
   await withPassword("senha-tres-davi-x");
   eq((await S.admin.post("/hack/api/admin/people", { name: "Davi Jurado", email: "davi@ex.com", roles: ["judge"] })).status, 200);
   eq((await login("davi@ex.com", "senha-tres-davi-x")).status, 401, "promoção apaga a senha");
