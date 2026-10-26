@@ -1463,6 +1463,114 @@ test("visão geral: grupos, acessos, entregas e dúvidas contam certo", () => {
   eq1(o.checkin.length, 2);
 });
 
+// ---------- equipes por afinidade (revisão 5 da spec) ----------
+const AF = require("../lib/hackathon/affinity");
+const sizesOf = (r) => r.teams.map((t) => t.members.length);
+
+test("afinidade: tamanhos equilibrados de até 4, ninguém sozinho", () => {
+  const cases = { 0: [], 1: [], 2: [2], 3: [3], 4: [4], 5: [3, 2], 6: [3, 3], 7: [4, 3], 8: [4, 4], 9: [3, 3, 3], 10: [4, 3, 3], 13: [4, 3, 3, 3] };
+  for (const [n, want] of Object.entries(cases)) assert.deepStrictEqual(AF.teamSizes(Number(n)), want, "n=" + n);
+});
+test("afinidade: Ativa e Reserva do IME são IME; FGV, UFPE e outras à parte", () => {
+  eq1(AF.affinityOf("Ativa do IME").label, "IME");
+  eq1(AF.affinityOf("Reserva do IME").label, "IME");
+  eq1(AF.affinityOf("FGV").label, "FGV");
+  eq1(AF.affinityOf("UFPE").label, "UFPE");
+  eq1(AF.affinityOf("Outra universidade").label, "Outras");
+  eq1(AF.affinityOf("").label, "Outras");
+});
+test("afinidade: prévia separa por instituição, deixa quem tem grupo de fora e não grava nada", () => {
+  const vinc = ["Ativa do IME", "Reserva do IME", "Ativa do IME", "FGV", "FGV", "FGV", "FGV", "FGV", "UFPE", "UFPE"];
+  const { s } = teamState(12, (i) => ({ vinculo: vinc[i] || "FGV", hasGroup: i >= 10 }));
+  const before = JSON.stringify(s);
+  const r = AF.preview(s);
+  eq1(JSON.stringify(s), before, "prévia não altera o estado");
+  assert.deepStrictEqual(r.teams.map((t) => t.name), ["IME 1", "FGV 1", "FGV 2", "UFPE 1"]);
+  assert.deepStrictEqual(sizesOf(r), [3, 3, 2, 2]);
+  for (const t of r.teams) assert.ok(t.members.every((m) => m.affinity === t.affinity), "todos da mesma instituição em " + t.name);
+  eq1(r.withGroup.length, 2, "quem disse ter grupo fica à parte");
+  eq1(r.unassigned.length, 0);
+});
+test("afinidade: sozinho na instituição vai para a menor equipe com vaga, marcado", () => {
+  const vinc = ["FGV", "FGV", "FGV", "FGV", "FGV", "UFPE"];
+  const { s } = teamState(6, (i) => ({ vinculo: vinc[i] }));
+  const r = AF.preview(s);
+  assert.deepStrictEqual(sizesOf(r), [3, 3], "FGV 3+2 e a pessoa da UFPE completa a de 2");
+  const extra = r.teams.flatMap((t) => t.members).filter((m) => m.outOfAffinity);
+  eq1(extra.length, 1);
+  eq1(extra[0].affinity, "UFPE");
+});
+test("afinidade: sozinhos sem vaga formam equipe mista; um só fica de fora", () => {
+  const two = teamState(2, (i) => ({ vinculo: ["UFPE", "FGV"][i] })).s;
+  const r2 = AF.preview(two);
+  assert.deepStrictEqual(r2.teams.map((t) => t.name), ["Mista 1"]);
+  eq1(r2.unassigned.length, 0);
+  const one = teamState(1, () => ({ vinculo: "UFPE" })).s;
+  const r1 = AF.preview(one);
+  eq1(r1.teams.length, 0);
+  eq1(r1.unassigned.length, 1);
+});
+test("afinidade: ano próximo e cursos misturados dentro da instituição", () => {
+  const data = [["1", "Computação"], ["1", "Computação"], ["4", "Elétrica"], ["4", "Elétrica"], ["1", "Mecânica"], ["4", "Química"], ["1", "Química"], ["4", "Computação"]];
+  const { s } = teamState(8, (i) => ({ vinculo: "Ativa do IME", anoFaculdade: data[i][0], curso: data[i][1] }));
+  const r = AF.preview(s);
+  assert.deepStrictEqual(sizesOf(r), [4, 4]);
+  for (const t of r.teams) {
+    eq1(new Set(t.members.map((m) => m.anoFaculdade)).size, 1, "um ano só em " + t.name);
+    eq1(new Set(t.members.map((m) => m.curso)).size, 3, "três cursos em " + t.name);
+  }
+});
+test("afinidade: nome não colide com equipe que já existe; quem já tem equipe não entra", () => {
+  const { s, ps } = teamState(5, () => ({ vinculo: "FGV" }));
+  TM.createTeam(s, ps[0].id, "FGV 1", T0);
+  const r = AF.preview(s);
+  assert.deepStrictEqual(r.teams.map((t) => t.name), ["FGV 2"]);
+  assert.ok(!r.teams[0].members.some((m) => m.id === ps[0].id));
+});
+test("afinidade: criar é tudo ou nada; tamanho, repetição e prévia velha são recusados", () => {
+  const { s, ps } = teamState(6, () => ({ vinculo: "FGV" }));
+  const ids = ps.map((p) => p.id);
+  const store = { state: s };
+  const run = (teams) => {
+    const snap = JSON.stringify(store.state);
+    try { return AF.apply(store.state, teams, T0); } catch (e) { store.state = JSON.parse(snap); throw e; }
+  };
+  assert.throws(() => run([{ name: "A", memberIds: [ids[0]] }]), /2 a 4/);
+  assert.throws(() => run([{ name: "A", memberIds: ids.slice(0, 5) }]), /2 a 4/);
+  assert.throws(() => run([{ name: "A", memberIds: [ids[0], ids[1]] }, { name: "B", memberIds: [ids[1], ids[2]] }]), /duas equipes/);
+  // Segunda equipe com nome repetido: a primeira não pode ficar criada sozinha.
+  assert.throws(() => run([{ name: "Alfa", memberIds: [ids[0], ids[1]] }, { name: "alfa", memberIds: [ids[2], ids[3]] }]), /Já existe/);
+  eq1(store.state.teams.length, 0, "nada criado no lote que falhou");
+  const created = run([{ name: "FGV 1", memberIds: ids.slice(0, 3) }, { name: "FGV 2", memberIds: ids.slice(3) }]);
+  eq1(created.length, 2);
+  eq1(store.state.teams[0].status, "forming", "nasce em formação, como a montada à mão");
+  assert.throws(() => run([{ name: "FGV 3", memberIds: [ids[0], ids[1]] }]), /já entrou numa equipe/);
+});
+test("afinidade: pelo store de verdade, lote com erro não grava nada", () => {
+  const { createStore } = require("../lib/hackathon/store");
+  const { s, ps } = teamState(4, () => ({ vinculo: "FGV" }));
+  const disk = { file: JSON.parse(JSON.stringify(s)), writes: 0 };
+  const store = createStore({
+    filePath: "/mem/hackathon.json",
+    fs: { existsSync: () => true },
+    readStore: () => JSON.parse(JSON.stringify(disk.file)),
+    writeStore: (_, st) => { disk.writes += 1; disk.file = JSON.parse(JSON.stringify(st)); },
+  });
+  const ids = ps.map((p) => p.id);
+  const w0 = disk.writes;
+  assert.throws(() => store.mutate((st) => AF.apply(st, [{ name: "FGV 1", memberIds: ids.slice(0, 2) }, { name: "x", memberIds: ids.slice(2) }], T0)), /nome/);
+  eq1(store.get().teams.length, 0, "memória volta ao estado anterior");
+  eq1(disk.writes, w0, "nada gravado em disco");
+  store.mutate((st) => AF.apply(st, [{ name: "FGV 1", memberIds: ids.slice(0, 2) }, { name: "FGV 2", memberIds: ids.slice(2) }], T0));
+  eq1(disk.file.teams.length, 2, "lote válido gravado");
+});
+test("afinidade: resultado travado bloqueia prévia e criação", () => {
+  const { s, ps } = teamState(4, () => ({ vinculo: "FGV" }));
+  s.config.evaluation.resultsLocked = true;
+  assert.throws(() => AF.preview(s), /travado/);
+  assert.throws(() => AF.apply(s, [{ name: "FGV 1", memberIds: [ps[0].id, ps[1].id] }], T0), /travado/);
+});
+
 (async () => {
   for (const t of tests) {
     try {

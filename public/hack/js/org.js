@@ -626,6 +626,74 @@
     openDialog('Nova equipe', form);
   });
 
+  // Montagem por afinidade: o servidor propõe (instituição, ano próximo,
+  // cursos misturados); aqui a diretoria renomeia, move gente entre equipes
+  // ou deixa alguém de fora, e confirma. Nada é criado antes do "Criar".
+  $('affinity-teams').addEventListener('click', async () => {
+    let r;
+    try { r = await api('/hack/api/admin/teams/affinity'); }
+    catch (e) { toast(e.message, true); return; }
+    const plan = r.teams.map((t) => ({ name: t.name, members: t.members.slice() }));
+    const out = r.unassigned.slice();
+    const box = h('div');
+    const render = () => {
+      clear(box);
+      if (!plan.length && !out.length) {
+        box.append(h('p.muted', 'Ninguém para juntar: todo participante sem equipe marcou “tenho grupo”, ou já está numa equipe.'));
+      }
+      const targets = () => plan.map((t, i) => h('option', { value: String(i) }, t.name)).concat([h('option', { value: 'out' }, 'Deixar sem equipe')]);
+      const move = (p, from, to) => {
+        if (from === 'out') out.splice(out.indexOf(p), 1); else plan[from].members.splice(plan[from].members.indexOf(p), 1);
+        if (to === 'out') out.push(p); else plan[Number(to)].members.push(p);
+        render();
+      };
+      const row = (p, from) => h('li',
+        h('div.list__main', h('b', p.name), academic(p),
+          p.outOfAffinity ? h('span.badge.badge--warn', 'Fora da afinidade (' + p.affinity + ')') : null),
+        h('label.field', { style: 'min-width:150px' },
+          h('select', { 'aria-label': 'Mover ' + p.name, onchange: (ev) => move(p, from, ev.target.value) },
+            h('option', { value: '', selected: true }, 'Mover para…'), targets())));
+      plan.forEach((t, i) => {
+        const bad = t.members.length && (t.members.length < 2 || t.members.length > 4);
+        box.append(h('article.card' + (bad ? '.card--red' : ''), { style: 'margin-bottom:12px' },
+          h('label.field', h('span', 'Nome · ' + t.members.length + '/4' + (bad ? ' · precisa de 2 a 4' : '')),
+            h('input', { value: t.name, maxlength: '40', oninput: (ev) => { t.name = ev.target.value; } })),
+          t.members.length ? h('ul.list', t.members.map((p) => row(p, i))) : h('p.muted.small', 'Vazia: não será criada.')));
+      });
+      if (out.length) {
+        box.append(h('h3', { style: 'margin-top:18px' }, 'Sem equipe nesta montagem'),
+          h('p.muted.small', 'Sobrou sozinho e não coube em nenhuma equipe, ou você tirou.'),
+          h('ul.list', out.map((p) => row(p, 'out'))));
+      }
+      if (r.withGroup.length) {
+        box.append(h('h3', { style: 'margin-top:18px' }, 'Disseram que têm grupo (' + r.withGroup.length + ')'),
+          h('p.muted.small', 'Ficam de fora: esperam os colegas indicarem. Junte à mão na lista “sem equipe”, se for o caso.'),
+          h('ul.list', r.withGroup.map((p) => h('li', h('div.list__main', h('b', p.name), academic(p))))));
+      }
+      const ready = plan.filter((t) => t.members.length);
+      const err = h('p.muted.small', { role: 'alert', hidden: true });
+      const go = h('button.btn.btn--red.btn--sm', { type: 'button', disabled: !ready.length }, 'Criar ' + ready.length + ' equipe(s)');
+      go.addEventListener('click', async () => {
+        if (ready.some((t) => t.members.length < 2 || t.members.length > 4)) { err.textContent = 'Cada equipe precisa ter de 2 a 4 pessoas. Mova alguém ou deixe a equipe vazia.'; err.hidden = false; return; }
+        go.disabled = true;
+        let res;
+        try {
+          res = await api('/hack/api/admin/teams/affinity', { method: 'POST', body: { teams: ready.map((t) => ({ name: t.name, memberIds: t.members.map((p) => p.id) })) } });
+        } catch (e) { err.textContent = e.message; err.hidden = false; go.disabled = false; return; }
+        dlg.close();
+        toast(res.created.length + ' equipe(s) criada(s), em formação. Os integrantes já veem a equipe no portal.');
+        // As equipes já existem: falha ao recarregar a grade não pode parecer
+        // falha ao criar (e o diálogo já fechou).
+        loadTeams().catch(() => toast('Equipes criadas, mas a lista não recarregou. Atualize a página.', true));
+      });
+      box.append(err, h('div.row', { style: 'margin-top:14px' }, go));
+    };
+    render();
+    openDialog('Montar por afinidade',
+      h('p.muted', 'Proposta para quem está sem equipe e não marcou “tenho grupo” (inclui quem deixou em branco): IME com IME, FGV com FGV, UFPE com UFPE, outras universidades entre si. Ajuste antes de criar.'),
+      box);
+  });
+
   // ---------- entregas ----------
   async function loadSubs() {
     const r = await api('/hack/api/admin/submissions');
