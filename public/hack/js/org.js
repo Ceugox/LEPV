@@ -86,7 +86,8 @@
   $('busca').addEventListener('input', renderPeople);
   $('filtro').addEventListener('change', renderPeople);
 
-  function linkDialog(p) {
+  // onDone: quem abriu o diálogo recarrega a própria tela (Pessoas, Visão geral).
+  function linkDialog(p, onDone) {
     const out = h('div.stack');
     const gen = async (send) => {
       try {
@@ -101,7 +102,7 @@
           r.email ? h('p.small', 'E-mail: ' + ({ sent: 'enviado', outbox: 'gravado (teste)', unconfigured: 'não configurado', failed: 'falhou', unknown: 'incerto' }[r.email.status] || r.email.status)) : null,
           h('p.muted.small', 'Gerar outro link invalida este.')
         );
-        await loadPeople();
+        await (onDone || loadPeople)();
       } catch (e) { toast(e.message, true); }
     };
     openDialog('Link de ' + p.name.split(' ')[0],
@@ -881,7 +882,7 @@
       h('article.card', h('p.card__k', 'Nunca entraram'), h('h3.card__title', a.neverIn.length + ' participante(s)'),
         people(a.neverIn, 'Todo mundo já entrou na plataforma.', (p) => h('div.row',
           h('span.muted.small', p.lastLinkAt ? 'Link enviado ' + fmtWhen(p.lastLinkAt) + (p.linkStatus === 'failed' ? ' · e-mail falhou' : '') : 'Sem link enviado'),
-          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => linkDialog(p) }, 'Enviar link')))),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => linkDialog(p, loadOverview) }, 'Enviar link')))),
       h('article.card', h('p.card__k', 'Grupo sem indicação'), h('h3.card__title', g.stuck.length + ' pessoa(s)'),
         h('p.muted.small', 'Disseram que têm grupo, estão sem equipe e ninguém indicou ninguém.'),
         people(g.stuck, 'Ninguém travado.')),
@@ -922,7 +923,11 @@
           }[res.push] || '';
           toast('Resposta enviada' + how + '.');
           await loadQuestions();
-        } catch (e) { toast(e.message, true); }
+        } catch (e) {
+          toast(e.message, true);
+          // Outra pessoa respondeu antes: mostra a resposta que valeu.
+          if (e.status === 409) await loadQuestions();
+        }
       });
       box.appendChild(h('article.card.card--red', h('p.card__k', who + ' · ' + fmtWhen(q.createdAt)), h('p', q.text), form));
     });

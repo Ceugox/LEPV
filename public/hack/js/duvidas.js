@@ -13,7 +13,8 @@
     let d;
     try { d = await api('/hack/api/questions'); } catch (e) {
       if (e.status === 401) return;
-      clear(box).append(h('p.empty', 'Não deu para carregar suas dúvidas agora. Recarregue a página.'));
+      console.error('[hack] dúvidas', e);
+      clear(box).append(h('p.empty', e.status && e.status < 500 ? e.message : 'Não deu para carregar suas dúvidas agora. Recarregue a página.'));
       return;
     }
     const text = h('textarea', { name: 'text', maxlength: 1000, rows: 4, required: true, placeholder: 'Ex.: posso usar uma API paga no projeto?' });
