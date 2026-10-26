@@ -110,6 +110,20 @@ test("sync: correção de e-mail pela diretoria sobrevive à próxima sincroniza
   syncParticipants(s, ev);
   eq1(p.email, "certo@ex.com");
 });
+test("sync: e-mail trocado na inscrição derruba a sessão e apaga a senha; o mesmo e-mail não", () => {
+  const s = emptyState();
+  syncParticipants(s, { signups: { list: [signup("s1", { email: "velho@ex.com" })] } });
+  const p = s.people[0];
+  p.passwordHash = "hash-de-quem-recebeu-o-link";
+  const epoch = p.sessionEpoch;
+  syncParticipants(s, { signups: { list: [signup("s1", { email: "velho@ex.com" })] } });
+  eq1(p.passwordHash, "hash-de-quem-recebeu-o-link", "nada mudou: a senha fica");
+  eq1(p.sessionEpoch, epoch);
+  syncParticipants(s, { signups: { list: [signup("s1", { email: "novo@ex.com" })] } });
+  eq1(p.email, "novo@ex.com");
+  eq1(p.passwordHash, undefined, "senha criada pelo endereço antigo some");
+  eq1(p.sessionEpoch, epoch + 1, "quem entrou pelo endereço antigo sai");
+});
 test("sync: participante já inscrito não é ligado a outra inscrição pelo e-mail", () => {
   const s = emptyState();
   syncParticipants(s, { signups: { list: [signup("s1")] } });

@@ -94,7 +94,9 @@ Variáveis: `RESEND_API_KEY` e `HACK_EMAIL_FROM` (e-mail), `HACK_VAPID_PUBLIC_KE
 `HACK_VAPID_PRIVATE_KEY` e `HACK_VAPID_SUBJECT` (push), `HACK_PUBLIC_URL` (base
 dos links; no Railway o padrão já é `https://lepv.org`), `HACK_EVENT_ID` (fixa o
 evento), `HACK_LINK_IP_MAX` (teto de pedidos de link por IP em 15 min; padrão
-120, porque no evento todos saem pelo mesmo IP). Só para teste: `HACK_NOW` (relógio), `HACK_EMAIL_OUTBOX` e
+120, porque no evento todos saem pelo mesmo IP; vale também para login por
+senha), `HACK_LOGIN_EMAIL_MAX` (tentativas de senha por e-mail em 15 min;
+padrão 10). Só para teste: `HACK_NOW` (relógio), `HACK_EMAIL_OUTBOX` e
 `HACK_PUSH_OUTBOX` (gravam em arquivo em vez de enviar) — nunca em produção.
 
 `npm run verify:hack` mede LP e telas logadas (diretoria, participante e jurada

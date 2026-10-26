@@ -26,18 +26,45 @@
       <p class="muted" id="entrando-msg" role="status">Conferindo seu link.</p>
     </div>
 
-    <div id="pedir">
+    <div id="senha" hidden>
+      <p class="eyebrow" style="margin-top:24px">Você entrou</p>
+      <h2 class="sec-title">Crie sua<br><em>senha.</em></h2>
+      <p class="muted" style="margin:16px 0 22px">Com ela você entra em qualquer aparelho só com e-mail e senha, sem esperar outro link. O link do e-mail continua funcionando.</p>
+      <form class="form" id="form-senha" novalidate>
+        <label class="field"><span>Nova senha</span><input type="password" name="password" autocomplete="new-password" minlength="8" required><small>Pelo menos 8 caracteres.</small></label>
+        <label class="field"><span>Repita a senha</span><input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
+        <p class="muted small" id="erro-senha" role="alert" hidden></p>
+        <button class="btn btn--red" type="submit">Criar senha e entrar <span aria-hidden="true">→</span></button>
+      </form>
+      <p style="margin-top:14px"><a class="btn btn--ghost btn--sm" href="/hack/portal" id="pular-senha">Agora não</a></p>
+    </div>
+
+    <div id="entrar">
       <p class="eyebrow" style="margin-top:24px">1º Hackathon LEPV</p>
       <h1 class="sec-title">Seu<br><em>acesso.</em></h1>
-      <p class="muted" style="margin:16px 0 22px">Informe o e-mail que você usou na inscrição (ou o que a organização cadastrou). Mandamos um link pessoal, de uso único, que vale por 7 dias.</p>
+      <p class="muted" style="margin:16px 0 22px">Entre com o e-mail da inscrição (ou o que a organização cadastrou) e a sua senha.</p>
+      <form class="form" id="form-entrar" novalidate>
+        <label class="field"><span>E-mail</span><input type="email" name="email" autocomplete="username" inputmode="email" required></label>
+        <label class="field"><span>Senha</span><input type="password" name="password" autocomplete="current-password" required></label>
+        <p class="muted small" id="erro-entrar" role="alert" hidden></p>
+        <button class="btn btn--red" type="submit">Entrar <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="muted small" style="margin-top:22px">Ainda não tem senha ou esqueceu? <a href="#link" id="ir-link">Receba um link de acesso por e-mail</a>.</p>
+    </div>
+
+    <div id="pedir" hidden>
+      <p class="eyebrow" style="margin-top:24px">1º Hackathon LEPV</p>
+      <h2 class="sec-title">Link de<br><em>acesso.</em></h2>
+      <p class="muted" style="margin:16px 0 22px">Mandamos um link pessoal para o seu e-mail. Ele funciona uma vez e vale por 24 horas. Depois de entrar, você pode criar ou trocar a sua senha.</p>
       <form class="form" id="form-pedir" novalidate>
         <label class="field"><span>E-mail</span><input type="email" name="email" autocomplete="email" inputmode="email" required></label>
         <p class="muted small" id="erro-link" role="alert" hidden></p>
         <button class="btn btn--red" type="submit">Receber link de acesso <span aria-hidden="true">→</span></button>
       </form>
       <p class="muted small" id="pedir-ok" role="status" hidden></p>
-      <p class="muted small" style="margin-top:22px">Ainda não se inscreveu? <a href="/hack/inscricao">Faça sua inscrição</a>.</p>
+      <p class="muted small" style="margin-top:22px"><a href="#" id="ir-senha">Entrar com e-mail e senha</a></p>
     </div>
+    <p class="muted small" style="margin-top:22px" id="inscricao-nota">Ainda não se inscreveu? <a href="/hack/inscricao">Faça sua inscrição</a>.</p>
   </div>
 </main>
 <script src="/hack/js/hack-app.js"></script>

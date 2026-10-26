@@ -1120,6 +1120,168 @@ test("credenciamento: staff só com a permissão marcada", async () => {
   eq((await S.admin.del("/hack/api/checkin/" + r.data.checkin.id)).status, 200);
 });
 
+// ================= senha (revisão 4) =================
+
+// Pede link e consome, devolvendo também a resposta do consumo.
+async function linkLogin(email) {
+  const c = client();
+  const before = lastLinkFor(email);
+  eq((await c.post("/hack/api/access/request", { email })).status, 200, "pedido de link");
+  const tok = await waitFor(() => {
+    const t = lastLinkFor(email);
+    return t && t !== before ? t : null;
+  });
+  assert(tok, "link não chegou para " + email);
+  const k = await c.post("/hack/api/access/consume", { token: tok });
+  eq(k.status, 200, "consumo do link");
+  return { c, consume: k.data, token: tok };
+}
+
+const hackState = () => JSON.parse(fs.readFileSync(path.join(volumeDir, "hackathon.json"), "utf8"));
+
+// Reinicia (zera os limites por e-mail e IP) e loga a diretoria de novo.
+async function freshServer(extraEnv) {
+  await restartServer(extraEnv);
+  S.admin = client();
+  eq((await S.admin.post("/api/login", { order: 1, password: ADMIN_PASS })).status, 200, "login admin");
+}
+
+test("senha: e-mail do link traz nome, data, local, endereço por extenso e validade de 24h", async () => {
+  // Relógio de volta ao padrão e limites zerados: a jornada acima mexeu nos dois.
+  await freshServer();
+  const { consume } = await linkLogin("davi@ex.com");
+  eq(consume.needsPassword, true, "sem senha, o consumo pede criação");
+  const m = mails().filter((x) => x.to === "davi@ex.com").pop();
+  assert(/^Davi, seu acesso ao 1º Hackathon LEPV$/.test(m.subject), "assunto: " + m.subject);
+  assert(m.text.includes("vale por 24 horas"), "validade do link pedido pela pessoa");
+  assert(m.text.includes("criar uma senha"), "menciona a senha");
+  // O endereço da FGV foi editado pela diretoria no teste de programação.
+  assert(/Sexta, 30\/10: FGV · Praia de Botafogo, 190 · a partir das 14h30/.test(m.text) && /Sábado, 31\/10: Instituto 12 · Av\. Ataulfo/.test(m.text), "data e local no texto");
+  assert(!/confirmar/i.test(m.text), "endereço a confirmar não aparece");
+  const url = /Entrar: (\S+)/.exec(m.text)[1];
+  assert(url.startsWith("https://lepv.example/hack/acesso#t="), "base pública");
+  assert(m.html.includes("Se o botão não abrir") && m.html.includes(url), "endereço por extenso no HTML");
+  const tok = hackState().tokens.filter((t) => t.personId === S.people.ids["davi@ex.com"]).pop();
+  eq(Date.parse(tok.expiresAt) - Date.parse(tok.createdAt), 24 * 3600 * 1000, "link pedido pela pessoa: 24h");
+});
+
+test("senha: fraca é recusada; criar mantém este aparelho e derruba os outros", async () => {
+  const a = await linkLogin("davi@ex.com");
+  const b = await linkLogin("davi@ex.com");
+  const me = await a.c.get("/hack/api/me");
+  eq(me.data.account.hasPassword, false);
+  eq(me.data.account.canSetPassword, true);
+  for (const weak of ["curta", "12345678", "aaaaaaaaaa", "davi@ex.com"]) {
+    eq((await a.c.post("/hack/api/me/password", { password: weak })).status, 400, "fraca: " + weak);
+  }
+  eq((await client().post("/hack/api/me/password", { password: "senha-forte-davi" })).status, 401, "sem sessão");
+  eq((await a.c.post("/hack/api/me/password", { password: "senha-forte-davi" })).status, 200);
+  eq((await a.c.get("/hack/api/me")).status, 200, "este aparelho continua");
+  eq((await b.c.get("/hack/api/me")).status, 401, "o outro aparelho saiu");
+  const people = (await S.admin.get("/hack/api/admin/people")).data.people;
+  const davi = people.find((p) => p.email === "davi@ex.com");
+  eq(davi.hasPassword, true, "painel sabe que tem senha");
+  assert(!("passwordHash" in davi), "hash nunca sai na API");
+});
+
+test("senha: entra com e-mail e senha; erro igual para senha errada, sem senha e inexistente", async () => {
+  const c = client();
+  const ok = await c.post("/hack/api/access/login", { email: "DAVI@ex.com", password: "senha-forte-davi" });
+  eq(ok.status, 200, "login com e-mail em maiúsculas");
+  eq(ok.data.redirect, "/hack/portal");
+  const me = await c.get("/hack/api/me");
+  eq(me.status, 200);
+  eq(me.data.me.email, "davi@ex.com");
+  eq(me.data.account.needsCurrent, true, "sessão por senha pede a atual para trocar");
+  const wrong = await client().post("/hack/api/access/login", { email: "davi@ex.com", password: "outra-senha-qualquer" });
+  const noPass = await client().post("/hack/api/access/login", { email: "ana@ex.com", password: "outra-senha-qualquer" });
+  const ghost = await client().post("/hack/api/access/login", { email: "fantasma@ex.com", password: "outra-senha-qualquer" });
+  for (const r of [wrong, noPass, ghost]) {
+    eq(r.status, 401);
+    eq(r.data.message, "E-mail ou senha incorretos.");
+  }
+  eq((await client().post("/hack/api/access/login", { email: "davi@ex.com" })).status, 400, "sem senha no pedido");
+});
+
+test("senha: trocar pede a atual; logo depois do link não pede", async () => {
+  // Reinício zera o limite de 3 links por hora do Davi; a sessão por senha
+  // é refeita depois dele.
+  await freshServer();
+  const c = client();
+  eq((await c.post("/hack/api/access/login", { email: "davi@ex.com", password: "senha-forte-davi" })).status, 200);
+  eq((await c.post("/hack/api/me/password", { password: "nova-senha-davi" })).status, 403, "sem a atual");
+  eq((await c.post("/hack/api/me/password", { current: "errada-errada", password: "nova-senha-davi" })).status, 403, "atual errada");
+  eq((await c.post("/hack/api/me/password", { current: "senha-forte-davi", password: "nova-senha-davi" })).status, 200);
+  eq((await c.get("/hack/api/me")).status, 200, "quem trocou continua");
+  eq((await client().post("/hack/api/access/login", { email: "davi@ex.com", password: "senha-forte-davi" })).status, 401, "senha antiga");
+  eq((await client().post("/hack/api/access/login", { email: "davi@ex.com", password: "nova-senha-davi" })).status, 200, "senha nova");
+  // Esqueceu a senha: entra pelo link e troca sem a atual.
+  const { c: viaLink, consume } = await linkLogin("davi@ex.com");
+  eq(consume.needsPassword, false, "já tem senha: não oferece criar");
+  eq((await viaLink.get("/hack/api/me")).data.account.needsCurrent, false);
+  eq((await viaLink.post("/hack/api/me/password", { password: "terceira-senha-davi" })).status, 200);
+  eq((await client().post("/hack/api/access/login", { email: "davi@ex.com", password: "terceira-senha-davi" })).status, 200);
+});
+
+test("senha: bloqueado não entra por senha; limite de tentativas por e-mail (429)", async () => {
+  await freshServer();
+  const id = S.people.ids["davi@ex.com"];
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { disabled: true })).status, 200);
+  const r = await client().post("/hack/api/access/login", { email: "davi@ex.com", password: "terceira-senha-davi" });
+  eq(r.status, 401, "bloqueado");
+  eq(r.data.message, "E-mail ou senha incorretos.");
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { disabled: false })).status, 200);
+  const c = client();
+  for (let i = 0; i < 10; i++) eq((await c.post("/hack/api/access/login", { email: "chute@ex.com", password: "tentativa-" + i })).status, 401);
+  eq((await c.post("/hack/api/access/login", { email: "chute@ex.com", password: "tentativa-x" })).status, 429);
+});
+
+test("senha: link pedido pela pessoa vence em 24h; o da organização vale 7 dias", async () => {
+  const before = lastLinkFor("davi@ex.com");
+  eq((await client().post("/hack/api/access/request", { email: "davi@ex.com" })).status, 200);
+  const tok = await waitFor(() => {
+    const t = lastLinkFor("davi@ex.com");
+    return t && t !== before ? t : null;
+  });
+  assert(tok, "link chegou");
+  const manual = await S.admin.post("/hack/api/admin/people/" + S.people.ids["ana@ex.com"] + "/link");
+  eq(manual.status, 200);
+  const anaTok = hackState().tokens.filter((t) => t.personId === S.people.ids["ana@ex.com"]).pop();
+  eq(Date.parse(anaTok.expiresAt) - Date.parse(anaTok.createdAt), 7 * 24 * 3600 * 1000, "link da organização: 7 dias");
+  await freshServer({ HACK_NOW: new Date(Date.parse(BASE_NOW) + 25 * 3600 * 1000).toISOString() });
+  eq((await client().post("/hack/api/access/consume", { token: tok })).status, 401, "vencido depois de 24h");
+  eq((await client().post("/hack/api/access/consume", { token: manual.data.url.split("#t=")[1] })).status, 200, "o de 7 dias ainda vale");
+  await freshServer();
+});
+
+test("senha: desconectar, trocar o e-mail e promover a jurado apagam a senha", async () => {
+  const id = S.people.ids["davi@ex.com"];
+  const login = (email, password) => client().post("/hack/api/access/login", { email, password });
+  // Cria (de novo) a senha do Davi entrando pelo link.
+  const withPassword = async (pw) => {
+    const { c } = await linkLogin("davi@ex.com");
+    eq((await c.post("/hack/api/me/password", { password: pw })).status, 200);
+    return c;
+  };
+
+  const c1 = await withPassword("senha-um-davi-x");
+  eq((await S.admin.post("/hack/api/admin/people/" + id + "/revoke")).status, 200);
+  eq((await c1.get("/hack/api/me")).status, 401, "desconectado");
+  eq((await login("davi@ex.com", "senha-um-davi-x")).status, 401, "a senha não entra de novo depois de Desconectar");
+
+  const c2 = await withPassword("senha-dois-davi-x");
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { email: "davi.novo@ex.com" })).status, 200);
+  eq((await c2.get("/hack/api/me")).status, 401, "quem entrou pelo e-mail antigo sai");
+  eq((await login("davi.novo@ex.com", "senha-dois-davi-x")).status, 401, "a senha criada pelo e-mail antigo não vale no novo");
+  eq((await S.admin.patch("/hack/api/admin/people/" + id, { email: "davi@ex.com" })).status, 200);
+
+  await withPassword("senha-tres-davi-x");
+  eq((await S.admin.post("/hack/api/admin/people", { name: "Davi Jurado", email: "davi@ex.com", roles: ["judge"] })).status, 200);
+  eq((await login("davi@ex.com", "senha-tres-davi-x")).status, 401, "promoção apaga a senha");
+  const p = (await S.admin.get("/hack/api/admin/people")).data.people.find((x) => x.id === id);
+  eq(p.hasPassword, false);
+});
+
 // ================= execução =================
 (async () => {
   setupVolume();

@@ -89,9 +89,88 @@
       me.signupStatus === 'waitlist'
         ? h('p.muted', { style: 'margin-top:12px' }, 'Você está na lista de espera. Se abrir uma vaga, sua inscrição é confirmada e este portal mostra a mudança.')
         : null,
-      h('p.muted.small', { style: 'margin-top:12px' }, me.email)
+      h('p.muted.small', { style: 'margin-top:12px' }, me.email),
+      passwordBlock()
     );
     g.appendChild(who);
+
+    // Sem senha ainda: aviso discreto logo depois do QR (que continua primeiro:
+    // é o que se abre na fila), que some ao fechar e não volta nesta sessão.
+    if (state.account && state.account.canSetPassword && !state.account.hasPassword && !bannerClosed()) {
+      g.insertBefore(h('article.card', { 'aria-labelledby': 'h-senha-aviso' },
+        h('p.card__k', 'Sua conta'),
+        h('h2.card__title#h-senha-aviso', 'Crie uma senha para entrar em outros aparelhos'),
+        h('p.muted', 'Com ela, você entra com e-mail e senha sem esperar um link novo. O link do e-mail continua funcionando.'),
+        h('div.row', { style: 'margin-top:12px' },
+          h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => { passwordOpen = true; closeBanner(); renderInicio(); focusPassword(); } }, 'Criar senha'),
+          h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => { closeBanner(); renderInicio(); } }, 'Agora não'))
+      ), qrCard.nextSibling);
+    }
+  }
+
+  // ---------- senha da conta ----------
+  const BANNER_KEY = 'hack-senha-aviso-fechado';
+  function bannerClosed() {
+    try { return sessionStorage.getItem(BANNER_KEY) === '1'; } catch (e) { return false; }
+  }
+  function closeBanner() {
+    try { sessionStorage.setItem(BANNER_KEY, '1'); } catch (e) { /* sem storage: some até recarregar */ }
+    state.bannerClosed = true;
+  }
+
+  // O formulário aberto sobrevive aos re-renders do Início (relógio a cada
+  // minuto, avisos novos): senão o que a pessoa digitou some.
+  let passwordOpen = false;
+  let passwordForm = null;
+  function focusPassword() {
+    const el = document.querySelector('#form-conta-senha input');
+    if (el) el.focus();
+  }
+
+  function passwordBlock() {
+    const acc = state.account;
+    if (!acc || !acc.canSetPassword) return null;
+    const label = acc.hasPassword ? 'Trocar senha' : 'Criar senha';
+    if (!passwordOpen) {
+      passwordForm = null;
+      return h('div.row', { style: 'margin-top:14px' },
+        acc.hasPassword ? h('span.badge', 'Senha criada') : null,
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => { passwordOpen = true; renderInicio(); focusPassword(); } }, label));
+    }
+    if (passwordForm) return passwordForm;
+    const err = h('p.muted.small', { role: 'alert', hidden: true });
+    const form = h('form.form#form-conta-senha', { novalidate: true, style: 'margin-top:16px' },
+      acc.needsCurrent ? h('label.field', h('span', 'Senha atual'), h('input', { type: 'password', name: 'current', autocomplete: 'current-password', required: true })) : null,
+      h('label.field', h('span', acc.hasPassword ? 'Nova senha' : 'Senha'), h('input', { type: 'password', name: 'password', autocomplete: 'new-password', minlength: '8', required: true }), h('small', 'Pelo menos 8 caracteres.')),
+      h('label.field', h('span', 'Repita a senha'), h('input', { type: 'password', name: 'confirm', autocomplete: 'new-password', minlength: '8', required: true })),
+      acc.hasPassword ? h('p.muted.small', 'Ao trocar, os outros aparelhos saem da conta. Este continua conectado.') : null,
+      err,
+      h('div.row',
+        h('button.btn.btn--red.btn--sm', { type: 'submit' }, label),
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => { passwordOpen = false; renderInicio(); } }, 'Cancelar')));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const say = (msg, input) => { err.textContent = msg; err.hidden = false; if (input) input.focus(); };
+      err.hidden = true;
+      if (form.password.value.length < 8) return say('A senha precisa ter pelo menos 8 caracteres.', form.password);
+      if (form.password.value !== form.confirm.value) return say('As duas senhas não são iguais.', form.confirm);
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      try {
+        const body = { password: form.password.value };
+        if (form.current) body.current = form.current.value;
+        await api('/hack/api/me/password', { method: 'POST', body });
+        Object.assign(state.account, { hasPassword: true, needsCurrent: true });
+        passwordOpen = false;
+        renderInicio();
+        toast(label === 'Criar senha' ? 'Senha criada. Use e-mail e senha para entrar em outros aparelhos.' : 'Senha trocada. Os outros aparelhos saíram da conta.');
+      } catch (e) {
+        say(e.message, form.current && e.code === 'wrong_password' ? form.current : form.password);
+        btn.disabled = false;
+      }
+    });
+    passwordForm = form;
+    return form;
   }
 
   function renderAgenda() {
@@ -259,7 +338,7 @@
     try {
       const [me, prog] = await Promise.all([api('/hack/api/me'), api('/hack/api/program')]);
       clockSkew = Date.parse(me.now) - Date.now();
-      Object.assign(state, { me: me.me, perms: me.perms, event: me.event, program: prog.program, venues: prog.venues });
+      Object.assign(state, { me: me.me, account: me.account, perms: me.perms, event: me.event, program: prog.program, venues: prog.venues });
       $('who').textContent = me.me.name;
       $('ola').textContent = '';
       $('ola').append('Olá, ', h('em', (me.me.name.split(' ')[0] || '') + '.'));
