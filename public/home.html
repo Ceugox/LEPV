@@ -593,7 +593,9 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
 
       // Todos os eventos entram no índice da seção II, inclusive os que já
       // apareceram acima. A linha do hackathon leva à página de detalhes, não
-      // ao formulário: é lá que estão o manual, a trilha e o regulamento.
+      // ao formulário: é lá que estão o manual, a trilha e o regulamento. Com
+      // as inscrições encerradas, leva ao site do hackathon (/hack/): a
+      // evento.html ainda oferece a inscrição.
       idx.innerHTML = events.map(function (ev, i) {
         var destino = ev.type === "hackathon" ? (ev.open === false ? "/hack/" : ev.detailsUrl) : ev.signupUrl;
         return (
