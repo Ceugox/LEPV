@@ -461,6 +461,7 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
       : "";
   }
   function vagasTexto(ev) {
+    if (ev.open === false) return "inscrições encerradas";
     if (!ev.capacity) return "aberto";
     return ev.seatsLeft > 0
       ? '<b>' + ev.seatsLeft + "</b>/" + ev.capacity + " vagas"
@@ -510,12 +511,20 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
           "<h3>" + escHtml(ev.title) + "</h3>" +
           (ev.text ? "<p>" + escHtml(ev.text) + "</p>" : "") +
           (fatos.length ? '<p class="facts">' + fatos.join(" · ") + "</p>" : "") +
-          (ev.phase === "pre-inscricao" ? '<p class="note">Datas e horários ainda serão confirmados.</p>' : "") +
-          '<div class="acts">' +
-            '<a class="btn btn-p" href="' + escHtml(ev.detailsUrl) + '">' +
-              '<span class="ar">→</span>Confira todos os detalhes</a>' +
-            '<a class="btn btn-g" href="' + escHtml(ev.signupUrl) + '">' + ctaDe(ev) + "</a>" +
-          "</div>" +
+          (ev.phase === "pre-inscricao" && ev.open !== false ? '<p class="note">Datas e horários ainda serão confirmados.</p>' : "") +
+          // Inscrições fechadas: o cartaz fica até o fim do evento, mas leva ao
+          // site do hackathon e ao portal de quem já se inscreveu.
+          (ev.open === false
+            ? '<p class="note">Inscrições encerradas. Os inscritos acompanham tudo pelo portal do hackathon.</p>' +
+              '<div class="acts">' +
+                '<a class="btn btn-p" href="/hack/"><span class="ar">→</span>Conheça o hackathon</a>' +
+                '<a class="btn btn-g" href="/hack/acesso">Acessar meu portal</a>' +
+              "</div>"
+            : '<div class="acts">' +
+                '<a class="btn btn-p" href="' + escHtml(ev.detailsUrl) + '">' +
+                  '<span class="ar">→</span>Confira todos os detalhes</a>' +
+                '<a class="btn btn-g" href="' + escHtml(ev.signupUrl) + '">' + ctaDe(ev) + "</a>" +
+              "</div>") +
         "</div>" +
       "</div>"
     );
@@ -586,7 +595,7 @@ footer.site .credit a{font-weight:500;display:inline-block;padding:6px 3px;min-h
       // apareceram acima. A linha do hackathon leva à página de detalhes, não
       // ao formulário: é lá que estão o manual, a trilha e o regulamento.
       idx.innerHTML = events.map(function (ev, i) {
-        var destino = ev.type === "hackathon" ? ev.detailsUrl : ev.signupUrl;
+        var destino = ev.type === "hackathon" ? (ev.open === false ? "/hack/" : ev.detailsUrl) : ev.signupUrl;
         return (
           '<a class="irow rv" style="--i:' + Math.min(i, 6) + '" href="' + escHtml(destino) + '">' +
             '<span class="k">' + escHtml(kindDe(ev)) + "</span>" +

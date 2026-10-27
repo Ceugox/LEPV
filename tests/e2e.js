@@ -594,6 +594,31 @@ test("formulário público exige os campos do IME e o evento aberto aparece na h
   await admin.del("/api/events/" + ev.id);
 });
 
+test("hackathon com inscrições fechadas continua na vitrine até o fim do evento", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  const dia = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  const ev = (await admin.post("/api/events", { type: "hackathon", title: "Hack fechado", date: dia(3), ...EV_LOCAL })).data.event;
+  const reuniao = (await admin.post("/api/events", { type: "reuniao", title: "Reunião fechada", date: dia(3), ...EV_LOCAL })).data.event;
+  await admin.post("/api/events/" + ev.id + "/signups-open", { open: false });
+  await admin.post("/api/events/" + reuniao.id + "/signups-open", { open: false });
+
+  const pub = (await client().get("/api/public-events")).data.events;
+  const hack = pub.find((e) => e.title === "Hack fechado");
+  assert(hack, "hackathon fechado fica na home");
+  eq(hack.open, false, "marcado como inscrições encerradas");
+  assert(!pub.some((e) => e.title === "Reunião fechada"), "outro tipo fechado continua saindo da home");
+
+  // Segundo dia do evento (ev.date guarda o primeiro): ainda aparece.
+  await admin.patch("/api/events/" + ev.id, { date: dia(-1) });
+  assert((await client().get("/api/public-events")).data.events.some((e) => e.title === "Hack fechado"), "aparece no segundo dia");
+  await admin.patch("/api/events/" + ev.id, { date: dia(-3) });
+  assert(!(await client().get("/api/public-events")).data.events.some((e) => e.title === "Hack fechado"), "sai depois do evento");
+
+  await admin.del("/api/events/" + ev.id);
+  await admin.del("/api/events/" + reuniao.id);
+});
+
 test("presença só vale no dia: código e QR recusam fora da data", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);

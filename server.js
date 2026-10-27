@@ -7,6 +7,7 @@ const bcrypt = require("bcryptjs");
 const ical = require("./lib/ical.js");
 const { trustProxy } = require("./lib/client-ip.js");
 const { registerHackathonRoutes } = require("./lib/hackathon");
+const { pickHackathonEvent } = require("./lib/hackathon/event");
 const QRCode = require("qrcode");
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -2730,10 +2731,19 @@ app.get("/api/event-signup/:token/materials/:materialId", (req, res) => {
 // A vitrine da home: eventos futuros com inscrições abertas, com o link do
 // formulário. É informação deliberadamente pública — o aviso existe para
 // circular fora da liga e trazer gente nova.
+//
+// Exceção: o hackathon da plataforma /hack fica na vitrine mesmo com as
+// inscrições fechadas, até o fim do segundo dia (ev.date guarda o primeiro,
+// daí a comparação com ontem). Fechar as inscrições a dias do evento não pode
+// apagar o maior evento da liga da página principal. Vai com open:false e a
+// home troca o "Garantir vaga" pelo aviso de encerradas.
 app.get("/api/public-events", (req, res) => {
   const hoje = todayBR();
-  const events = readEventsStore()
-    .events.filter((e) => e.signups.open && e.date >= hoje)
+  const ontem = new Date(Date.parse(hoje + "T12:00:00Z") - 864e5).toISOString().slice(0, 10);
+  const todos = readEventsStore().events;
+  const hack = pickHackathonEvent(todos, hoje, process.env.HACK_EVENT_ID);
+  const events = todos
+    .filter((e) => (e.signups.open && e.date >= hoje) || (e === hack && e.date >= ontem))
     .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0))
     .map((ev) => {
       const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
@@ -2751,6 +2761,7 @@ app.get("/api/public-events", (req, res) => {
         titleImage: ev.titleImageFile ? "/api/events/" + ev.id + "/title-image" : "",
         capacity: ev.signups.capacity,
         seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
+        open: !!ev.signups.open,
         signupUrl: "/inscricao.html?t=" + ev.signups.token,
         detailsUrl: "/evento.html?t=" + ev.signups.token,
       };
