@@ -7,6 +7,7 @@ const bcrypt = require("bcryptjs");
 const ical = require("./lib/ical.js");
 const { trustProxy } = require("./lib/client-ip.js");
 const { registerHackathonRoutes } = require("./lib/hackathon");
+const { pickHackathonEvent } = require("./lib/hackathon/event");
 const QRCode = require("qrcode");
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -2728,12 +2729,31 @@ app.get("/api/event-signup/:token/materials/:materialId", (req, res) => {
 });
 
 // A vitrine da home: eventos futuros com inscrições abertas, com o link do
-// formulário. É informação deliberadamente pública — o aviso existe para
-// circular fora da liga e trazer gente nova.
+// formulário, mais o hackathon da plataforma /hack (abaixo). É informação
+// deliberadamente pública — o aviso existe para circular fora da liga e
+// trazer gente nova.
+//
+// Exceção: o hackathon da plataforma /hack (o mesmo evento que a /hack usa,
+// escolhido por pickHackathonEvent) fica na vitrine mesmo com as inscrições
+// fechadas, até o fim do segundo dia: ev.date guarda o primeiro, daí a
+// comparação com ontem, a mesma folga de lib/hackathon/event.js. Sem esse
+// limite, pickHackathonEvent devolve o último hackathon mesmo quando todos já
+// passaram, e uma edição velha ficaria na home para sempre. Fechar as
+// inscrições a dias do evento não pode apagar o maior evento da liga da
+// página principal. Fechado ou já em andamento, vai com open:false (sem
+// signupUrl) e a home troca o "Garantir vaga" pelo aviso de encerradas.
+let staleHackEventWarned = false;
 app.get("/api/public-events", (req, res) => {
   const hoje = todayBR();
-  const events = readEventsStore()
-    .events.filter((e) => e.signups.open && e.date >= hoje)
+  const ontem = new Date(Date.parse(hoje + "T12:00:00Z") - 864e5).toISOString().slice(0, 10);
+  const todos = readEventsStore().events;
+  const hack = pickHackathonEvent(todos, hoje, process.env.HACK_EVENT_ID);
+  if (!hack && process.env.HACK_EVENT_ID && !staleHackEventWarned) {
+    staleHackEventWarned = true;
+    console.warn("[public-events] HACK_EVENT_ID=" + process.env.HACK_EVENT_ID + " não existe: o hackathon fechado sai da home");
+  }
+  const events = todos
+    .filter((e) => (e.signups.open && e.date >= hoje) || (e === hack && e.date >= ontem))
     .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0))
     .map((ev) => {
       const confirmed = ev.signups.list.filter((s) => s.status !== "waitlist").length;
@@ -2751,7 +2771,10 @@ app.get("/api/public-events", (req, res) => {
         titleImage: ev.titleImageFile ? "/api/events/" + ev.id + "/title-image" : "",
         capacity: ev.signups.capacity,
         seatsLeft: ev.signups.capacity ? Math.max(0, ev.signups.capacity - confirmed) : null,
-        signupUrl: "/inscricao.html?t=" + ev.signups.token,
+        // No segundo dia o evento já começou: inscrição aberta ou não, a
+        // home não oferece mais "Garantir vaga".
+        open: !!ev.signups.open && ev.date >= hoje,
+        signupUrl: ev.signups.open && ev.date >= hoje ? "/inscricao.html?t=" + ev.signups.token : null,
         detailsUrl: "/evento.html?t=" + ev.signups.token,
       };
     });

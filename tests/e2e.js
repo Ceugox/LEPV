@@ -127,6 +127,9 @@ function startServer(extraEnv) {
         PORT: String(PORT),
         RAILWAY_VOLUME_MOUNT_PATH: volumeDir,
         SESSION_SECRET: "e2e",
+        // A vitrine e a /hack escolhem o hackathon por este id quando ele
+        // existe; vindo do shell, os testes passariam a depender dele.
+        HACK_EVENT_ID: "",
         TRAVEL_ESTIMATE: "off",
         PUBLIC_FORM_MAX: "500",
         ...(extraEnv || {}),
@@ -592,6 +595,41 @@ test("formulário público exige os campos do IME e o evento aberto aparece na h
   assert(!depois.data.events.some((e) => e.title === "Visita com formulário"), "evento fechado some da home");
 
   await admin.del("/api/events/" + ev.id);
+});
+
+test("hackathon com inscrições fechadas continua na vitrine até o fim do evento", async () => {
+  const admin = client();
+  await admin.login(1, ADMIN_PASS);
+  // Datas a partir do dia de Brasília, o mesmo relógio do servidor: em UTC,
+  // das 21h à meia-noite o "segundo dia" cairia no primeiro.
+  const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const dia = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+  const ev = (await admin.post("/api/events", { type: "hackathon", title: "Hack fechado", date: dia(3), ...EV_LOCAL })).data.event;
+  const reuniao = (await admin.post("/api/events", { type: "reuniao", title: "Reunião fechada", date: dia(3), ...EV_LOCAL })).data.event;
+  await admin.post("/api/events/" + ev.id + "/signups-open", { open: false });
+  await admin.post("/api/events/" + reuniao.id + "/signups-open", { open: false });
+
+  const pub = (await client().get("/api/public-events")).data.events;
+  const hack = pub.find((e) => e.title === "Hack fechado");
+  assert(hack, "hackathon fechado fica na home");
+  eq(hack.open, false, "marcado como inscrições encerradas");
+  assert(!pub.some((e) => e.title === "Reunião fechada"), "outro tipo fechado continua saindo da home");
+
+  assert(!hack.signupUrl, "sem link para o formulário fechado");
+
+  // Segundo dia do evento (ev.date guarda o primeiro): ainda aparece, e
+  // mesmo com as inscrições reabertas não oferece vaga num evento em curso.
+  await admin.post("/api/events/" + ev.id + "/signups-open", { open: true });
+  eq((await admin.patch("/api/events/" + ev.id, { date: dia(-1) })).status, 200, "data do segundo dia gravada");
+  const noSegundo = (await client().get("/api/public-events")).data.events.find((e) => e.title === "Hack fechado");
+  assert(noSegundo, "aparece no segundo dia");
+  eq(noSegundo.open, false, "no segundo dia não oferece vaga");
+  // O dia seguinte ao fim é o primeiro em que ele sai.
+  eq((await admin.patch("/api/events/" + ev.id, { date: dia(-2) })).status, 200, "data de anteontem gravada");
+  assert(!(await client().get("/api/public-events")).data.events.some((e) => e.title === "Hack fechado"), "sai no dia seguinte ao fim");
+
+  await admin.del("/api/events/" + ev.id);
+  await admin.del("/api/events/" + reuniao.id);
 });
 
 test("presença só vale no dia: código e QR recusam fora da data", async () => {
