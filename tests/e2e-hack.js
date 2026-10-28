@@ -1380,6 +1380,7 @@ test("exclusão: só o superadmin, com o nome digitado; inscrição sai e não v
   const findZeca = async () => (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "zeca@ex.com");
   const z = await findZeca();
   assert(z, "inscrição virou pessoa no /hack");
+  eq(z.removable, true, "o painel mostra o botão pela regra do servidor");
   const url = "/hack/api/admin/people/" + z.id;
   eq((await client().raw("DELETE", url, { confirmName: "Zeca Exclusão" })).status, 401);
   eq((await S.people.ana.raw("DELETE", url, { confirmName: "Zeca Exclusão" })).status, 403, "participante não exclui");
@@ -1387,6 +1388,7 @@ test("exclusão: só o superadmin, com o nome digitado; inscrição sai e não v
   eq((await S.admin.raw("DELETE", url, {})).status, 400, "sem confirmação");
   // Jurado ou staff não se exclui: Bloquear.
   const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
+  eq(sofia.removable, false, "jurada não tem o botão");
   eq((await S.admin.raw("DELETE", "/hack/api/admin/people/" + sofia.id, { confirmName: sofia.name })).status, 409);
   const r = await S.admin.raw("DELETE", url, { confirmName: "  zeca   EXCLUSÃO " });
   eq(r.status, 200, "nome confere ignorando caixa e espaços: " + JSON.stringify(r.data));
@@ -1404,6 +1406,22 @@ test("exclusão: só o superadmin, com o nome digitado; inscrição sai e não v
   const ev2 = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
   assert(ev2.signups.some((x) => x.email === "ana@ex.com"), "inscrição continua no evento");
   assert((await S.admin.get("/hack/api/admin/people")).data.people.some((p) => p.id === ana.id), "pessoa continua no /hack");
+  eq((await S.people.ana.get("/hack/api/team")).data.resultsLocked, true, "a aba Equipe sabe que o resultado travou (esconde o renomear)");
+  // Inscrição tirada pela diretoria no painel da liga: a pessoa fica retirada
+  // no /hack, continua com o botão e a exclusão termina só no /hack.
+  eq((await client().post("/api/event-signup/" + S.signupToken, {
+    name: "Wanda Retirada", email: "wanda@ex.com", phone: "21999990078", vinculo: "UFPE", temGrupo: "Não", awareLocation: true, awareTime: true,
+  })).status, 200);
+  assert((await S.admin.get("/hack/api/admin/people")).data.people.some((p) => p.email === "wanda@ex.com"), "Wanda sincronizada no /hack");
+  const evW =(await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
+  const sw = evW.signups.find((x) => x.email === "wanda@ex.com");
+  assert(sw && sw.id, "inscrição da Wanda com id: " + JSON.stringify(sw));
+  eq((await S.admin.raw("DELETE", "/api/events/" + evW.id + "/signups/" + sw.id)).status, 200);
+  const w = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "wanda@ex.com");
+  eq(w.signupStatus, "removed");
+  eq(w.removable, true, "retirada continua com o botão");
+  eq((await S.admin.raw("DELETE", "/hack/api/admin/people/" + w.id, { confirmName: "Wanda Retirada" })).status, 200);
+  assert(!(await S.admin.get("/hack/api/admin/people")).data.people.some((p) => p.id === w.id), "retirada excluída");
 });
 
 // ================= execução =================

@@ -221,7 +221,7 @@ Aprovada pelo Marcell em 26/10, depois de grilling.
 - **Equipe:** a pessoa sai da equipe; se for a última integrante de uma equipe com entrega, a exclusão é recusada até a entrega ser desfeita.
 - **Registro:** nome, data e quem excluiu, na Visão geral do superadmin. Nada além do nome do excluído.
 - **Resultado travado:** quem está numa equipe não é excluído (a composição do pódio não muda). A recusa vem antes de mexer na inscrição do evento.
-- **Falha no meio:** se a inscrição já saiu e a gravação no /hack falhou, a pessoa fica "retirada" e a exclusão pode ser repetida.
+- **Retirada:** quem ficou "retirada" no /hack pode ser excluída, com o botão na ficha: tanto quem a diretoria tirou da lista de inscritos (decisão do Marcell em 28/10) quanto quem teve a exclusão interrompida depois de a inscrição sair. A exclusão termina só no /hack.
 
 ## Revisão 7 (28/10/2026): renomear a equipe
 

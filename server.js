@@ -3543,16 +3543,19 @@ registerHackathonRoutes(app, {
   recordFailure,
   // Exclusão de participante pelo superadmin: a inscrição sai do evento (e a
   // fila de espera anda), como no "remover inscrição" do painel da liga.
+  // "not_found" também serve: o objetivo (a inscrição não existir) já está
+  // cumprido. Evento sumido é erro de verdade e vai para o registro.
   removeEventSignup: (eventId, signupId) => {
     const data = readEventsStore();
     const ev = findEvent(data, eventId);
-    if (!ev || !ev.signups) return false;
+    if (!ev) throw new Error("removeEventSignup: evento " + eventId + " não encontrado");
+    if (!ev.signups) return "not_found";
     const antes = ev.signups.list.length;
     ev.signups.list = ev.signups.list.filter((s) => s.id !== signupId);
-    if (ev.signups.list.length === antes) return false;
+    if (ev.signups.list.length === antes) return "not_found";
     promoteFromWaitlist(ev);
     writeEvents(data);
-    return true;
+    return "removed";
   },
 });
 

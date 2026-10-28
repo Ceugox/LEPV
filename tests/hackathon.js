@@ -1592,6 +1592,9 @@ test("exclusão: só participante inscrito e sem outro papel; última da equipe 
   const half = newPerson({ name: "Meio", roles: [], signupStatus: "removed", signupId: "sr" });
   s.people.push(half);
   eq1(RM.checkRemovable(s, half.id).id, half.id, "retirada pode ser excluída de novo");
+  eq1(RM.canRemove(s, half.id), true);
+  eq1(RM.canRemove(s, ps[1].id), false, "jurado: não");
+  eq1(RM.canRemove(s, "nada"), false);
 });
 test("exclusão: apaga a pessoa e o que é dela; equipe e registro seguem certos", () => {
   const { s, ps } = teamState(3, (i) => ({ signupId: "s" + i }));

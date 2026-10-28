@@ -155,11 +155,11 @@
     openDialog('Editar ' + p.name.split(' ')[0], form, removeBlock(p));
   }
 
-  // Exclusão definitiva (só superadmin, só participante sem outro papel).
-  // Confirma digitando o nome completo; a inscrição no evento sai junto.
+  // Exclusão definitiva (só superadmin). Quem pode ser excluído o servidor
+  // diz (removable), inclusive quem ficou retirado. Confirma digitando o
+  // nome completo; a inscrição no evento sai junto.
   function removeBlock(p) {
-    const onlyParticipant = p.roles.every((r) => r === 'participant') && (p.roles.includes('participant') || p.signupStatus === 'waitlist');
-    if (!(state.perms && state.perms.superadmin) || !onlyParticipant) return null;
+    if (!(state.perms && state.perms.superadmin) || !p.removable) return null;
     const box = h('div', { style: 'margin-top:22px;padding-top:16px;border-top:1px solid var(--line)' },
       h('p.card__k', 'Excluir participante'),
       h('p.muted.small', 'Apaga a pessoa, a inscrição no evento e os dados dela na plataforma (links, presenças, dúvidas). Não tem volta. Para só tirar o acesso, use “Bloquear”.'));

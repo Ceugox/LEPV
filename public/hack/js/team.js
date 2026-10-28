@@ -140,7 +140,7 @@
       ev.preventDefault();
       act(() => api('/hack/api/team', { method: 'PATCH', body: { lookingFor: ev.target.lookingFor.value } }), 'Salvo.');
     });
-    // Qualquer integrante renomeia, confirmada ou não, até o prazo congelar.
+    // Qualquer integrante renomeia, confirmada ou não, até o prazo congelar ou o resultado ser travado.
     const rename = h('form.form',
       h('label.field', h('span', 'Nome da equipe'), h('input', { name: 'name', value: t.name, minlength: 2, maxlength: 40, required: true })),
       h('button.btn.btn--ghost.btn--sm', { type: 'submit' }, 'Renomear'));
@@ -161,7 +161,7 @@
           ? h('button.btn.btn--red.btn--sm', { type: 'button', disabled: t.size < d.min, onclick: () => act(() => api('/hack/api/team', { method: 'PATCH', body: { confirm: true } }), 'Equipe confirmada.') }, t.size < d.min ? 'Confirmar (mínimo ' + d.min + ')' : 'Confirmar equipe')
           : null,
         h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => act(() => api('/hack/api/team/leave', { method: 'POST' }), 'Você saiu da equipe.') }, 'Sair da equipe')),
-      d.locked ? null : rename,
+      d.locked || d.resultsLocked ? null : rename,
       t.open && !d.locked ? vagas : null);
   }
 
