@@ -754,33 +754,43 @@
   });
 
   // ---------- e-mail das equipes ----------
-  // Enviar só depois de ver a prévia: o botão fica travado até lá, e o
-  // segundo clique confirma com o número de pessoas na etiqueta.
-  let teamMailInfo = null;
+  // Ajuda de tela, não trava de segurança: o botão de enviar só destrava
+  // depois de "Ver prévia" nesta página. O servidor nunca reenvia para quem
+  // já recebeu, então um clique a mais não duplica e-mail.
   let teamMailTimer = null;
-  async function loadTeamMail() {
-    const r = await api('/hack/api/admin/team-emails');
-    teamMailInfo = r;
+  let teamMailPreviewed = false;
+  function renderTeamMail(r) {
     const j = r.job;
+    const last = j.crashed && !j.running
+      ? ' · último envio PAROU no meio (' + j.crashed + '): quem ficou de fora segue em "faltam"'
+      : j.finishedAt && !j.running
+      ? ' · último envio: ' + j.sent + ' enviado(s)' + (j.failed ? ', ' + j.failed + ' com falha' : '') + (j.skipped ? ', ' + j.skipped + ' pulado(s)' : '')
+      : '';
     $('team-mail-sum').textContent = !r.emailEnabled
       ? 'Envio de e-mail não configurado no servidor.'
       : j.running
         ? 'Enviando: ' + j.done + ' de ' + j.total + (j.failed ? ' · ' + j.failed + ' falha(s)' : '') + '…'
-        : r.total + ' participante(s): ' + r.withTeam + ' com equipe, ' + r.withoutTeam + ' sem equipe · faltam ' + r.pending + (r.failed ? ' · ' + r.failed + ' com falha (vão de novo)' : '');
+        : r.total + ' participante(s): ' + r.withTeam + ' com equipe, ' + r.withoutTeam + ' sem equipe · faltam ' + r.pending + (r.failed ? ' (' + r.failed + ' com falha, vão de novo)' : '') + last;
     const btn = $('team-mail-send');
-    btn.disabled = !r.emailEnabled || j.running || !r.pending || $('team-mail-sample').hidden;
+    btn.disabled = !r.emailEnabled || j.running || !r.pending || !teamMailPreviewed;
     btn.textContent = r.pending ? 'Enviar para ' + r.pending + ' pessoa(s)' : 'Todos já receberam';
     clearTimeout(teamMailTimer);
     if (j.running) teamMailTimer = setTimeout(() => loadTeamMail().catch(() => {}), 3000);
   }
+  async function loadTeamMail() {
+    const r = await api('/hack/api/admin/team-emails');
+    renderTeamMail(r);
+    return r;
+  }
   $('team-mail-preview').addEventListener('click', async () => {
     try {
-      await loadTeamMail();
+      const r = await api('/hack/api/admin/team-emails');
+      const sm = r.sample;
       const pre = $('team-mail-sample');
-      const sm = teamMailInfo.sample;
       pre.textContent = sm ? 'Para: ' + sm.to + '\nAssunto: ' + sm.subject + '\n\n' + sm.text : 'Ninguém para receber.';
       pre.hidden = false;
-      await loadTeamMail();
+      teamMailPreviewed = Boolean(sm);
+      renderTeamMail(r);
     } catch (e) { toast(e.message, true); }
   });
   $('team-mail-send').addEventListener('click', async () => {

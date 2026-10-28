@@ -1211,6 +1211,13 @@ test("e-mail das equipes: um por participante, contatos só da própria equipe, 
     if (!st.data.job.running) break;
     await new Promise((r) => setTimeout(r, 300));
   }
+  const fin = (await S.admin.get("/hack/api/admin/team-emails")).data;
+  eq(fin.job.running, false, "lote terminou");
+  eq(fin.job.done, go.data.queued);
+  eq(fin.job.sent, go.data.queued, "todos entregues");
+  eq(fin.job.failed, 0);
+  assert(fin.job.finishedAt, "fim registrado");
+  eq(fin.pending, 0, "ninguém pendente");
   const sent = mails().slice(before);
   eq(sent.length, go.data.queued, "um e-mail por pessoa");
   const teams = (await S.admin.get("/hack/api/admin/teams")).data.teams;
