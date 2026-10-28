@@ -1571,6 +1571,58 @@ test("afinidade: resultado travado bloqueia prévia e criação", () => {
   assert.throws(() => AF.apply(s, [{ name: "FGV 1", memberIds: [ps[0].id, ps[1].id] }], T0), /travado/);
 });
 
+// ---------- exclusão de participante (revisão 6 da spec) ----------
+const RM = require("../lib/hackathon/removal");
+
+test("exclusão: só participante inscrito e sem outro papel; última da equipe com entrega não", () => {
+  const { s, ps } = teamState(4, (i) => ({ signupId: "s" + i }));
+  ps[1].roles.push("judge");
+  ps[2].signupId = null;
+  assert.throws(() => RM.checkRemovable(s, "nada"), /não encontrada/);
+  assert.throws(() => RM.checkRemovable(s, ps[1].id), /Bloquear/);
+  assert.throws(() => RM.checkRemovable(s, ps[2].id), /inscritos/);
+  const t = TM.createTeam(s, ps[3].id, "Solo", T0);
+  s.submissions.push({ teamId: t.id });
+  assert.throws(() => RM.checkRemovable(s, ps[3].id), /entrega/);
+  eq1(RM.checkRemovable(s, ps[0].id).id, ps[0].id);
+  const wait = newPerson({ name: "Fila", roles: [], signupStatus: "waitlist", signupId: "sw" });
+  s.people.push(wait);
+  eq1(RM.checkRemovable(s, wait.id).id, wait.id, "fila de espera pode");
+  // Exclusão anterior apagou a inscrição e parou antes do /hack: dá para repetir.
+  const half = newPerson({ name: "Meio", roles: [], signupStatus: "removed", signupId: "sr" });
+  s.people.push(half);
+  eq1(RM.checkRemovable(s, half.id).id, half.id, "retirada pode ser excluída de novo");
+  eq1(RM.canRemove(s, half.id), true);
+  eq1(RM.canRemove(s, ps[1].id), false, "jurado: não");
+  eq1(RM.canRemove(s, "nada"), false);
+});
+test("exclusão: apaga a pessoa e o que é dela; equipe e registro seguem certos", () => {
+  const { s, ps } = teamState(3, (i) => ({ signupId: "s" + i }));
+  const t = TM.createTeam(s, ps[0].id, "Alfa", T0);
+  TM.join(s, t, ps[1].id, T0);
+  const keep = ps[2].id;
+  const gone = ps[0].id;
+  issueLoginToken(s, gone, T0);
+  issueLoginToken(s, keep, T0);
+  s.pushSubs.push({ id: "s1", personId: gone }, { id: "s2", personId: keep });
+  s.deliveries.push({ id: "d1", personId: gone }, { id: "d2", personId: keep });
+  s.checkins.push({ id: "k1", personId: gone, day: "2026-10-30" });
+  s.questions.push({ id: "q1", personId: gone, text: "?" });
+  s.invites.push({ id: "i1", kind: "invite", fromId: keep, personId: gone, status: "pending" }, { id: "i2", kind: "group", fromId: gone, personId: keep, status: "pending" });
+  s.checkinOps.push({ opId: "o1", result: { personId: gone, name: "P0" } });
+  const r = RM.removePerson(s, gone, T0, "Marcell");
+  eq1(r.signupId, "s0");
+  eq1(s.people.some((p) => p.id === gone), false);
+  for (const k of ["tokens", "pushSubs", "deliveries", "checkins", "questions"]) eq1(s[k].some((x) => x.personId === gone), false, k);
+  eq1(s.tokens.some((x) => x.personId === keep), true, "dados dos outros ficam");
+  eq1(s.invites.length, 0, "convites e indicações de/para a pessoa somem");
+  eq1(s.checkinOps[0].result.personId, null, "operação offline fica, sem a pessoa");
+  eq1(s.checkinOps[0].result.name, null);
+  assert.deepStrictEqual(s.teams[0].members, [ps[1].id], "sai da equipe; a equipe segue");
+  eq1(s.teams[0].ownerId, ps[1].id, "dono passa adiante");
+  assert.deepStrictEqual(s.removals, [{ name: "P0", at: T0.toISOString(), by: "Marcell" }]);
+});
+
 (async () => {
   for (const t of tests) {
     try {
