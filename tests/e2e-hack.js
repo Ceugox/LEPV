@@ -1196,6 +1196,37 @@ test("crédito de IA: código só chega ao participante depois do check-in", asy
   eq((await S.admin.put("/hack/api/admin/config/ai-credit", { code: CODE, redeemUrl: URL_ })).status, 200);
 });
 
+test("e-mail das equipes: um por participante, contatos só da própria equipe, sem duplicar", async () => {
+  eq((await S.c.ana.get("/hack/api/admin/team-emails")).status, 403, "participante");
+  eq((await client().post("/hack/api/admin/team-emails", {})).status, 401, "anônimo");
+  const pre = await S.admin.get("/hack/api/admin/team-emails");
+  eq(pre.status, 200);
+  assert(pre.data.total > 0 && pre.data.sample && pre.data.sample.subject, "prévia");
+  const before = mails().length;
+  const go = await S.admin.post("/hack/api/admin/team-emails", {});
+  eq(go.status, 202);
+  eq(go.data.queued, pre.data.pending);
+  for (let i = 0; i < 100; i++) {
+    const st = await S.admin.get("/hack/api/admin/team-emails");
+    if (!st.data.job.running) break;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  const sent = mails().slice(before);
+  eq(sent.length, go.data.queued, "um e-mail por pessoa");
+  const teams = (await S.admin.get("/hack/api/admin/teams")).data.teams;
+  const mine = teams.find((t) => t.members.some((m) => m.email === "ana@ex.com"));
+  const anaMail = sent.find((m) => m.to === "ana@ex.com");
+  assert(anaMail && anaMail.subject.includes(mine.name), "assunto com o nome da equipe");
+  for (const m of mine.members.filter((x) => x.email !== "ana@ex.com")) assert(anaMail.text.includes(m.email), "contato do colega " + m.email);
+  for (const t of teams.filter((x) => x.id !== mine.id)) {
+    for (const m of t.members) assert(!anaMail.text.includes(m.email), "contato de outra equipe vazou: " + m.email);
+  }
+  assert(/Sexta, 30\/10/.test(anaMail.text) && /Submissão dos projetos/.test(anaMail.text), "programação no e-mail");
+  assert(anaMail.html.includes("/hack/portal"), "botão para o portal");
+  const again = await S.admin.post("/hack/api/admin/team-emails", {});
+  eq(again.data.queued, 0, "segundo clique não reenvia");
+});
+
 test("credenciamento: offline sincroniza sem duplicar, com aparelho revogável", async () => {
   const p1 = await S.admin.post("/hack/api/checkin/prepare", { label: "celular 1" });
   eq(p1.status, 200);

@@ -753,6 +753,44 @@
     } catch (e) { toast(e.message, true); }
   });
 
+  // ---------- e-mail das equipes ----------
+  // Enviar só depois de ver a prévia: o botão fica travado até lá, e o
+  // segundo clique confirma com o número de pessoas na etiqueta.
+  let teamMailInfo = null;
+  let teamMailTimer = null;
+  async function loadTeamMail() {
+    const r = await api('/hack/api/admin/team-emails');
+    teamMailInfo = r;
+    const j = r.job;
+    $('team-mail-sum').textContent = !r.emailEnabled
+      ? 'Envio de e-mail não configurado no servidor.'
+      : j.running
+        ? 'Enviando: ' + j.done + ' de ' + j.total + (j.failed ? ' · ' + j.failed + ' falha(s)' : '') + '…'
+        : r.total + ' participante(s): ' + r.withTeam + ' com equipe, ' + r.withoutTeam + ' sem equipe · faltam ' + r.pending + (r.failed ? ' · ' + r.failed + ' com falha (vão de novo)' : '');
+    const btn = $('team-mail-send');
+    btn.disabled = !r.emailEnabled || j.running || !r.pending || $('team-mail-sample').hidden;
+    btn.textContent = r.pending ? 'Enviar para ' + r.pending + ' pessoa(s)' : 'Todos já receberam';
+    clearTimeout(teamMailTimer);
+    if (j.running) teamMailTimer = setTimeout(() => loadTeamMail().catch(() => {}), 3000);
+  }
+  $('team-mail-preview').addEventListener('click', async () => {
+    try {
+      await loadTeamMail();
+      const pre = $('team-mail-sample');
+      const sm = teamMailInfo.sample;
+      pre.textContent = sm ? 'Para: ' + sm.to + '\nAssunto: ' + sm.subject + '\n\n' + sm.text : 'Ninguém para receber.';
+      pre.hidden = false;
+      await loadTeamMail();
+    } catch (e) { toast(e.message, true); }
+  });
+  $('team-mail-send').addEventListener('click', async () => {
+    try {
+      const r = await api('/hack/api/admin/team-emails', { method: 'POST', body: {} });
+      toast('Envio iniciado para ' + r.queued + ' pessoa(s).');
+      await loadTeamMail();
+    } catch (e) { toast(e.message, true); }
+  });
+
   // ---------- crédito de IA ----------
   // Salvar só depois de carregar o valor atual: com a carga falhando, os
   // campos vazios seriam gravados como "desligar" e o código sumiria do portal.
@@ -1068,7 +1106,7 @@
   }
 
   // ---------- carga ----------
-  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });

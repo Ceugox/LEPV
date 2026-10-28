@@ -1677,6 +1677,40 @@ test("crédito de IA: check-in sem código cadastrado não libera nada; apagar o
   eq1(AI.creditFor(s, ana).code, undefined);
 });
 
+test("e-mail da equipe: colegas com contato, o próprio sem; outra equipe fora; sem equipe recebe programação", () => {
+  const TMAIL = require("../lib/hackathon/team-mail");
+  const s = emptyState();
+  seedProgram(s);
+  const mk = (name, email, phone, extra) => Object.assign(newPerson({ name, email }), { roles: ["participant"], phone, vinculo: "FGV", curso: "Administração", anoFaculdade: "3" }, extra || {});
+  const ana = mk("Ana Lima", "ana@ex.com", "21988887777", { profile: { skills: ["Python", "Design"] } });
+  const bia = mk("Bia Souza", "bia@ex.com", "21977776666");
+  const caio = mk("Caio Reis", "caio@ex.com", "21966665555");
+  const solo = mk("Dani Solo", "dani@ex.com", "");
+  const juri = Object.assign(newPerson({ name: "Juri", email: "j@ex.com" }), { roles: ["judge"] });
+  const off = mk("Bloqueado", "off@ex.com", "", { disabled: true });
+  s.people.push(ana, bia, caio, solo, juri, off);
+  s.teams.push({ id: "t1", name: "Alfa", members: [ana.id, bia.id], ownerId: ana.id, status: "confirmed" },
+    { id: "t2", name: "Beta", members: [caio.id], ownerId: caio.id, status: "forming" });
+  assert.deepStrictEqual(TMAIL.teamEmailTargets(s).map((p) => p.name), ["Ana Lima", "Bia Souza", "Caio Reis", "Dani Solo"], "só participante ativo com e-mail");
+  const m = TMAIL.teamEmail(s, ana);
+  eq1(m.hasTeam, true);
+  eq1(m.subject, "Sua equipe no 1º Hackathon LEPV: Alfa");
+  assert(m.text.includes("bia@ex.com") && m.text.includes("(21) 97777-6666"), "contato da colega");
+  assert(!m.text.includes("ana@ex.com") && !m.text.includes("98888-7777"), "o próprio contato não aparece");
+  assert(!m.text.includes("caio@ex.com"), "outra equipe fora");
+  assert(m.text.includes("Habilidades: Python, Design") && m.text.includes("FGV · Administração · 3º ano"), "dados acadêmicos e habilidades");
+  assert(/Sexta, 30\/10 · FGV/.test(m.text) && m.text.includes("14h30–15h10  Recepção e credenciamento"), "programação com horários");
+  assert(m.text.includes("13h  Submissão dos projetos"), "submissão");
+  assert(m.text.includes("aba IA"), "crédito de IA lembrado");
+  const beta = TMAIL.teamEmail(s, caio);
+  assert(beta.paragraphs.some((p) => /em formação, com 1 integrante/.test(p)), "equipe pequena avisada");
+  const d = TMAIL.teamEmail(s, solo);
+  eq1(d.hasTeam, false);
+  eq1(d.facts.length, 0);
+  assert(!d.text.includes("@ex.com"), "sem equipe não recebe contato de ninguém");
+  assert(d.text.includes("Submissão dos projetos"), "sem equipe recebe a programação");
+});
+
 (async () => {
   for (const t of tests) {
     try {

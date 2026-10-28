@@ -238,3 +238,12 @@ Aprovada pelo Marcell em 28/10, depois de grilling. Fonte: o guia da Featherless
 - **Onde fica o código:** o repositório é público, então código e link vivem no volume (`config.aiCredit`), cadastrados pela diretoria no painel (Programação → Crédito de IA). Os dois campos vazios desligam. Nada do código entra em arquivo servido pelo site.
 - **Sem aviso automático:** o portal mostra o código quando a pessoa abre a aba; o credenciador pode dizer "abra a aba IA". O aviso na central fica com o Marcell.
 - **Limite conhecido:** o código é um só para todo mundo. A liberação controla quem recebe pelo portal, mas não impede que alguém o repasse.
+
+## Revisão 9 (28/10/2026): e-mail das equipes
+
+Aprovada pelo Marcell em 28/10.
+
+- **Botão no painel** (Equipes → "E-mail das equipes", perm `manage`): prévia obrigatória antes de enviar; um e-mail por participante confirmado com e-mail, em segundo plano, um por vez. Resultado em `lastTeamEmail` de cada pessoa; por padrão vai só para quem ainda não recebeu (clicar de novo não duplica; falha vai de novo).
+- **Com equipe:** nome da equipe no assunto; cada integrante com instituição, curso, ano e habilidades; **e-mail e WhatsApp dos colegas** (decisão do Marcell: os contatos vão só para quem está na mesma equipe; o próprio contato não aparece). Equipe em formação ou não confirmada é avisada.
+- **Sem equipe:** a programação e como entrar numa equipe (aba Equipe; quem sobrar é encaixado na sexta). Nenhum contato de ninguém.
+- **Todos:** programação dos dois dias tirada da programação do painel (horários e locais atuais), QR da aba Início na entrada e crédito de IA na aba IA após o check-in. Botão "Abrir meu portal".
