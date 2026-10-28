@@ -720,6 +720,13 @@ test("equipes: pedido aceito por integrante lota a equipe; código não passa de
   eq((await S.c.ana.patch("/hack/api/team", { removeMember: anaId })).status, 400, "dono usa Sair");
   eq((await S.c.ana.patch("/hack/api/team", { confirm: false })).data.team.status, "forming");
   eq((await S.c.ana.patch("/hack/api/team", { confirm: true })).data.team.status, "confirmed");
+  // Confirmada, qualquer integrante renomeia e a equipe continua confirmada.
+  const ren = await S.c.bruno.patch("/hack/api/team", { name: "Alfa Renomeada" });
+  eq(ren.status, 200);
+  eq(ren.data.team.name, "Alfa Renomeada");
+  eq(ren.data.team.status, "confirmed", "renomear não desconfirma");
+  eq((await S.c.bruno.patch("/hack/api/team", { name: "x" })).status, 400, "nome curto");
+  eq((await S.c.bruno.patch("/hack/api/team", { name: S.alfa.name })).data.team.name, S.alfa.name);
 });
 
 test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", async () => {
