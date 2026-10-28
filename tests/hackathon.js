@@ -1712,6 +1712,8 @@ test("e-mail da equipe: colegas com contato, o próprio sem; outra equipe fora; 
   eq1(TMAIL.phoneText("21977776666"), "(21) 97777-6666");
   eq1(TMAIL.phoneText("+351 912 345 678"), "+351912345678", "número de fora não vira brasileiro");
   eq1(TMAIL.phoneText("123"), "");
+  eq1(TMAIL.phoneText("+1 202 555 0123"), "+12025550123", "+1 com 11 dígitos não vira (12)");
+  eq1(TMAIL.phoneText("+55 21 97777-6666"), "(21) 97777-6666");
   const d = TMAIL.teamEmail(s, solo);
   eq1(d.hasTeam, false);
   eq1(d.facts.length, 0);

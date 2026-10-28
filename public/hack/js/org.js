@@ -761,7 +761,9 @@
   let teamMailPreviewed = false;
   function renderTeamMail(r) {
     const j = r.job;
-    const last = j.finishedAt && !j.running
+    const last = j.crashed && !j.running
+      ? ' · último envio PAROU no meio (' + j.crashed + '): quem ficou de fora segue em "faltam"'
+      : j.finishedAt && !j.running
       ? ' · último envio: ' + j.sent + ' enviado(s)' + (j.failed ? ', ' + j.failed + ' com falha' : '') + (j.skipped ? ', ' + j.skipped + ' pulado(s)' : '')
       : '';
     $('team-mail-sum').textContent = !r.emailEnabled
