@@ -638,6 +638,7 @@ test("pilares: trava em 1 limita Tech a 1,0", () => {
   scoreAll(st, st.teams[0], { tech: [1, 5] });
   // Sem trava seria (0 + 1)/2 * 2,5 = 1,25; com trava, 1,0.
   eq1(rowOf(st.s, st.teams[0]).pillars.tech.score, 1);
+  eq1(rowOf(st.s, st.teams[0]).belowFloor, false, "1,0 exato passa no piso");
 });
 test("pilares: abaixo do piso fica atrás de quem passa, mesmo com nota maior; top 5 sugerido", () => {
   const st = pillarState(7);
@@ -805,6 +806,23 @@ test("critério: editar mantém as âncoras; escala menor corta as que sobram", 
   eq1(c.anchors.length, 6, "edição sem âncoras mantém as atuais");
   EV.updateCriterion(s, c.id, { scaleMax: 5 });
   eq1(c.anchors.join(""), "abcde");
+});
+test("final: fase 1 congela ao abrir a final (impedimento e jurado desativado não mexem)", () => {
+  const st = pillarState(4);
+  const { s, judges, teams } = st;
+  scoreAll(st, teams[0]);
+  scoreAll(st, teams[1], { innovation: 4 });
+  scoreAll(st, teams[2], { innovation: 3 });
+  scoreAll(st, teams[3], { innovation: 2 });
+  EV.setFinalists(s, [teams[0].id, teams[1].id]);
+  EV.setPhase(s, "final");
+  const before = EV.percentileOf(s, teams[3].id).top;
+  EV.setConflict(s, judges[1].id, teams[0].id, true, T0);
+  eq1(s.scores.filter((x) => x.teamId === teams[0].id && x.phase === "main").length, 3, "nota da fase 1 fica");
+  judges[2].disabled = true;
+  eq1(EV.percentileOf(s, teams[3].id).top, before);
+  EV.setPhase(s, "main");
+  eq1(s.config.evaluation.mainSnapshot, null);
 });
 test("percentil: só para não finalista, depois que a final abre", () => {
   const st = pillarState(4);

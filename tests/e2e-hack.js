@@ -1013,6 +1013,18 @@ test("avaliação: jurados dão nota, cada um vê só a sua; impedido não pontu
   eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "R".repeat(4100) })).status, 200);
   eq((await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id).summary.length, 4000);
   eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "Resumo-da-Gama para a banca" })).status, 200);
+  // Integrante que também é jurado: vê a própria equipe impedida e sem o resumo.
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.alfa.id, { summary: "Resumo-da-Alfa-secreto" })).status, 200);
+  const anaId = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "ana@ex.com").id;
+  eq((await S.admin.patch("/hack/api/admin/people/" + anaId, { roles: { judge: true } })).status, 200);
+  const anaJ = await (await enterAs("ana@ex.com")).get("/hack/api/judge");
+  eq(anaJ.status, 200);
+  const own = anaJ.data.teams.find((t) => t.team.id === S.alfa.id);
+  eq(own.conflict, true);
+  assert(!JSON.stringify(anaJ.data).includes("Resumo-da-Alfa-secreto"), "resumo da própria equipe não vaza");
+  eq(anaJ.data.teams.find((t) => t.team.id === S.gama.id).summary, "Resumo-da-Gama para a banca");
+  eq((await S.admin.patch("/hack/api/admin/people/" + anaId, { roles: { judge: false } })).status, 200);
+  S.c.ana = await enterAs("ana@ex.com");
   eq((await S.c.julia.get("/hack/api/submissions/" + S.alfa.id + "/slides")).status, 200, "com a avaliação aberta a banca vê os slides");
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, score(6, 5))).status, 400, "fora da escala");
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, Object.assign(score(5, 10), { comment: "ótimo pitch" }))).status, 200);
