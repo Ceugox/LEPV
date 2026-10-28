@@ -16,6 +16,9 @@ data/event-photos/
 data/avatars/
 data/sessions.json
 data/access-log.json
+# hackathon: estado (tokens, contatos, código do crédito de IA) e slides
+data/hackathon.json
+data/hack-submissions/
 # cópias de segurança da escrita atômica dos stores
 *.json.bak
 *.json.tmp

@@ -196,6 +196,16 @@
   </section>
 
   <section class="panel" data-panel="programacao" aria-label="Programação" hidden>
+    <form class="card form" id="form-ai-credit" style="margin-bottom:18px">
+      <p class="card__k">Crédito de IA (Featherless)</p>
+      <p class="muted small">O participante vê o código na aba IA do portal só depois do check-in validado. Fica guardado no servidor, fora do repositório. Deixe os dois campos vazios para desligar.</p>
+      <div class="row">
+        <label class="field" style="flex:1 1 180px"><span>Código promocional</span><input id="ai-code" maxlength="40" autocomplete="off" spellcheck="false"></label>
+        <label class="field" style="flex:3 1 320px"><span>Link de resgate (https://)</span><input id="ai-url" type="url" maxlength="300" autocomplete="off"></label>
+        <button class="btn btn--red btn--sm" type="submit" style="align-self:flex-end">Salvar crédito</button>
+      </div>
+      <p class="muted small" id="ai-sum"></p>
+    </form>
     <div class="row" style="margin-bottom:16px"><button class="btn btn--red btn--sm" type="button" id="add-atividade">Adicionar atividade</button></div>
     <div class="grid grid--2" id="prog-grid"></div>
   </section>

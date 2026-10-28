@@ -492,6 +492,7 @@ test("permissões: toda rota da organização recusa anônimo (401) e participan
     ["POST", "/hack/api/checkin/person/x"], ["POST", "/hack/api/checkin/prepare"], ["POST", "/hack/api/checkin/snapshot"],
     ["POST", "/hack/api/checkin/sync"], ["PUT", "/hack/api/admin/venues/2026-10-30"],
     ["PUT", "/hack/api/admin/submissions/x"], ["DELETE", "/hack/api/admin/submissions/x"],
+    ["GET", "/hack/api/admin/config/ai-credit"], ["PUT", "/hack/api/admin/config/ai-credit"],
   ];
   const anon = client();
   const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
@@ -1147,6 +1148,54 @@ test("credenciamento: busca manual e registro sem QR", async () => {
   assert(again.data.people.find((p) => p.id === carla.id).checkin, "agora com entrada");
 });
 
+test("crédito de IA: código só chega ao participante depois do check-in", async () => {
+  const CODE = "CODIGO-TESTE-26";
+  const URL_ = "https://featherless.example/join/CODIGO-TESTE-26";
+  S.c.bruno = await enterAs("bruno@ex.com"); // sessão anterior caiu num reinício
+  eq((await S.admin.put("/hack/api/admin/config/ai-credit", { code: "a b" })).status, 400, "código inválido");
+  const put = await S.admin.put("/hack/api/admin/config/ai-credit", { code: CODE, redeemUrl: URL_ });
+  eq(put.status, 200, JSON.stringify(put.data));
+  const cfg = await S.admin.get("/hack/api/admin/config/ai-credit");
+  eq(cfg.data.code, CODE);
+  eq(cfg.data.released, 2, "Ana e Carla já passaram pelo credenciamento");
+  // Ana tem check-in (teste anterior): recebe código e link.
+  const ana = await S.c.ana.get("/hack/api/ai-credit");
+  eq(ana.status, 200);
+  eq(ana.data.released, true);
+  eq(ana.data.code, CODE);
+  eq(ana.data.redeemUrl, URL_);
+  // Bruno é participante sem check-in: nada do código na resposta.
+  const bruno = await S.c.bruno.get("/hack/api/ai-credit");
+  eq(bruno.status, 200);
+  eq(bruno.data.released, false);
+  eq(JSON.stringify(bruno.data).includes(CODE), false, "código vazou antes do check-in");
+  // Jurada não tem a aba nem a rota.
+  eq((await S.c.julia.get("/hack/api/ai-credit")).status, 403);
+  eq((await client().get("/hack/api/ai-credit")).status, 401);
+  // O código não está em nenhum arquivo servido pelo site.
+  for (const u of ["/hack/portal", "/hack/js/ia.js", "/hack/js/portal.js", "/hack/organizacao", "/hack/js/org.js"]) {
+    const r = await client().raw("GET", u);
+    eq(String(r.data).includes(CODE), false, "código em " + u);
+  }
+  // Desfazer o check-in da Ana oculta o código de novo.
+  const sr = await S.admin.get("/hack/api/checkin/search?q=ana&day=2026-10-30");
+  const anaRow = sr.data.people.find((p) => p.name.startsWith("Ana"));
+  eq((await S.admin.del("/hack/api/checkin/" + anaRow.checkin.id)).status, 200);
+  const hidden = await S.c.ana.get("/hack/api/ai-credit");
+  eq(hidden.data.released, false);
+  eq(hidden.data.code, undefined);
+  // Novo check-in libera de volta (o resto da suíte conta com a Ana credenciada).
+  eq((await S.admin.post("/hack/api/checkin/scan", { code: qrOf("ana@ex.com"), day: "2026-10-30" })).data.status, "ok");
+  eq((await S.c.ana.get("/hack/api/ai-credit")).data.code, CODE);
+  // Apagar o código é a revogação (vazou): sai do portal na hora, sem sobrar do valor antigo.
+  eq((await S.admin.put("/hack/api/admin/config/ai-credit", { code: "", redeemUrl: "" })).status, 200);
+  const off = await S.c.ana.get("/hack/api/ai-credit");
+  eq(off.data.released, false);
+  eq(JSON.stringify(off.data).includes(CODE), false, "código revogado ainda aparece");
+  eq((await S.admin.get("/hack/api/admin/config/ai-credit")).data.redeemUrl, "", "link também sai");
+  eq((await S.admin.put("/hack/api/admin/config/ai-credit", { code: CODE, redeemUrl: URL_ })).status, 200);
+});
+
 test("credenciamento: offline sincroniza sem duplicar, com aparelho revogável", async () => {
   const p1 = await S.admin.post("/hack/api/checkin/prepare", { label: "celular 1" });
   eq(p1.status, 200);
@@ -1164,6 +1213,8 @@ test("credenciamento: offline sincroniza sem duplicar, com aparelho revogável",
   eq(s2.data.results[0].status, "duplicate", "segundo aparelho não dobra");
   const count = storeState().checkins.filter((c) => c.day === "2026-10-31" && c.personId === s1.data.results[0].personId).length;
   eq(count, 1);
+  // Entrada lida offline e sincronizada também libera o crédito de IA.
+  eq((await S.c.bruno.get("/hack/api/ai-credit")).data.code, "CODIGO-TESTE-26", "check-in offline libera o código");
   eq((await S.admin.post("/hack/api/checkin/sync", { deviceId: p1.data.deviceId, deviceToken: "errado", ops: [] })).status, 401);
   eq((await S.admin.post("/hack/api/admin/devices/" + p2.data.deviceId + "/revoke")).status, 200);
   eq((await S.admin.post("/hack/api/checkin/sync", { deviceId: p2.data.deviceId, deviceToken: p2.data.deviceToken, ops: [] })).status, 401, "revogado");
