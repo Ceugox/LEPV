@@ -731,6 +731,61 @@ test("final: estado travado antes do desempate por fase usa o da fase 1", () => 
   EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 5, 1), T0);
   eq1(rowOf(s, teams[0]).tiebreak, 100);
 });
+test("final: sem pilares, critério só da fase 1 também não trava sem critério da final", () => {
+  const { s } = evalState(1);
+  EV.addCriterion(s, { name: "Só fase 1", phase: "main" });
+  assert.throws(() => EV.lockCriteria(s, true), /critérios da final/);
+  EV.addCriterion(s, { name: "Pitch", phase: "final" });
+  EV.lockCriteria(s, true);
+});
+test("pilares: desempate também ignora quem deixou o pilar do critério", () => {
+  const st = pillarState(1);
+  const { s, judges, teams } = st;
+  scoreAll(st, teams[0], { tech: [5, 5] });
+  eq1(rowOf(s, teams[0]).tiebreak, 100);
+  EV.setJudgePillars(s, judges[0].id, ["innovation"]);
+  eq1(rowOf(s, teams[0]).tiebreak, null);
+});
+test("pilares: jurado sem critério na fase é recusado; progresso exige cobrir os critérios atuais", () => {
+  const st = pillarState(1);
+  const { s, judges, teams, c } = st;
+  EV.setJudgePillars(s, judges[2].id, []);
+  assert.throws(() => EV.submitScore(s, judges[2].id, teams[0].id, { values: {} }, T0), /nenhum critério/);
+  eq1(EV.judgeProgress(s, judges[2].id).has, false);
+  EV.submitScore(s, judges[1].id, teams[0].id, { values: { [c.thesis.id]: 4, [c.orig.id]: 4 } }, T0);
+  eq1(EV.judgeProgress(s, judges[1].id).done, 1);
+  EV.setJudgePillars(s, judges[1].id, ["business", "innovation", "education"]);
+  eq1(EV.judgeProgress(s, judges[1].id).done, 0, "ganhou Educação: volta a ficar pendente");
+  eq1(EV.scoreCovers(s, s.scores[0]), false);
+});
+test("banca: resumo nunca para integrante da equipe; resultado da equipe", () => {
+  const st = pillarState(3);
+  const { s, judges, teams } = st;
+  eq1(EV.summaryVisibleTo(s, teams[0].id, teams[0].members[0]), false);
+  eq1(EV.summaryVisibleTo(s, teams[0].id, judges[0].id), true);
+  for (const t of teams) scoreAll(st, t);
+  eq1(EV.teamResult(s, teams[2].id).percentile, null, "antes da final");
+  EV.setFinalists(s, [teams[0].id, teams[1].id]);
+  EV.setPhase(s, "final");
+  const fin = EV.teamResult(s, teams[0].id);
+  eq1(fin.finalist, true);
+  eq1(fin.percentile, null);
+  eq1(EV.teamResult(s, teams[2].id).percentile.teams, 3);
+  eq1(EV.teamResult(s, null).percentile, null);
+});
+test("pódio: resultado travado antes do campo finalist usa a lista de finalistas", () => {
+  const st = pillarState(3);
+  const { s, judges, teams, c } = st;
+  for (const t of teams) scoreAll(st, t);
+  EV.setFinalists(s, [teams[0].id, teams[1].id]);
+  EV.setPhase(s, "final");
+  EV.submitScore(s, judges[1].id, teams[0].id, { values: { [c.demo.id]: 5, [c.team.id]: 5 } }, T0);
+  EV.submitScore(s, judges[1].id, teams[1].id, { values: { [c.demo.id]: 4, [c.team.id]: 4 } }, T0);
+  EV.lockResults(s, true, T0);
+  s.config.evaluation.lockedRanking.forEach((r) => delete r.finalist);
+  EV.reveal(s, T0);
+  eq1(EV.podium(s).length, 2);
+});
 test("percentil: só para não finalista, depois que a final abre", () => {
   const st = pillarState(4);
   const { s, teams } = st;

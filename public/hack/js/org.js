@@ -857,7 +857,12 @@
       evalState = await api('/hack/api/admin/evaluation', { method: 'POST', body });
       if (ok) toast(ok);
       renderEval();
-    } catch (e) { toast(e.message, true); }
+      return true;
+    } catch (e) {
+      toast(e.message, true);
+      if (evalState) renderEval();
+      return false;
+    }
   }
   async function loadEval() {
     evalState = await api('/hack/api/admin/evaluation');
@@ -944,7 +949,8 @@
   }
 
   function critDialog(x) {
-    x = x || { name: '', description: '', weight: 1, scaleMax: 5, phase: 'main', pillar: null, gate: false, anchors: [] };
+    // Sem pilar, o padrão é valer nas duas fases (como antes); com pilar, só fase 1.
+    x = x || { name: '', description: '', weight: 1, scaleMax: 5, phase: 'both', pillar: null, gate: false, anchors: [] };
     const pillars = evalState.config.pillars;
     const anchors = x.anchors || [];
     const form = h('form.form',
@@ -955,7 +961,7 @@
           h('option', { value: 'main', selected: x.phase === 'main' }, 'Fase 1 (entregáveis)'),
           h('option', { value: 'final', selected: x.phase === 'final' }, 'Final (pitch)'),
           h('option', { value: 'both', selected: !x.phase || x.phase === 'both' }, 'As duas'))),
-        h('label.field', h('span', 'Pilar (só fase 1)'), h('select', { name: 'pillar' },
+        h('label.field', h('span', 'Pilar (só fase 1)'), h('select', { name: 'pillar', onchange: (ev) => { if (ev.target.value) ev.target.form.phase.value = 'main'; } },
           h('option', { value: '' }, 'Sem pilar (todos os jurados)'),
           pillars.map((p) => h('option', { value: p.id, selected: x.pillar === p.id }, p.label))))),
       h('div.form-grid',
@@ -963,18 +969,18 @@
         h('label.field', h('span', 'Escala'), h('select', { name: 'scaleMax' },
           h('option', { value: 5, selected: x.scaleMax === 5 }, '1 a 5'), h('option', { value: 10, selected: x.scaleMax === 10 }, '1 a 10')))),
       h('label.check', h('input', { type: 'checkbox', name: 'gate', checked: Boolean(x.gate) }), h('span', 'Trava: nota 1 limita o pilar a 1,0')),
-      h('div.field', h('span', 'Âncoras: o que significa cada nota (escala 1 a 5)'),
+      h('div.field', h('span', 'Âncoras: o que significa cada nota (de 1 a 5)'),
         [0, 1, 2, 3, 4].map((i) => h('label.field', h('span', 'Nota ' + (i + 1)), h('input', { name: 'anchor' + i, value: anchors[i] || '', maxlength: 160 })))),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));
-    form.addEventListener('submit', (ev) => {
+    form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const f = ev.target;
-      dlg.close();
-      evalAction({
+      const saved = await evalAction({
         action: x.id ? 'updateCriterion' : 'addCriterion', id: x.id, name: f.name.value, description: f.description.value,
         weight: Number(f.weight.value), scaleMax: Number(f.scaleMax.value), phase: f.phase.value, pillar: f.pillar.value || null,
-        gate: f.gate.checked, anchors: Number(f.scaleMax.value) === 5 ? [0, 1, 2, 3, 4].map((i) => f['anchor' + i].value) : [],
+        gate: f.gate.checked, anchors: [0, 1, 2, 3, 4].map((i) => f['anchor' + i].value),
       }, 'Critério salvo.');
+      if (saved) dlg.close();
     });
     openDialog(x.id ? 'Editar critério' : 'Novo critério', form);
   }

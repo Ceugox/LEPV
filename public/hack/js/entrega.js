@@ -78,7 +78,7 @@
       !confirmed ? h('p', 'Confirme a equipe (2 a 4 pessoas, aba Equipe) para liberar a entrega.') : null,
       form));
     out.push(h('article.card', h('p.card__k', 'Apresentação'), upload));
-    const res = await api('/hack/api/team/result').catch(() => null);
+    const res = await api('/hack/api/team/result').catch((e) => { if (e.status !== 401) toast('Resultado da fase 1 indisponível: ' + e.message, true); return null; });
     if (res && res.percentile) {
       out.unshift(h('article.card.card--red', h('p.card__k', 'Resultado da fase 1'),
         h('h3.card__title', 'Sua equipe ficou entre as ' + res.percentile.top + '% primeiras'),
@@ -126,7 +126,7 @@
     } }, t.conflict ? 'Retirar impedimento' : 'Estou impedido(a)');
     const card = h('article.card',
       h('div.row', { style: 'margin-bottom:8px' },
-        t.conflict ? h('span.badge.badge--err', 'Impedido(a)') : t.myScore ? h('span.badge.badge--ok', 'Avaliada') : h('span.badge.badge--warn', 'Pendente'),
+        t.conflict ? h('span.badge.badge--err', 'Impedido(a)') : t.myScore && t.myScore.complete ? h('span.badge.badge--ok', 'Avaliada') : h('span.badge.badge--warn', t.myScore ? 'Falta critério' : 'Pendente'),
         h('span.muted.small', t.team.size + ' pessoas')),
       h('h3.card__title', (t.projectName || t.team.name) + (t.projectName ? ' · ' + t.team.name : '')),
       t.description ? h('p', t.description) : null,
