@@ -27,13 +27,15 @@
       h('label.field', h('span', 'Nome do projeto'), h('input', { name: 'projectName', value: sub.projectName, maxlength: 80, disabled: !editable })),
       h('label.field', h('span', 'Link do repositório (obrigatório)'), h('input', { name: 'repoUrl', type: 'url', value: sub.repoUrl, placeholder: 'https://github.com/...', disabled: !editable })),
       h('label.field', h('span', 'Link do vídeo ou demo (opcional)'), h('input', { name: 'videoUrl', type: 'url', value: sub.videoUrl, placeholder: 'https://...', disabled: !editable })),
+      h('label.field', h('span', 'Link da solução no ar (opcional)'), h('input', { name: 'deployUrl', type: 'url', value: sub.deployUrl || '', placeholder: 'https://...', disabled: !editable })),
+      h('p.small.muted', 'Na fase 1, o repositório é lido e pontuado em Tech por um agente de IA (se a solução roda, organização do código e como a equipe conduziu a IA). Com o link no ar, ele testa a solução por ali.'),
       h('label.field', h('span', 'Descrição (até 500 caracteres)'), h('textarea', { name: 'description', maxlength: 500, disabled: !editable }, sub.description)),
       editable ? h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar entrega') : null);
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const f = ev.target;
       try {
-        await api('/hack/api/team/submission', { method: 'PUT', body: { projectName: f.projectName.value, repoUrl: f.repoUrl.value, videoUrl: f.videoUrl.value, description: f.description.value } });
+        await api('/hack/api/team/submission', { method: 'PUT', body: { projectName: f.projectName.value, repoUrl: f.repoUrl.value, videoUrl: f.videoUrl.value, deployUrl: f.deployUrl.value, description: f.description.value } });
         toast('Entrega salva.');
         renderSubmission(box);
       } catch (e) { toast(e.message, true); }
@@ -76,6 +78,14 @@
       !confirmed ? h('p', 'Confirme a equipe (2 a 4 pessoas, aba Equipe) para liberar a entrega.') : null,
       form));
     out.push(h('article.card', h('p.card__k', 'Apresentação'), upload));
+    const res = await api('/hack/api/team/result').catch(() => null);
+    if (res && res.percentile) {
+      out.unshift(h('article.card.card--red', h('p.card__k', 'Resultado da fase 1'),
+        h('h3.card__title', 'Sua equipe ficou entre as ' + res.percentile.top + '% primeiras'),
+        h('p.muted', 'Entre ' + res.percentile.teams + ' equipes avaliadas na fase 1. As finalistas apresentam agora.')));
+    } else if (res && res.finalist) {
+      out.unshift(h('article.card.card--red', h('p.card__k', 'Resultado da fase 1'), h('h3.card__title', 'Sua equipe está na final'), h('p.muted', 'Prepare o pitch.')));
+    }
     clear(box).append(...out);
   }
 
@@ -102,10 +112,13 @@
     clear(box).append(...out);
   }
 
+  const pillarLabel = (d, id) => ((d.pillars || []).find((p) => p.id === id) || {}).label || id;
+
   function teamCard(d, t, box) {
     const links = h('p.small',
       t.repoUrl ? h('a', { href: t.repoUrl, target: '_blank', rel: 'noopener' }, 'Repositório ↗') : null, ' ',
       t.videoUrl ? h('a', { href: t.videoUrl, target: '_blank', rel: 'noopener' }, ' · Vídeo/demo ↗') : null, ' ',
+      t.deployUrl ? h('a', { href: t.deployUrl, target: '_blank', rel: 'noopener' }, ' · Solução no ar ↗') : null, ' ',
       t.slides ? h('a', { href: t.slides.url, target: '_blank', rel: 'noopener' }, ' · Slides (PDF) ↗') : null);
     const conflictBtn = h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: async () => {
       try { await api('/hack/api/judge/conflicts/' + t.team.id, { method: 'POST', body: { conflict: !t.conflict } }); renderJudge(box); }
@@ -117,16 +130,19 @@
         h('span.muted.small', t.team.size + ' pessoas')),
       h('h3.card__title', (t.projectName || t.team.name) + (t.projectName ? ' · ' + t.team.name : '')),
       t.description ? h('p', t.description) : null,
-      links);
+      links,
+      t.summary ? h('details', h('summary', 'Resumo para a banca (sem nota)'), h('p', { style: 'white-space:pre-wrap' }, t.summary)) : null);
     if (!t.conflict && d.open && d.criteria.length) {
       const vals = (t.myScore && t.myScore.values) || {};
       const form = h('form.form',
         d.criteria.map((c) => h('label.field',
-          h('span', c.name + ' (1 a ' + c.scaleMax + (c.weight !== 1 ? ', peso ' + c.weight : '') + ')'),
+          h('span', (c.pillar ? pillarLabel(d, c.pillar) + ' · ' : '') + c.name + ' (1 a ' + c.scaleMax + (c.weight !== 1 ? ', peso ' + c.weight : '') + ')'),
           c.description ? h('small', c.description) : null,
+          c.anchors && c.anchors.length ? h('small', c.anchors.map((a, i) => a ? (i + 1) + ' = ' + a : null).filter(Boolean).join(' · ')) : null,
           h('select', { name: c.id, required: true },
             h('option', { value: '' }, '—'),
-            Array.from({ length: c.scaleMax }, (_, i) => h('option', { value: i + 1, selected: vals[c.id] === i + 1 }, String(i + 1)))))),
+            Array.from({ length: c.scaleMax }, (_, i) => h('option', { value: i + 1, selected: vals[c.id] === i + 1 },
+              String(i + 1) + (c.anchors && c.anchors[i] ? ' · ' + c.anchors[i] : '')))))),
         h('label.field', h('span', 'Comentário (só a organização vê)'), h('textarea', { name: 'comment', maxlength: 1000 }, (t.myScore && t.myScore.comment) || '')),
         h('div.row', h('button.btn.btn--red.btn--sm', { type: 'submit' }, t.myScore ? 'Atualizar nota' : 'Salvar nota'), conflictBtn));
       form.addEventListener('submit', async (ev) => {
