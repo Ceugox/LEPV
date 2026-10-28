@@ -726,7 +726,9 @@ test("equipes: pedido aceito por integrante lota a equipe; código não passa de
   eq(ren.data.team.name, "Alfa Renomeada");
   eq(ren.data.team.status, "confirmed", "renomear não desconfirma");
   eq((await S.c.bruno.patch("/hack/api/team", { name: "x" })).status, 400, "nome curto");
-  eq((await S.c.bruno.patch("/hack/api/team", { name: S.alfa.name })).data.team.name, S.alfa.name);
+  const back = await S.c.bruno.patch("/hack/api/team", { name: S.alfa.name });
+  eq(back.status, 200);
+  eq(back.data.team.name, S.alfa.name);
 });
 
 test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", async () => {
@@ -747,6 +749,7 @@ test("equipes: diretoria vê equipes e quem está sem equipe, e monta equipe", a
   eq(c.status, 200);
   S.beta = c.data.team;
   eq((await S.admin.post("/hack/api/admin/teams/" + S.beta.id + "/merge", { otherId: S.alfa.id })).status, 409, "passaria de 4");
+  eq((await S.c.ana.patch("/hack/api/team", { name: "beta" })).status, 409, "integrante não renomeia para nome de outra equipe");
 });
 
 test("equipes: montagem por afinidade é só da diretoria; a prévia não grava nada", async () => {
@@ -879,6 +882,7 @@ test("equipes: depois do prazo de entrega a composição congela (só a diretori
   eq(late.status, 409, "indicar depois do prazo");
   eq(late.data.error, "teams_locked");
   eq((await ana.get("/hack/api/team")).data.locked, true);
+  eq((await ana.patch("/hack/api/team", { name: "Alfa Tardia" })).status, 409, "renomear depois do prazo");
   // Prorrogação só da Alfa: ela volta a editar a entrega; as outras não.
   eq((await S.admin.patch("/hack/api/admin/teams/" + S.alfa.id, { deadlineOverride: "2026-10-31T16:30:00Z" })).status, 200);
   eq((await ana.get("/hack/api/team")).data.locked, false);
@@ -1392,6 +1396,14 @@ test("exclusão: só o superadmin, com o nome digitado; inscrição sai e não v
   const o = (await S.admin.get("/hack/api/admin/overview")).data;
   assert(o.removals.some((x) => x.name === "Zeca Exclusão" && x.by), "registro na visão geral");
   eq((await S.admin.raw("DELETE", url, { confirmName: "Zeca Exclusão" })).status, 404, "já não existe");
+  // Resultado travado (desde a avaliação): quem está numa equipe não sai, e a
+  // recusa vem antes de mexer na inscrição do evento.
+  const ana = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "ana@ex.com");
+  const locked = await S.admin.raw("DELETE", "/hack/api/admin/people/" + ana.id, { confirmName: ana.name });
+  eq(locked.status, 409, "resultado travado: " + JSON.stringify(locked.data));
+  const ev2 = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
+  assert(ev2.signups.some((x) => x.email === "ana@ex.com"), "inscrição continua no evento");
+  assert((await S.admin.get("/hack/api/admin/people")).data.people.some((p) => p.id === ana.id), "pessoa continua no /hack");
 });
 
 // ================= execução =================

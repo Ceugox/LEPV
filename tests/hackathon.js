@@ -1588,6 +1588,10 @@ test("exclusão: só participante inscrito e sem outro papel; última da equipe 
   const wait = newPerson({ name: "Fila", roles: [], signupStatus: "waitlist", signupId: "sw" });
   s.people.push(wait);
   eq1(RM.checkRemovable(s, wait.id).id, wait.id, "fila de espera pode");
+  // Exclusão anterior apagou a inscrição e parou antes do /hack: dá para repetir.
+  const half = newPerson({ name: "Meio", roles: [], signupStatus: "removed", signupId: "sr" });
+  s.people.push(half);
+  eq1(RM.checkRemovable(s, half.id).id, half.id, "retirada pode ser excluída de novo");
 });
 test("exclusão: apaga a pessoa e o que é dela; equipe e registro seguem certos", () => {
   const { s, ps } = teamState(3, (i) => ({ signupId: "s" + i }));

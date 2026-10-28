@@ -220,8 +220,10 @@ Aprovada pelo Marcell em 26/10, depois de grilling.
 - **Quem pode ser excluído:** participante confirmado ou na fila, sem outro papel. Jurado, staff e representante de parceiro: Bloquear.
 - **Equipe:** a pessoa sai da equipe; se for a última integrante de uma equipe com entrega, a exclusão é recusada até a entrega ser desfeita.
 - **Registro:** nome, data e quem excluiu, na Visão geral do superadmin. Nada além do nome do excluído.
+- **Resultado travado:** quem está numa equipe não é excluído (a composição do pódio não muda). A recusa vem antes de mexer na inscrição do evento.
+- **Falha no meio:** se a inscrição já saiu e a gravação no /hack falhou, a pessoa fica "retirada" e a exclusão pode ser repetida.
 
 ## Revisão 7 (28/10/2026): renomear a equipe
 
 - **Qualquer integrante** renomeia a equipe pelo campo "Nome da equipe" no card da aba Equipe, esteja ela em formação ou **confirmada**. Renomear não desconfirma.
-- Mesmas regras do nome na criação: 2 a 40 caracteres, sem repetir o de outra equipe. Some quando o prazo de entrega congela a composição; depois disso, só a diretoria (Ajustar).
+- Mesmas regras do nome na criação: 2 a 40 caracteres, sem repetir o de outra equipe. Some quando o prazo de entrega congela a composição; depois disso, só a diretoria (Ajustar). Com o resultado travado, nem com prazo prorrogado os integrantes renomeiam: o nome sai no pódio.
