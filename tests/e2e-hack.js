@@ -1187,6 +1187,13 @@ test("crédito de IA: código só chega ao participante depois do check-in", asy
   // Novo check-in libera de volta (o resto da suíte conta com a Ana credenciada).
   eq((await S.admin.post("/hack/api/checkin/scan", { code: qrOf("ana@ex.com"), day: "2026-10-30" })).data.status, "ok");
   eq((await S.c.ana.get("/hack/api/ai-credit")).data.code, CODE);
+  // Apagar o código é a revogação (vazou): sai do portal na hora, sem sobrar do valor antigo.
+  eq((await S.admin.put("/hack/api/admin/config/ai-credit", { code: "", redeemUrl: "" })).status, 200);
+  const off = await S.c.ana.get("/hack/api/ai-credit");
+  eq(off.data.released, false);
+  eq(JSON.stringify(off.data).includes(CODE), false, "código revogado ainda aparece");
+  eq((await S.admin.get("/hack/api/admin/config/ai-credit")).data.redeemUrl, "", "link também sai");
+  eq((await S.admin.put("/hack/api/admin/config/ai-credit", { code: CODE, redeemUrl: URL_ })).status, 200);
 });
 
 test("credenciamento: offline sincroniza sem duplicar, com aparelho revogável", async () => {

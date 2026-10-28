@@ -754,21 +754,33 @@
   });
 
   // ---------- crédito de IA ----------
+  // Salvar só depois de carregar o valor atual: com a carga falhando, os
+  // campos vazios seriam gravados como "desligar" e o código sumiria do portal.
+  let aiLoaded = false;
   async function loadAiCredit() {
-    const r = await api('/hack/api/admin/config/ai-credit');
+    aiLoaded = false;
+    $('form-ai-credit').querySelector('button[type=submit]').disabled = true;
+    let r;
+    try { r = await api('/hack/api/admin/config/ai-credit'); } catch (e) {
+      $('ai-sum').textContent = 'Não deu para carregar o crédito atual (' + e.message + '). Recarregue antes de salvar.';
+      throw e;
+    }
     $('ai-code').value = r.code;
     $('ai-url').value = r.redeemUrl;
     $('ai-sum').textContent = r.code
       ? 'Liberado para ' + r.released + ' participante(s) com check-in.'
       : 'Nenhum código cadastrado: a aba IA mostra só o guia.';
+    aiLoaded = true;
+    $('form-ai-credit').querySelector('button[type=submit]').disabled = false;
   }
   $('form-ai-credit').addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    if (!aiLoaded) { toast('Recarregue a página antes de salvar o crédito.', true); return; }
     try {
       await api('/hack/api/admin/config/ai-credit', { method: 'PUT', body: { code: $('ai-code').value, redeemUrl: $('ai-url').value } });
-      toast('Crédito de IA salvo.');
-      await loadAiCredit();
-    } catch (e) { toast(e.message, true); }
+    } catch (e) { toast(e.message, true); return; }
+    toast($('ai-code').value.trim() ? 'Crédito de IA salvo.' : 'Crédito de IA desligado: o código saiu do portal.');
+    loadAiCredit().catch(() => {});
   });
 
   // ---------- avaliação ----------

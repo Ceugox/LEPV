@@ -1661,6 +1661,22 @@ test("crédito de IA: código só com check-in de participante; desfeito, some",
   eq1(AI.creditFor(s, ana).released, false, "conta bloqueada não recebe");
 });
 
+test("crédito de IA: check-in sem código cadastrado não libera nada; apagar o código revoga", () => {
+  const s = emptyState();
+  const ana = Object.assign(newPerson({ name: "Ana", email: "ana@ex.com" }), { roles: ["participant"] });
+  s.people.push(ana);
+  s.checkins.push({ id: "c1", personId: ana.id, day: "2026-10-30", at: "x" });
+  const none = AI.creditFor(s, ana);
+  eq1(none.checkedIn, true);
+  eq1(none.released, false, "sem código, nada é liberado");
+  eq1(none.code, undefined);
+  s.config.aiCredit = AI.validateCredit({ code: "CODIGO-TESTE-26" });
+  eq1(AI.creditFor(s, ana).released, true);
+  s.config.aiCredit = AI.validateCredit({ code: "", redeemUrl: "" });
+  eq1(AI.creditFor(s, ana).released, false, "código apagado sai do portal");
+  eq1(AI.creditFor(s, ana).code, undefined);
+});
+
 (async () => {
   for (const t of tests) {
     try {
