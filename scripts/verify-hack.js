@@ -27,7 +27,7 @@ const APP_PAGES = [
 ];
 // Telas que só aparecem para participante ou jurado: entram com pessoas de
 // verificação criadas pela própria diretoria (link pessoal consumido aqui).
-const PARTICIPANT_PAGES = ['/hack/portal#equipe', '/hack/portal#entrega', '/hack/portal#duvidas'];
+const PARTICIPANT_PAGES = ['/hack/portal#equipe', '/hack/portal#entrega', '/hack/portal#duvidas', '/hack/portal#ia'];
 const JUDGE_PAGES = ['/hack/portal#banca'];
 const MODES = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, reducedMotion: 'no-preference' },

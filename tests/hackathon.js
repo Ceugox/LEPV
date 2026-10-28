@@ -22,6 +22,7 @@ const { seedProgram, migrateProgram, fridayOutdated } = require("../lib/hackatho
 const { migrateSchedule } = require("../lib/hackathon/migrations");
 const Q = require("../lib/hackathon/questions");
 const { overview } = require("../lib/hackathon/routes/overview");
+const AI = require("../lib/hackathon/ai-credit");
 const eq1 = (a, b, m) => assert.strictEqual(a, b, m);
 
 const results = { pass: 0, fail: 0 };
@@ -1621,6 +1622,43 @@ test("exclusão: apaga a pessoa e o que é dela; equipe e registro seguem certos
   assert.deepStrictEqual(s.teams[0].members, [ps[1].id], "sai da equipe; a equipe segue");
   eq1(s.teams[0].ownerId, ps[1].id, "dono passa adiante");
   assert.deepStrictEqual(s.removals, [{ name: "P0", at: T0.toISOString(), by: "Marcell" }]);
+});
+
+test("crédito de IA: valida código e link; vazio desliga", () => {
+  assert.deepStrictEqual(AI.validateCredit({ code: " CODIGO-TESTE-26 ", redeemUrl: "https://featherless.example/join/CODIGO-TESTE-26" }),
+    { code: "CODIGO-TESTE-26", redeemUrl: "https://featherless.example/join/CODIGO-TESTE-26" });
+  assert.deepStrictEqual(AI.validateCredit({ code: "", redeemUrl: "" }), { code: "", redeemUrl: "" });
+  eq1(AI.validateCredit({ code: "ABC" }).redeemUrl, "", "link é opcional");
+  for (const bad of [{ code: "ab" }, { code: "tem espaço" }, { code: "", redeemUrl: "https://x.com" }, { code: "ABC", redeemUrl: "http://x.com" }, { code: "ABC", redeemUrl: "javascript:alert(1)" }]) {
+    assert.throws(() => AI.validateCredit(bad), HackError, JSON.stringify(bad));
+  }
+});
+
+test("crédito de IA: código só com check-in de participante; desfeito, some", () => {
+  const s = emptyState();
+  const ana = Object.assign(newPerson({ name: "Ana", email: "ana@ex.com" }), { roles: ["participant"] });
+  const juri = Object.assign(newPerson({ name: "Juri", email: "j@ex.com" }), { roles: ["judge"] });
+  s.people.push(ana, juri);
+  eq1(AI.creditFor(s, ana).released, false, "sem código e sem check-in");
+  eq1(AI.creditFor(s, ana).code, undefined);
+  s.config.aiCredit = { code: "CODIGO-TESTE-26", redeemUrl: "https://featherless.example/join" };
+  const before = AI.creditFor(s, ana);
+  eq1(before.released, false);
+  eq1(before.configured, true);
+  eq1(before.code, undefined, "código não sai antes do check-in");
+  eq1(JSON.stringify(before).includes("CODIGO-TESTE-26"), false);
+  s.checkins.push({ id: "c1", personId: ana.id, day: "2026-10-31", at: "x" }, { id: "c2", personId: juri.id, day: "2026-10-30", at: "x" });
+  const after = AI.creditFor(s, ana);
+  eq1(after.released, true, "check-in de qualquer dia libera");
+  eq1(after.code, "CODIGO-TESTE-26");
+  eq1(after.redeemUrl, "https://featherless.example/join");
+  eq1(AI.creditFor(s, juri).released, false, "jurado com check-in não recebe");
+  eq1(AI.creditFor(s, juri).code, undefined);
+  K.undo(s, "c1");
+  eq1(AI.creditFor(s, ana).released, false, "check-in desfeito oculta o código");
+  ana.disabled = true;
+  s.checkins.push({ id: "c3", personId: ana.id, day: "2026-10-30", at: "x" });
+  eq1(AI.creditFor(s, ana).released, false, "conta bloqueada não recebe");
 });
 
 (async () => {

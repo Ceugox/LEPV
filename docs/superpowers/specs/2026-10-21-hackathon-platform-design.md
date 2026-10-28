@@ -227,3 +227,14 @@ Aprovada pelo Marcell em 26/10, depois de grilling.
 
 - **Qualquer integrante** renomeia a equipe pelo campo "Nome da equipe" no card da aba Equipe, esteja ela em formação ou **confirmada**. Renomear não desconfirma.
 - Mesmas regras do nome na criação: 2 a 40 caracteres, sem repetir o de outra equipe. Some quando o prazo de entrega congela a composição; depois disso, só a diretoria (Ajustar). Com o resultado travado, nem com prazo prorrogado os integrantes renomeiam: o nome sai no pódio.
+
+## Revisão 8 (28/10/2026): crédito de IA da Featherless
+
+Aprovada pelo Marcell em 28/10, depois de grilling. Fonte: o guia da Featherless para o hackathon (PDF de 8 páginas) e um teste de carga feito pela organização no mesmo dia.
+
+- **O que é:** a Featherless dá US$ 25 de crédito por pessoa, por um código promocional único do evento, resgatado na conta de cada participante (plano Feather Per-Request). Cada um tem o próprio crédito.
+- **Aba "IA" no portal**, só para participantes (jurado, staff e parceiro não veem). Traz o guia da Featherless em português (resgate, chave de API, conexão com Claude Code e opencode, saldo na página Subscription, erros 401/403/500/503), o erro 429 de concorrência medido no teste, a tabela de modelos com custo por chamada e o alerta de custo do GLM-5.2 para agente de código, além de trechos em Python e JS com contador de gasto e nova tentativa.
+- **Código liberado no check-in:** o código e o link de resgate só saem do servidor para participante com check-in validado, em qualquer dia, por qualquer credenciador (diretoria ou staff com permissão). Antes disso, a aba mostra o guia e "Liberado no seu check-in". Check-in desfeito volta a ocultar. Conta bloqueada não recebe.
+- **Onde fica o código:** o repositório é público, então código e link vivem no volume (`config.aiCredit`), cadastrados pela diretoria no painel (Programação → Crédito de IA). Os dois campos vazios desligam. Nada do código entra em arquivo servido pelo site.
+- **Sem aviso automático:** o portal mostra o código quando a pessoa abre a aba; o credenciador pode dizer "abra a aba IA". O aviso na central fica com o Marcell.
+- **Limite conhecido:** o código é um só para todo mundo. A liberação controla quem recebe pelo portal, mas não impede que alguém o repasse.

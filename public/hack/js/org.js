@@ -753,6 +753,24 @@
     } catch (e) { toast(e.message, true); }
   });
 
+  // ---------- crédito de IA ----------
+  async function loadAiCredit() {
+    const r = await api('/hack/api/admin/config/ai-credit');
+    $('ai-code').value = r.code;
+    $('ai-url').value = r.redeemUrl;
+    $('ai-sum').textContent = r.code
+      ? 'Liberado para ' + r.released + ' participante(s) com check-in.'
+      : 'Nenhum código cadastrado: a aba IA mostra só o guia.';
+  }
+  $('form-ai-credit').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api('/hack/api/admin/config/ai-credit', { method: 'PUT', body: { code: $('ai-code').value, redeemUrl: $('ai-url').value } });
+      toast('Crédito de IA salvo.');
+      await loadAiCredit();
+    } catch (e) { toast(e.message, true); }
+  });
+
   // ---------- avaliação ----------
   let evalState = null;
   async function evalAction(body, ok) {
@@ -1038,7 +1056,7 @@
   }
 
   // ---------- carga ----------
-  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: loadProgram, avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: loadTeams, entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });
