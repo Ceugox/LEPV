@@ -709,12 +709,14 @@ test("final: pódio só com finalistas, mesmo com pódio maior que a final", () 
   EV.reveal(s, T0);
   eq1(EV.podium(s).map((x) => x.name).join(","), teams[0].name + "," + teams[1].name, "pódio de 3, mas só 2 finalistas");
 });
-test("pilares: trocar o pilar do jurado depois da nota tira a nota antiga da conta", () => {
+test("pilares: com nota na fase 1 os pilares do jurado não mudam; dado antigo trocado não conta", () => {
   const st = pillarState(1);
   const { s, judges, teams } = st;
   scoreAll(st, teams[0], { business: 1 });
   eq1(rowOf(s, teams[0]).pillars.business.score, 0);
-  EV.setJudgePillars(s, judges[1].id, ["innovation"]);
+  assert.throws(() => EV.setJudgePillars(s, judges[1].id, ["innovation"]), /já deu nota/);
+  assert.throws(() => EV.setJudgePillars(s, judges[2].id, "tech"), /inválidos/);
+  judges[1].judgePillars = ["innovation"]; // estado gravado antes da trava
   const r = rowOf(s, teams[0]);
   eq1(r.pillars.business.score, null, "a nota de Negócio do jurado não conta mais");
   eq1(r.incomplete, true);
@@ -743,7 +745,7 @@ test("pilares: desempate também ignora quem deixou o pilar do critério", () =>
   const { s, judges, teams } = st;
   scoreAll(st, teams[0], { tech: [5, 5] });
   eq1(rowOf(s, teams[0]).tiebreak, 100);
-  EV.setJudgePillars(s, judges[0].id, ["innovation"]);
+  judges[0].judgePillars = ["innovation"]; // estado gravado antes da trava
   eq1(rowOf(s, teams[0]).tiebreak, null);
 });
 test("pilares: jurado sem critério na fase é recusado; progresso exige cobrir os critérios atuais", () => {
@@ -754,7 +756,7 @@ test("pilares: jurado sem critério na fase é recusado; progresso exige cobrir 
   eq1(EV.judgeProgress(s, judges[2].id).has, false);
   EV.submitScore(s, judges[1].id, teams[0].id, { values: { [c.thesis.id]: 4, [c.orig.id]: 4 } }, T0);
   eq1(EV.judgeProgress(s, judges[1].id).done, 1);
-  EV.setJudgePillars(s, judges[1].id, ["business", "innovation", "education"]);
+  judges[1].judgePillars = ["business", "innovation", "education"]; // estado gravado antes da trava
   eq1(EV.judgeProgress(s, judges[1].id).done, 0, "ganhou Educação: volta a ficar pendente");
   eq1(EV.scoreCovers(s, s.scores[0]), false);
 });
@@ -785,6 +787,24 @@ test("pódio: resultado travado antes do campo finalist usa a lista de finalista
   s.config.evaluation.lockedRanking.forEach((r) => delete r.finalist);
   EV.reveal(s, T0);
   eq1(EV.podium(s).length, 2);
+});
+test("final: impedimento novo só com finalista (a fase 1 está fechada)", () => {
+  const st = pillarState(3);
+  const { s, judges, teams } = st;
+  for (const t of teams) scoreAll(st, t);
+  EV.setFinalists(s, [teams[0].id, teams[1].id]);
+  EV.setPhase(s, "final");
+  assert.throws(() => EV.setConflict(s, judges[1].id, teams[2].id, true, T0), /finalista/);
+  EV.setConflict(s, judges[1].id, teams[0].id, true, T0);
+  eq1(EV.hasConflict(s, judges[1].id, teams[0].id), true);
+});
+test("critério: editar mantém as âncoras; escala menor corta as que sobram", () => {
+  const { s } = evalState(1);
+  const c = EV.addCriterion(s, { name: "Escala dez", scaleMax: 10, anchors: ["a", "b", "c", "d", "e", "f"] });
+  EV.updateCriterion(s, c.id, { name: "Renomeado" });
+  eq1(c.anchors.length, 6, "edição sem âncoras mantém as atuais");
+  EV.updateCriterion(s, c.id, { scaleMax: 5 });
+  eq1(c.anchors.join(""), "abcde");
 });
 test("percentil: só para não finalista, depois que a final abre", () => {
   const st = pillarState(4);

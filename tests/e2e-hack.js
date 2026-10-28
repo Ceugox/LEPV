@@ -1001,6 +1001,18 @@ test("avaliação: jurados dão nota, cada um vê só a sua; impedido não pontu
   eq((await S.admin.post("/hack/api/admin/evaluation", { action: "judgePillars", personId: julia.id, pillars: ["marketing"] })).status, 400);
   eq((await S.admin.post("/hack/api/admin/evaluation", { action: "judgePillars", personId: julia.id, pillars: ["tech", "business"] })).status, 200);
   eq((await S.c.julia.get("/hack/api/judge")).data.criteria.length, 2, "sem pilar: todos avaliam");
+  eq((await S.admin.post("/hack/api/admin/evaluation", { action: "judgePillars", personId: julia.id, pillars: "tech" })).status, 400);
+  // Desempate por fase: critério das duas fases vale para a final.
+  const tb = await S.admin.post("/hack/api/admin/evaluation", { action: "tiebreak", id: S.crit[1].id, phase: "final" });
+  eq(tb.status, 200);
+  eq(tb.data.config.finalTiebreakCriterionId, S.crit[1].id);
+  eq(tb.data.config.tiebreakCriterionId, S.crit[0].id, "o da fase 1 não muda");
+  eq((await S.admin.post("/hack/api/admin/evaluation", { action: "tiebreak", id: S.crit[1].id, phase: "Final" })).status, 400, "fase do desempate inválida");
+  // Resumo: sem entrega é 404; texto longo é cortado em 4000.
+  eq((await S.admin.put("/hack/api/admin/submissions/nao-existe", { summary: "x" })).status, 404);
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "R".repeat(4100) })).status, 200);
+  eq((await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id).summary.length, 4000);
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "Resumo-da-Gama para a banca" })).status, 200);
   eq((await S.c.julia.get("/hack/api/submissions/" + S.alfa.id + "/slides")).status, 200, "com a avaliação aberta a banca vê os slides");
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, score(6, 5))).status, 400, "fora da escala");
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, Object.assign(score(5, 10), { comment: "ótimo pitch" }))).status, 200);

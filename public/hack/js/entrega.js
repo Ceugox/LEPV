@@ -107,6 +107,10 @@
       h('p.muted', d.open
         ? 'Suas notas só aparecem para você e entram na média da organização. Pode revisar até a avaliação fechar.'
         : 'A organização abre a avaliação depois do prazo de entrega. Você já pode olhar os projetos e marcar impedimentos.')));
+    if (d.open && d.criteriaLocked && !d.criteria.length) {
+      out.push(h('article.card', h('p.card__k', 'Sem critérios para você'),
+        h('p', 'Nesta fase você não tem critério para avaliar (os pilares marcados para você não têm critério). Fale com a organização se isso não estiver certo.')));
+    }
     if (!d.teams.length) out.push(h('p.empty', 'Nenhuma equipe com entrega completa ainda.'));
     d.teams.forEach((t) => out.push(teamCard(d, t, box)));
     clear(box).append(...out);
