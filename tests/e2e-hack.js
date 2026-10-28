@@ -1401,6 +1401,7 @@ test("exclusão: só o superadmin, com o nome digitado; inscrição sai e não v
   // Resultado travado (desde a avaliação): quem está numa equipe não sai, e a
   // recusa vem antes de mexer na inscrição do evento.
   const ana = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "ana@ex.com");
+  eq(ana.removable, false, "o painel não oferece o botão que o servidor recusaria");
   const locked = await S.admin.raw("DELETE", "/hack/api/admin/people/" + ana.id, { confirmName: ana.name });
   eq(locked.status, 409, "resultado travado: " + JSON.stringify(locked.data));
   const ev2 = (await S.admin.get("/api/events")).data.events.find((e) => e.type === "hackathon");
