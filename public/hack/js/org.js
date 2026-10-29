@@ -100,7 +100,7 @@
             ? h('a.btn.btn--red.btn--sm', { href: r.whatsappUrl, target: '_blank', rel: 'noopener' }, 'Abrir no WhatsApp')
             : h('p.muted.small', 'Sem WhatsApp válido no cadastro.'),
           r.email ? h('p.small', 'E-mail: ' + ({ sent: 'enviado', outbox: 'gravado (teste)', unconfigured: 'não configurado', failed: 'falhou', unknown: 'incerto' }[r.email.status] || r.email.status)) : null,
-          h('p.muted.small', 'Gerar outro link invalida este.')
+          h('p.muted.small', 'Gerar outro link invalida este, menos se ele for de emergência.')
         );
         await (onDone || loadPeople)();
       } catch (e) { toast(e.message, true); }
@@ -216,7 +216,7 @@
     const force = h('input', { type: 'checkbox', name: 'force' });
     const form = h('form.form',
       h('label.field', h('span', 'Para quem'), sel),
-      h('label.check', force, h('span', 'Reenviar também para quem já recebeu (gera link novo e invalida o anterior)')),
+      h('label.check', force, h('span', 'Reenviar também para quem já recebeu (gera link novo e invalida o anterior, menos o de emergência)')),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Enviar'));
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
