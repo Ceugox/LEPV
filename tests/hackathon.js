@@ -221,6 +221,28 @@ test("link de emergência: restaura o que caiu por link novo; marcado, link novo
   eq1(consumeLoginToken(s, mail, later(4000)).id, p.id, "o do e-mail volta a valer");
   eq1(consumeLoginToken(s, pdf, later(4000)).id, p.id, "o do PDF continua valendo");
 });
+test("link de emergência: o que caiu por link enviado por e-mail (instante diferente) também volta", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const pdf = issueLoginToken(s, p.id, T0);
+  const mail = issueLoginToken(s, p.id, later(1000), { revokeOthers: false });
+  revokeOtherTokens(s, p.id, sha256(mail), later(5000)); // e-mail aceito pelo provedor depois
+  eq1(restoreSupersededTokens(s, p.id, later(6000)), 1);
+  eq1(consumeLoginToken(s, pdf, later(7000)).id, p.id);
+});
+test("link de emergência: substituído antes de uma troca de e-mail não volta", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const wrong = issueLoginToken(s, p.id, T0); // foi para o e-mail errado
+  issueLoginToken(s, p.id, later(1000)); // derruba o anterior (substituído)
+  revokeAllTokens(s, p.id, later(2000)); // diretoria corrige o e-mail: selo
+  const ok = issueLoginToken(s, p.id, later(3000));
+  eq1(restoreSupersededTokens(s, p.id, later(4000)), 0, "nada de antes do selo volta");
+  assert.throws(() => consumeLoginToken(s, wrong, later(5000)), /Link inválido/);
+  eq1(consumeLoginToken(s, ok, later(5000)).id, p.id);
+});
 test("link de emergência: bloqueio e troca de e-mail derrubam; restauração não ressuscita", () => {
   const s = emptyState();
   const p = newPerson({ roles: ["judge"] });
