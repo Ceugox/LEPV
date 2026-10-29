@@ -262,6 +262,9 @@ test("link de emergência: since precisa ser data em texto; o limite exato entra
   const a = issueLoginToken(s, p.id, T0);
   issueLoginToken(s, p.id, later(1000)); // A cai exatamente em later(1000)
   assert.throws(() => restoreSupersededTokens(s, p.id, later(2000), 0), /a partir de quando/);
+  for (const bad of ["0", "5", "2026-10-29T10:00", "2026-10-29"]) {
+    assert.throws(() => restoreSupersededTokens(s, p.id, later(2000), bad), /a partir de quando/, bad);
+  }
   eq1(restoreSupersededTokens(s, p.id, later(2000), later(1001).toISOString()).restored, 0, "since depois da queda");
   eq1(restoreSupersededTokens(s, p.id, later(2000), later(1000).toISOString()).restored, 1, "since igual à queda entra");
   eq1(consumeLoginToken(s, a, later(3000)).id, p.id);
@@ -290,6 +293,16 @@ test("link de emergência: troca de e-mail pela inscrição sela (nada de antes 
   eq1(restoreSupersededTokens(s, p.id, later(2000), T0.toISOString()).restored, 0);
   eq1(pinTokens(s, p.id, later(2000)), 0, "o de emergência também caiu");
   assert.throws(() => consumeLoginToken(s, old, later(2000)), /Link inválido/);
+});
+test("link de emergência: since com fuso -03:00 é aceito e convertido", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const a = issueLoginToken(s, p.id, new Date("2026-10-29T16:00:00Z"));
+  issueLoginToken(s, p.id, new Date("2026-10-29T16:05:00Z")); // A cai às 13h05 de Brasília
+  eq1(restoreSupersededTokens(s, p.id, new Date("2026-10-29T17:00:00Z"), "2026-10-29T13:06:00-03:00").restored, 0, "13h06 BRT é depois da queda");
+  eq1(restoreSupersededTokens(s, p.id, new Date("2026-10-29T17:00:00Z"), "2026-10-29T12:55:00-03:00").restored, 1);
+  eq1(consumeLoginToken(s, a, new Date("2026-10-29T17:01:00Z")).id, p.id);
 });
 test("link de emergência: usado ou vencido não volta nem é marcado", () => {
   const s = emptyState();
