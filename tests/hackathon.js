@@ -6,7 +6,7 @@ const assert = require("assert");
 const { emptyState } = require("../lib/hackathon/store");
 const { pickHackathonEvent, signupRedirect } = require("../lib/hackathon/event");
 const { syncParticipants, newPerson } = require("../lib/hackathon/people");
-const { issueLoginToken, consumeLoginToken, unconsumeLoginToken, revokeOtherTokens, revokeAllTokens, resolveActor, ensureActorPerson, perms } = require("../lib/hackathon/access");
+const { issueLoginToken, consumeLoginToken, unconsumeLoginToken, revokeOtherTokens, revokeAllTokens, restoreSupersededTokens, pinTokens, resolveActor, ensureActorPerson, perms } = require("../lib/hackathon/access");
 const { sha256 } = require("../lib/hackathon/store");
 const A = require("../lib/hackathon/announcements");
 const TM = require("../lib/hackathon/teams");
@@ -207,6 +207,29 @@ test("link: revokeOthers:false mantém o antigo até a entrega; unconsume devolv
   revokeOtherTokens(s, p.id, sha256(fresh), later(3000));
   assert.throws(() => consumeLoginToken(s, old, later(4000)), /Link inválido/);
   eq1(consumeLoginToken(s, fresh, later(4000)).id, p.id);
+});
+test("link de emergência: restaura o que caiu por link novo; marcado, link novo não derruba", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const mail = issueLoginToken(s, p.id, T0);
+  const pdf = issueLoginToken(s, p.id, later(1000)); // derruba o do e-mail
+  assert.throws(() => consumeLoginToken(s, mail, later(2000)), /Link inválido/);
+  eq1(restoreSupersededTokens(s, p.id, later(2000)), 1);
+  eq1(pinTokens(s, p.id, later(2000)), 2);
+  issueLoginToken(s, p.id, later(3000)); // link novo (painel ou "esqueci") não derruba os de emergência
+  eq1(consumeLoginToken(s, mail, later(4000)).id, p.id, "o do e-mail volta a valer");
+  eq1(consumeLoginToken(s, pdf, later(4000)).id, p.id, "o do PDF continua valendo");
+});
+test("link de emergência: bloqueio e troca de e-mail derrubam; restauração não ressuscita", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const raw = issueLoginToken(s, p.id, T0);
+  pinTokens(s, p.id, T0);
+  revokeAllTokens(s, p.id, later(1000));
+  eq1(restoreSupersededTokens(s, p.id, later(2000)), 0, "revogado por bloqueio não tem par");
+  assert.throws(() => consumeLoginToken(s, raw, later(2000)), /Link inválido/);
 });
 test("link: lista de espera pode entrar; quem não tem papel nem inscrição não", () => {
   const s = emptyState();

@@ -301,6 +301,21 @@ test("organização: cria jurado, gera link manual com atalho de WhatsApp", asyn
   S.people.julia = j;
 });
 
+test("organização: links de emergência voltam a valer e link novo não os derruba", async () => {
+  const jid = S.people.ids["julia@ex.com"];
+  const link = async () => (await S.admin.post("/hack/api/admin/people/" + jid + "/link", { send: "none" })).data.url.split("#t=")[1];
+  const mail = await link();
+  const pdf = await link(); // o do e-mail cai aqui
+  const em = await S.admin.post("/hack/api/admin/people/" + jid + "/emergency-links", {});
+  eq(em.status, 200);
+  eq(em.data.restored, 1);
+  eq(em.data.pinned, 2);
+  await link(); // link novo pelo painel
+  eq((await client().post("/hack/api/access/consume", { token: mail })).status, 200, "o do e-mail vale");
+  eq((await client().post("/hack/api/access/consume", { token: pdf })).status, 200, "o do PDF vale");
+  eq((await S.admin.post("/hack/api/admin/people/nao-existe/emergency-links", {})).status, 404);
+});
+
 test("organização: desconectar derruba a sessão da pessoa", async () => {
   const c = await enterAs("elisa@ex.com");
   eq((await c.get("/hack/api/me")).status, 200);
@@ -479,7 +494,7 @@ test("permissões: toda rota da organização recusa anônimo (401) e participan
   const id = S.people.ids["carla@ex.com"];
   const routes = [
     ["GET", "/hack/api/admin/people"], ["POST", "/hack/api/admin/people"], ["PATCH", "/hack/api/admin/people/" + id],
-    ["POST", "/hack/api/admin/people/" + id + "/link"], ["POST", "/hack/api/admin/people/" + id + "/revoke"],
+    ["POST", "/hack/api/admin/people/" + id + "/link"], ["POST", "/hack/api/admin/people/" + id + "/revoke"], ["POST", "/hack/api/admin/people/" + id + "/emergency-links"],
     ["POST", "/hack/api/admin/links/bulk"], ["GET", "/hack/api/admin/program"], ["POST", "/hack/api/admin/program"],
     ["GET", "/hack/api/admin/announcements"], ["POST", "/hack/api/admin/announcements"], ["POST", "/hack/api/admin/announcements/preview"],
     ["GET", "/hack/api/admin/whatsapp"], ["POST", "/hack/api/admin/deliveries/x"],
