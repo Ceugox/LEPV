@@ -917,6 +917,11 @@ test("entrega: equipe confirmada entrega repositório e PDF; links e arquivo sã
   eq(r.data.submission.complete, false);
   eq((await S.c.ana.put("/hack/api/team/submission", { repoUrl: "javascript:alert(1)" })).status, 400);
   eq((await S.c.ana.put("/hack/api/team/submission", { projectName: "Teachy+", repoUrl: "https://github.com/lepv/alfa", description: "Tutor de IA" })).status, 200);
+  eq((await S.c.ana.put("/hack/api/team/submission", { deployUrl: "ftp://alfa" })).status, 400, "link no ar validado");
+  eq((await S.c.ana.put("/hack/api/team/submission", { deployUrl: "https://alfa.exemplo.com" })).status, 200);
+  eq((await S.c.ana.get("/hack/api/team/submission")).data.submission.deployUrl, "https://alfa.exemplo.com");
+  eq((await S.c.ana.put("/hack/api/team/submission", { summary: "escrito pela equipe" })).status, 200);
+  eq((await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.repoUrl === "https://github.com/lepv/alfa").summary, "", "equipe não grava o resumo da banca");
   eq((await uploadSlides(S.c.ana, Buffer.from("<html>nope</html>"))).status, 400, "não é PDF");
   const up = await uploadSlides(S.c.ana, PDF);
   eq(up.status, 200, JSON.stringify(up.data));
@@ -953,6 +958,13 @@ test("avaliação: segunda equipe, critérios travados antes de abrir", async ()
   let gs = (await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id);
   eq(gs.complete, false);
   eq(gs.description, "corrigido pela organização");
+  // Resumo de apoio à banca: a diretoria grava, a equipe não vê.
+  const before = (await S.c.davi.get("/hack/api/team/submission")).data.submission;
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "Resumo-da-Gama para a banca" })).status, 200);
+  const own = await S.c.davi.get("/hack/api/team/submission");
+  assert(!JSON.stringify(own.data).includes("Resumo-da-Gama"), "a equipe não vê o resumo");
+  eq(own.data.submission.updatedAt, before.updatedAt, "resumo não mexe em 'atualizada por'");
+  eq((await S.c.davi.get("/hack/api/team/result")).data.percentile, null, "sem percentil antes da final");
   eq((await uploadSlides(S.c.davi, PDF)).status, 200);
   gs = (await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id);
   eq(gs.complete, true);
@@ -980,6 +992,39 @@ test("avaliação: jurados dão nota, cada um vê só a sua; impedido não pontu
   eq(j.status, 200);
   eq(j.data.teams.length, 2);
   eq(j.data.criteria.length, 2);
+  eq(j.data.teams.find((t) => t.team.id === S.gama.id).summary, "Resumo-da-Gama para a banca", "banca vê o resumo");
+  eq(j.data.teams.find((t) => t.team.id === S.alfa.id).deployUrl, "https://alfa.exemplo.com");
+  // Pilares do jurado: valida o pilar; critério sem pilar continua valendo para todos.
+  const adm = (await S.admin.get("/hack/api/admin/evaluation")).data;
+  const julia = adm.judges.find((x) => x.id === S.people.ids["julia@ex.com"]);
+  eq(julia.pillars.join(","), "innovation", "padrão: Inovação");
+  eq((await S.admin.post("/hack/api/admin/evaluation", { action: "judgePillars", personId: julia.id, pillars: ["marketing"] })).status, 400);
+  eq((await S.admin.post("/hack/api/admin/evaluation", { action: "judgePillars", personId: julia.id, pillars: ["tech", "business"] })).status, 200);
+  eq((await S.c.julia.get("/hack/api/judge")).data.criteria.length, 2, "sem pilar: todos avaliam");
+  eq((await S.admin.post("/hack/api/admin/evaluation", { action: "judgePillars", personId: julia.id, pillars: "tech" })).status, 400);
+  // Desempate por fase: critério das duas fases vale para a final.
+  const tb = await S.admin.post("/hack/api/admin/evaluation", { action: "tiebreak", id: S.crit[1].id, phase: "final" });
+  eq(tb.status, 200);
+  eq(tb.data.config.finalTiebreakCriterionId, S.crit[1].id);
+  eq(tb.data.config.tiebreakCriterionId, S.crit[0].id, "o da fase 1 não muda");
+  eq((await S.admin.post("/hack/api/admin/evaluation", { action: "tiebreak", id: S.crit[1].id, phase: "Final" })).status, 400, "fase do desempate inválida");
+  // Resumo: sem entrega é 404; texto longo é cortado em 4000.
+  eq((await S.admin.put("/hack/api/admin/submissions/nao-existe", { summary: "x" })).status, 404);
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "R".repeat(4100) })).status, 200);
+  eq((await S.admin.get("/hack/api/admin/submissions")).data.submissions.find((x) => x.team.id === S.gama.id).summary.length, 4000);
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.gama.id, { summary: "Resumo-da-Gama para a banca" })).status, 200);
+  // Integrante que também é jurado: vê a própria equipe impedida e sem o resumo.
+  eq((await S.admin.put("/hack/api/admin/submissions/" + S.alfa.id, { summary: "Resumo-da-Alfa-secreto" })).status, 200);
+  const anaId = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "ana@ex.com").id;
+  eq((await S.admin.patch("/hack/api/admin/people/" + anaId, { roles: { judge: true } })).status, 200);
+  const anaJ = await (await enterAs("ana@ex.com")).get("/hack/api/judge");
+  eq(anaJ.status, 200);
+  const own = anaJ.data.teams.find((t) => t.team.id === S.alfa.id);
+  eq(own.conflict, true);
+  assert(!JSON.stringify(anaJ.data).includes("Resumo-da-Alfa-secreto"), "resumo da própria equipe não vaza");
+  eq(anaJ.data.teams.find((t) => t.team.id === S.gama.id).summary, "Resumo-da-Gama para a banca");
+  eq((await S.admin.patch("/hack/api/admin/people/" + anaId, { roles: { judge: false } })).status, 200);
+  S.c.ana = await enterAs("ana@ex.com");
   eq((await S.c.julia.get("/hack/api/submissions/" + S.alfa.id + "/slides")).status, 200, "com a avaliação aberta a banca vê os slides");
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, score(6, 5))).status, 400, "fora da escala");
   eq((await S.c.julia.put("/hack/api/judge/scores/" + S.alfa.id, Object.assign(score(5, 10), { comment: "ótimo pitch" }))).status, 200);

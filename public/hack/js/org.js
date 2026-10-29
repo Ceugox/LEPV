@@ -742,7 +742,26 @@
         x.complete ? h('span.badge.badge--ok', 'Completa') : h('span.badge.badge--warn', 'Incompleta'),
         x.repoUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.repoUrl, target: '_blank', rel: 'noopener' }, 'Repo') : null,
         x.slides ? h('a.btn.btn--ghost.btn--sm', { href: x.slides.url, target: '_blank', rel: 'noopener' }, 'Slides') : null,
-        x.videoUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.videoUrl, target: '_blank', rel: 'noopener' }, 'Vídeo') : null))));
+        x.videoUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.videoUrl, target: '_blank', rel: 'noopener' }, 'Vídeo') : null,
+        x.deployUrl ? h('a.btn.btn--ghost.btn--sm', { href: x.deployUrl, target: '_blank', rel: 'noopener' }, 'No ar') : null,
+        h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => summaryDialog(x) }, x.summary ? 'Resumo ✓' : 'Resumo')))));
+  }
+  // Resumo de apoio à banca: aparece para os jurados ao lado da entrega, sem nota. A equipe não vê.
+  function summaryDialog(x) {
+    const form = h('form.form',
+      h('p.muted', 'Aparece para a banca ao lado da entrega. A equipe não vê.'),
+      h('label.field', h('span', 'Resumo (até 4000 caracteres)'), h('textarea', { name: 'summary', maxlength: 4000, rows: 12 }, x.summary || '')),
+      h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar resumo'));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      try {
+        await api('/hack/api/admin/submissions/' + x.team.id, { method: 'PUT', body: { summary: ev.target.summary.value } });
+        dlg.close();
+        toast('Resumo salvo.');
+        await loadSubs();
+      } catch (e) { toast(e.message, true); }
+    });
+    openDialog('Resumo · ' + x.team.name, form);
   }
   $('form-deadline').addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -838,26 +857,47 @@
       evalState = await api('/hack/api/admin/evaluation', { method: 'POST', body });
       if (ok) toast(ok);
       renderEval();
-    } catch (e) { toast(e.message, true); }
+      return true;
+    } catch (e) {
+      toast(e.message, true);
+      if (evalState) renderEval();
+      return false;
+    }
   }
   async function loadEval() {
     evalState = await api('/hack/api/admin/evaluation');
     renderEval();
   }
   const fmt = (n) => (n === null || n === undefined ? '—' : n.toFixed(1));
+  // Fase 1 por pilares: nota interna 0–100 mostrada em 0–10; pilar em 0–2,5.
+  const fmt10 = (n) => (n === null || n === undefined ? '—' : (n / 10).toFixed(2).replace('.', ','));
+  const fmt2 = (n) => (n === null || n === undefined ? '—' : n.toFixed(2).replace('.', ','));
 
   function renderEval() {
     const d = evalState;
     const c = d.config;
     const crit = clear($('crit-list'));
     if (!c.criteria.length) crit.appendChild(h('li', h('p.muted', 'Nenhum critério ainda. Eles são definidos pela organização ao final.')));
-    c.criteria.forEach((x) => crit.appendChild(h('li',
-      h('div.list__main', h('b', x.name + ' · peso ' + x.weight + ' · 1 a ' + x.scaleMax + (c.tiebreakCriterionId === x.id ? ' · desempate' : '')), x.description ? h('span', x.description) : null),
+    const pillarName = (id) => (c.pillars.find((p) => p.id === id) || {}).label || id;
+    const phaseName = { both: 'Fase 1 e final', main: 'Fase 1', final: 'Final' };
+    const inPhase = (x, ph) => !x.phase || x.phase === 'both' || x.phase === ph;
+    c.criteria.forEach((x) => {
+      const tbMain = c.tiebreakCriterionId === x.id;
+      const tbFinal = c.finalTiebreakCriterionId === x.id;
+      const tags = [phaseName[x.phase || 'both'], x.pillar ? pillarName(x.pillar) : null, x.gate ? 'trava' : null, 'peso ' + x.weight, '1 a ' + x.scaleMax,
+        tbMain ? 'desempate da fase 1' : null, tbFinal ? 'desempate da final' : null].filter(Boolean).join(' · ');
+      const tbBtn = (ph, label) => h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => evalAction({ action: 'tiebreak', id: x.id, phase: ph }, 'Critério de desempate definido.') }, label);
+      crit.appendChild(h('li',
+      h('div.list__main', h('b', x.name), h('span', tags), x.description ? h('span', x.description) : null,
+        x.anchors && x.anchors.length ? h('div.small.muted', 'Âncoras · ' + x.anchors.map((a, i) => a ? (i + 1) + ': ' + a : null).filter(Boolean).join(' · ')) : null),
       c.criteriaLocked
-        ? (c.tiebreakCriterionId !== x.id && !c.resultsLocked ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => evalAction({ action: 'tiebreak', id: x.id }, 'Critério de desempate definido.') }, 'Usar no desempate') : null)
+        ? (c.resultsLocked ? null : h('div.row',
+          inPhase(x, 'main') && !tbMain ? tbBtn('main', 'Desempate da fase 1') : null,
+          inPhase(x, 'final') && !tbFinal ? tbBtn('final', 'Desempate da final') : null))
         : h('div.row',
           h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => critDialog(x) }, 'Editar'),
-          h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: () => evalAction({ action: 'removeCriterion', id: x.id }) }, 'Excluir')))));
+          h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: () => evalAction({ action: 'removeCriterion', id: x.id }) }, 'Excluir'))));
+    });
     $('add-crit').hidden = c.criteriaLocked;
     $('lock-crit').textContent = c.criteriaLocked ? 'Destravar critérios' : 'Travar critérios';
     $('lock-crit').disabled = c.resultsLocked;
@@ -865,7 +905,7 @@
     const st = $('eval-status');
     fill(st,
       h('span.badge' + (c.open ? '.badge--ok' : ''), c.open ? 'Avaliação aberta' : 'Avaliação fechada'),
-      h('span.badge', c.phase === 'final' ? 'Fase final' : 'Fase única'),
+      h('span.badge', c.phase === 'final' ? 'Final (pitch)' : c.pillarMode ? 'Fase 1 (seleção por pilares)' : 'Fase única'),
       c.resultsLocked ? h('span.badge.badge--red', 'Resultado travado') : null,
       c.revealedAt ? h('span.badge.badge--ok', 'Revelado ' + window.Hack.dayTime(c.revealedAt)) : null,
       h('span.muted.small', d.evaluableCount + ' equipe(s) em avaliação'));
@@ -881,16 +921,26 @@
     const jl = clear($('judges-list'));
     if (!d.judges.length) jl.appendChild(h('li', h('p.muted', 'Nenhum jurado cadastrado (aba Pessoas).')));
     d.judges.forEach((j) => jl.appendChild(h('li',
-      h('div.list__main', h('b', j.name), h('span', j.conflicts.length ? j.conflicts.length + ' impedimento(s)' : 'Sem impedimentos')),
-      h('span.badge' + (j.done === j.total && j.total ? '.badge--ok' : '.badge--warn'), j.done + '/' + j.total))));
+      h('div.list__main', h('b', j.name), h('span', j.conflicts.length ? j.conflicts.length + ' impedimento(s)' : 'Sem impedimentos'),
+        h('div.row', { 'aria-label': 'Pilares que ' + j.name + ' avalia na fase 1' }, c.pillars.map((p) => h('label.check',
+          h('input', { type: 'checkbox', checked: j.pillars.includes(p.id), disabled: c.resultsLocked, onchange: (ev) => {
+            const next = j.pillars.filter((x) => x !== p.id).concat(ev.target.checked ? [p.id] : []);
+            evalAction({ action: 'judgePillars', personId: j.id, pillars: next }, 'Pilares de ' + j.name + ' atualizados.');
+          } }), h('span', p.label))))),
+      h('span.badge' + (j.has && j.done === j.total && j.total ? '.badge--ok' : '.badge--warn'), j.has ? j.done + '/' + j.total : 'nada nesta fase'))));
 
     const tb = clear($('rank-body'));
     if (!d.ranking.length) tb.appendChild(h('li', h('p.muted', 'Sem equipes confirmadas.')));
     d.ranking.forEach((r) => tb.appendChild(h('li',
       h('span.card__big', { style: 'font-size:34px;min-width:56px' }, r.position ? r.position + 'º' : '—'),
       h('div.list__main', h('b', r.name), h('span',
-        'Nota ' + fmt(r.score) + ' · desempate ' + fmt(r.tiebreak) + ' · ' + r.judges + '/' + r.eligibleJudges + ' jurado(s)' +
-        (c.phase === 'final' && r.finalist ? ' · final (fase única: ' + fmt(r.main.score) + ')' : '') + (r.complete ? '' : ' · entrega incompleta'))),
+        'Nota ' + (r.pillars ? fmt10(r.score) + ' de 10' : fmt(r.score)) + ' · desempate ' + fmt(r.tiebreak) + ' · ' + r.judges + '/' + r.eligibleJudges + ' jurado(s)' +
+        (c.phase === 'final' && r.finalist ? ' · final (fase 1: ' + (r.main.pillars ? fmt10(r.main.score) + ' de 10' : fmt(r.main.score)) + ')' : '') + (r.complete ? '' : ' · entrega incompleta')),
+        r.pillars ? h('span.small', c.pillars.filter((p) => r.pillars[p.id]).map((p) => p.label + ' ' + fmt2(r.pillars[p.id].score)).join(' · ')) : null,
+        h('div.row',
+          r.suggested ? h('span.badge.badge--ok', 'Sugerida para a final') : null,
+          r.belowFloor ? h('span.badge.badge--err', 'Pilar abaixo de ' + String(c.pillarFloor).replace('.', ',')) : null,
+          r.incomplete ? h('span.badge.badge--warn', 'Pilar sem jurado (nota provisória)') : null)),
       h('label.check', { style: 'min-height:44px' },
         h('input', { type: 'checkbox', checked: r.finalist, disabled: c.resultsLocked, onchange: (ev) => {
           const ids = c.finalists.filter((x) => x !== r.teamId).concat(ev.target.checked ? [r.teamId] : []);
@@ -899,20 +949,38 @@
   }
 
   function critDialog(x) {
-    x = x || { name: '', description: '', weight: 1, scaleMax: 5 };
+    // Sem pilar, o padrão é valer nas duas fases (como antes); com pilar, só fase 1.
+    x = x || { name: '', description: '', weight: 1, scaleMax: 5, phase: 'both', pillar: null, gate: false, anchors: [] };
+    const pillars = evalState.config.pillars;
+    const anchors = x.anchors || [];
     const form = h('form.form',
       h('label.field', h('span', 'Nome'), h('input', { name: 'name', value: x.name, required: true, maxlength: 60 })),
       h('label.field', h('span', 'Descrição para a banca'), h('textarea', { name: 'description', maxlength: 300 }, x.description)),
       h('div.form-grid',
+        h('label.field', h('span', 'Fase'), h('select', { name: 'phase' },
+          h('option', { value: 'main', selected: x.phase === 'main' }, 'Fase 1 (entregáveis)'),
+          h('option', { value: 'final', selected: x.phase === 'final' }, 'Final (pitch)'),
+          h('option', { value: 'both', selected: !x.phase || x.phase === 'both' }, 'As duas'))),
+        h('label.field', h('span', 'Pilar (só fase 1)'), h('select', { name: 'pillar', onchange: (ev) => { if (ev.target.value) ev.target.form.phase.value = 'main'; } },
+          h('option', { value: '' }, 'Sem pilar (todos os jurados)'),
+          pillars.map((p) => h('option', { value: p.id, selected: x.pillar === p.id }, p.label))))),
+      h('div.form-grid',
         h('label.field', h('span', 'Peso'), h('input', { name: 'weight', type: 'number', min: '0.1', max: '10', step: '0.1', value: x.weight })),
         h('label.field', h('span', 'Escala'), h('select', { name: 'scaleMax' },
           h('option', { value: 5, selected: x.scaleMax === 5 }, '1 a 5'), h('option', { value: 10, selected: x.scaleMax === 10 }, '1 a 10')))),
+      h('label.check', h('input', { type: 'checkbox', name: 'gate', checked: Boolean(x.gate) }), h('span', 'Trava: quem dá nota 1 aqui tem a nota dele no pilar limitada a 1,0')),
+      h('div.field', h('span', 'Âncoras: o que significa cada nota (de 1 a 5)'),
+        [0, 1, 2, 3, 4].map((i) => h('label.field', h('span', 'Nota ' + (i + 1)), h('input', { name: 'anchor' + i, value: anchors[i] || '', maxlength: 160 })))),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));
-    form.addEventListener('submit', (ev) => {
+    form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const f = ev.target;
-      dlg.close();
-      evalAction({ action: x.id ? 'updateCriterion' : 'addCriterion', id: x.id, name: f.name.value, description: f.description.value, weight: Number(f.weight.value), scaleMax: Number(f.scaleMax.value) }, 'Critério salvo.');
+      const saved = await evalAction({
+        action: x.id ? 'updateCriterion' : 'addCriterion', id: x.id, name: f.name.value, description: f.description.value,
+        weight: Number(f.weight.value), scaleMax: Number(f.scaleMax.value), phase: f.phase.value, pillar: f.pillar.value || null,
+        gate: f.gate.checked, anchors: [0, 1, 2, 3, 4].map((i) => f['anchor' + i].value),
+      }, 'Critério salvo.');
+      if (saved) dlg.close();
     });
     openDialog(x.id ? 'Editar critério' : 'Novo critério', form);
   }
