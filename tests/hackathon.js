@@ -215,7 +215,7 @@ test("link de emergência: restaura o que caiu por link novo; marcado, link novo
   const mail = issueLoginToken(s, p.id, T0);
   const pdf = issueLoginToken(s, p.id, later(1000)); // derruba o do e-mail
   assert.throws(() => consumeLoginToken(s, mail, later(2000)), /Link inválido/);
-  eq1(restoreSupersededTokens(s, p.id, later(2000)), 1);
+  eq1(restoreSupersededTokens(s, p.id, later(2000), T0.toISOString()), 1);
   eq1(pinTokens(s, p.id, later(2000)), 2);
   issueLoginToken(s, p.id, later(3000)); // link novo (painel ou "esqueci") não derruba os de emergência
   eq1(consumeLoginToken(s, mail, later(4000)).id, p.id, "o do e-mail volta a valer");
@@ -228,7 +228,7 @@ test("link de emergência: o que caiu por link enviado por e-mail (instante dife
   const pdf = issueLoginToken(s, p.id, T0);
   const mail = issueLoginToken(s, p.id, later(1000), { revokeOthers: false });
   revokeOtherTokens(s, p.id, sha256(mail), later(5000)); // e-mail aceito pelo provedor depois
-  eq1(restoreSupersededTokens(s, p.id, later(6000)), 1);
+  eq1(restoreSupersededTokens(s, p.id, later(6000), T0.toISOString()), 1);
   eq1(consumeLoginToken(s, pdf, later(7000)).id, p.id);
 });
 test("link de emergência: substituído antes de uma troca de e-mail não volta", () => {
@@ -239,26 +239,33 @@ test("link de emergência: substituído antes de uma troca de e-mail não volta"
   issueLoginToken(s, p.id, later(1000)); // derruba o anterior (substituído)
   revokeAllTokens(s, p.id, later(2000)); // diretoria corrige o e-mail: selo
   const ok = issueLoginToken(s, p.id, later(3000));
-  eq1(restoreSupersededTokens(s, p.id, later(4000)), 0, "nada de antes do selo volta");
+  eq1(restoreSupersededTokens(s, p.id, later(4000), T0.toISOString()), 0, "nada de antes do selo volta");
   assert.throws(() => consumeLoginToken(s, wrong, later(5000)), /Link inválido/);
   eq1(consumeLoginToken(s, ok, later(5000)).id, p.id);
 });
-test("link de emergência: revogação antiga sem motivo gravado vira selo implícito", () => {
+test("link de emergência: legado só volta a partir de since; since inválido é recusado", () => {
   const s = emptyState();
   const p = newPerson({ roles: ["judge"] });
   s.people.push(p);
-  // Estado gravado pelo código antigo: A foi para o e-mail errado, B o substituiu,
-  // e a troca de e-mail derrubou B. Nada disso tem revokedBy.
-  s.tokens.push(
-    { id: "a", hash: sha256("a".repeat(30)), personId: p.id, purpose: "login", createdAt: T0.toISOString(), expiresAt: later(7 * 864e5).toISOString(), usedAt: null, revokedAt: later(1000).toISOString() },
-    { id: "b", hash: sha256("b".repeat(30)), personId: p.id, purpose: "login", createdAt: later(1000).toISOString(), expiresAt: later(7 * 864e5).toISOString(), usedAt: null, revokedAt: later(2000).toISOString() },
-    // C nasceu depois da troca e D o substituiu: C pode voltar.
-    { id: "c", hash: sha256("c".repeat(30)), personId: p.id, purpose: "login", createdAt: later(3000).toISOString(), expiresAt: later(7 * 864e5).toISOString(), usedAt: null, revokedAt: later(4000).toISOString() },
-    { id: "d", hash: sha256("d".repeat(30)), personId: p.id, purpose: "login", createdAt: later(4000).toISOString(), expiresAt: later(7 * 864e5).toISOString(), usedAt: null, revokedAt: null }
-  );
-  eq1(restoreSupersededTokens(s, p.id, later(5000)), 1, "só o C");
+  const tok = (k, created, revoked) => ({ id: k, hash: sha256(k.repeat(30)), personId: p.id, purpose: "login", createdAt: later(created).toISOString(), expiresAt: later(7 * 864e5).toISOString(), usedAt: null, revokedAt: revoked === null ? null : later(revoked).toISOString() });
+  // Gravado pelo código antigo (sem revokedBy): A substituído por B; C substituído por D.
+  s.tokens.push(tok("a", 0, 1000), tok("b", 1000, 2000), tok("c", 3000, 4000), tok("d", 4000, null));
+  assert.throws(() => restoreSupersededTokens(s, p.id, later(5000), "ontem"), /a partir de quando/);
+  eq1(restoreSupersededTokens(s, p.id, later(5000), later(3000).toISOString()), 1, "só o C, que caiu depois de since");
   assert.throws(() => consumeLoginToken(s, "a".repeat(30), later(6000)), /Link inválido/);
   eq1(consumeLoginToken(s, "c".repeat(30), later(6000)).id, p.id);
+});
+test("link de emergência: usado ou vencido não volta nem é marcado", () => {
+  const s = emptyState();
+  const p = newPerson({ roles: ["judge"] });
+  s.people.push(p);
+  const used = issueLoginToken(s, p.id, T0);
+  consumeLoginToken(s, used, later(100));
+  const short = issueLoginToken(s, p.id, later(200), { ttlMs: 1000 });
+  issueLoginToken(s, p.id, later(300)); // derruba o curto
+  eq1(restoreSupersededTokens(s, p.id, later(5000), T0.toISOString()), 0, "o curto venceu");
+  eq1(pinTokens(s, p.id, later(5000)), 1, "só o último, válido");
+  assert.throws(() => consumeLoginToken(s, short, later(5000)), /Link inválido/);
 });
 test("link de emergência: saída de representante sela e derruba os de emergência", () => {
   const s = emptyState();
@@ -268,7 +275,7 @@ test("link de emergência: saída de representante sela e derruba os de emergên
   issueLoginToken(s, p.id, later(1000));
   pinTokens(s, p.id, later(1000));
   PT.removeRepresentative(s, p.id, later(2000));
-  eq1(restoreSupersededTokens(s, p.id, later(3000)), 0);
+  eq1(restoreSupersededTokens(s, p.id, later(3000), T0.toISOString()), 0);
   assert.throws(() => consumeLoginToken(s, old, later(3000)), /Link inválido/);
 });
 test("link de emergência: revokeAllTokens derruba o marcado; restauração não ressuscita", () => {
@@ -278,7 +285,7 @@ test("link de emergência: revokeAllTokens derruba o marcado; restauração não
   const raw = issueLoginToken(s, p.id, T0);
   pinTokens(s, p.id, T0);
   revokeAllTokens(s, p.id, later(1000));
-  eq1(restoreSupersededTokens(s, p.id, later(2000)), 0, "revogado por bloqueio não tem par");
+  eq1(restoreSupersededTokens(s, p.id, later(2000), T0.toISOString()), 0, "revogado por segurança não volta");
   assert.throws(() => consumeLoginToken(s, raw, later(2000)), /Link inválido/);
 });
 test("link: lista de espera pode entrar; quem não tem papel nem inscrição não", () => {
