@@ -623,9 +623,26 @@ test("avaliação: nota fora da escala ou faltando critério é recusada", () =>
   EV.lockCriteria(s, true);
   EV.setOpen(s, true);
   assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 6, 3), T0), /1 a 5/);
-  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 2.5, 3), T0), /inteira/);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 2.25, 3), T0), /0,5 em 0,5/);
+  assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 0.5, 3), T0), /1 a 5/);
   const [c1] = s.config.evaluation.criteria;
   assert.throws(() => EV.submitScore(s, judges[0].id, teams[0].id, { values: { [c1.id]: 3 } }, T0), /Beta/);
+});
+test("avaliação: meio ponto vale nas duas escalas e entra na média", () => {
+  const { s, teams, judges } = evalState(1);
+  EV.addCriterion(s, { name: "Alfa" });
+  EV.addCriterion(s, { name: "Beta", scaleMax: 10 });
+  EV.lockCriteria(s, true);
+  EV.setOpen(s, true);
+  EV.submitScore(s, judges[0].id, teams[0].id, vals(s, 3.5, 9.5), T0);
+  // (3,5-1)/4 = 0,625 e (9,5-1)/9 = 0,9444 -> média 0,78472 -> 78,47
+  eq1(Math.round(EV.ranking(s)[0].score * 100) / 100, 78.47);
+});
+test("pilares: meio ponto no critério trava não aciona a trava (só nota 1)", () => {
+  const st = pillarState(1);
+  scoreAll(st, st.teams[0], { tech: [1.5, 5] });
+  // (0,125 + 1)/2 * 2,5 = 1,40625: sem trava, porque a nota não é 1.
+  eq1(rowOf(st.s, st.teams[0]).pillars.tech.score, 1.40625);
 });
 test("avaliação: só equipe confirmada com entrega completa é avaliada", () => {
   const { s, teams, judges } = evalState(2);

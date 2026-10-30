@@ -635,7 +635,9 @@ test("hackathon com inscrições fechadas continua na vitrine até o fim do even
 test("presença só vale no dia: código e QR recusam fora da data", async () => {
   const admin = client();
   await admin.login(1, ADMIN_PASS);
-  const futuro = await admin.post("/api/events", { type: "reuniao", title: "Reunião de outubro", date: "2026-10-30", ...EV_LOCAL });
+  // Data sempre no futuro (era fixa em 2026-10-30 e virou "hoje" nesse dia, abrindo a presença).
+  const daqui30 = new Date(Date.now() + 30 * 864e5).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const futuro = await admin.post("/api/events", { type: "reuniao", title: "Reunião futura", date: daqui30, ...EV_LOCAL });
   const ev = futuro.data.event;
   eq(ev.attendanceState, "agendada", "evento futuro nasce agendado");
 
