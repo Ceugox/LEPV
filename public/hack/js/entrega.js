@@ -145,8 +145,12 @@
           c.anchors && c.anchors.length ? h('small', c.anchors.map((a, i) => a ? (i + 1) + ' = ' + a : null).filter(Boolean).join(' · ')) : null,
           h('select', { name: c.id, required: true },
             h('option', { value: '' }, '—'),
-            Array.from({ length: c.scaleMax }, (_, i) => h('option', { value: i + 1, selected: vals[c.id] === i + 1 },
-              String(i + 1) + (c.anchors && c.anchors[i] ? ' · ' + c.anchors[i] : '')))))),
+            // De 0,5 em 0,5; âncora só nos inteiros.
+            Array.from({ length: c.scaleMax * 2 - 1 }, (_, i) => {
+              const n = 1 + i / 2;
+              const anchor = Number.isInteger(n) && c.anchors && c.anchors[n - 1] ? ' · ' + c.anchors[n - 1] : '';
+              return h('option', { value: n, selected: vals[c.id] === n }, String(n).replace('.', ',') + anchor);
+            })))),
         h('label.field', h('span', 'Comentário (só a organização vê)'), h('textarea', { name: 'comment', maxlength: 1000 }, (t.myScore && t.myScore.comment) || '')),
         h('div.row', h('button.btn.btn--red.btn--sm', { type: 'submit' }, t.myScore ? 'Atualizar nota' : 'Salvar nota'), conflictBtn));
       form.addEventListener('submit', async (ev) => {
