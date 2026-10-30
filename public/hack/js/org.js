@@ -968,7 +968,7 @@
         h('label.field', h('span', 'Peso'), h('input', { name: 'weight', type: 'number', min: '0.1', max: '10', step: '0.1', value: x.weight })),
         h('label.field', h('span', 'Escala'), h('select', { name: 'scaleMax' },
           h('option', { value: 5, selected: x.scaleMax === 5 }, '1 a 5'), h('option', { value: 10, selected: x.scaleMax === 10 }, '1 a 10')))),
-      h('label.check', h('input', { type: 'checkbox', name: 'gate', checked: Boolean(x.gate) }), h('span', 'Trava: quem dá nota 1 aqui tem a nota dele no pilar limitada a 1,0')),
+      h('label.check', h('input', { type: 'checkbox', name: 'gate', checked: Boolean(x.gate) }), h('span', 'Trava: quem dá nota 1 aqui tem a nota dele no pilar limitada a 1,0 (só a nota 1; 1,5 não trava)')),
       h('div.field', h('span', 'Âncoras: o que significa cada nota (de 1 a 5)'),
         [0, 1, 2, 3, 4].map((i) => h('label.field', h('span', 'Nota ' + (i + 1)), h('input', { name: 'anchor' + i, value: anchors[i] || '', maxlength: 160 })))),
       h('button.btn.btn--red.btn--sm', { type: 'submit' }, 'Salvar'));

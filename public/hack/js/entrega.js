@@ -142,6 +142,7 @@
         d.criteria.map((c) => h('label.field',
           h('span', (c.pillar ? pillarLabel(d, c.pillar) + ' · ' : '') + c.name + ' (1 a ' + c.scaleMax + (c.weight !== 1 ? ', peso ' + c.weight : '') + ')'),
           c.description ? h('small', c.description) : null,
+          c.gate ? h('small', 'Trava: nota 1 aqui limita sua nota no pilar a 1,0. Só a nota 1 trava; 1,5 não.') : null,
           c.anchors && c.anchors.length ? h('small', c.anchors.map((a, i) => a ? (i + 1) + ' = ' + a : null).filter(Boolean).join(' · ')) : null,
           h('select', { name: c.id, required: true },
             h('option', { value: '' }, '—'),
