@@ -1279,10 +1279,76 @@
 
     return (
       '<p class="participants-summary num">' + esc(resumo.join(" · ")) + "</p>" +
+      '<div class="meeting-actions"><button type="button" class="btn-reject" data-exportcsv>Exportar CSV</button></div>' +
       '<div class="table-scroll"><table class="participants' + (isHack ? " hack" : "") + '">' +
         "<thead><tr>" + head + "</tr></thead><tbody>" + linhas + "</tbody>" +
       "</table></div>"
     );
+  }
+
+  // CSV dos inscritos, gerado no navegador a partir do que a gestão já tem.
+  // ";" + BOM UTF-8 porque é o que o Excel em pt-BR abre direto em colunas,
+  // com acento certo. Célula que começa com = + - @ ganha um ' na frente:
+  // senão o Excel executa como fórmula o que a pessoa digitou no formulário.
+  function csvCell(v) {
+    var s = v === null || v === undefined ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return /[";\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function exportSignupsCsv(ev) {
+    var isHack = ev.type === "hackathon";
+    var cols = [
+      ["Nome", function (s) { return s.name; }],
+      ["E-mail", function (s) { return s.email; }],
+      ["Celular", function (s) { return s.phone; }],
+      ["Tipo", function (s) { return s.type === "member" ? "membro" : "visitante"; }],
+      ["Status", function (s) { return s.status === "waitlist" ? "fila" : "confirmado"; }],
+      ["Compareceu", function (s) { return s.attended ? "Sim" : "Não"; }],
+      ["Inscrito em", function (s) { return s.at ? new Date(s.at).toLocaleString("pt-BR") : ""; }],
+    ];
+    if (isHack) {
+      cols = cols.concat([
+        ["Vínculo", function (s) { return s.vinculo; }],
+        ["Curso", function (s) { return s.curso; }],
+        ["Ano da faculdade", function (s) { return s.anoFaculdade; }],
+        ["LinkedIn", function (s) { return s.linkedin; }],
+        ["CPF", function (s) { return fmtCpf(s.cpf); }],
+        ["Tamanho da blusa", function (s) { return s.tamanhoBlusa; }],
+        ["Tem grupo", function (s) { return s.temGrupo; }],
+        ["Tem tema", function (s) { return s.temTema; }],
+        ["Topa 16–17/out", function (s) { return s.topaDias16e17; }],
+        ["Datas alternativas", function (s) {
+          return (s.datasAlternativas || []).map(function (d) {
+            return d === "Outro" && s.datasAlternativasOutro ? s.datasAlternativasOutro : d;
+          }).join(", ");
+        }],
+        ["Autoriza patrocinadores", function (s) { return s.consentPatrocinadores ? "Sim" : "Não"; }],
+      ]);
+    } else {
+      cols = cols.concat([
+        ["Turma", function (s) { return s.turma; }],
+        ["Especialidade", function (s) { return s.especialidade; }],
+        ["Idade", function (s) { return s.idade; }],
+      ]);
+    }
+
+    var linhas = [cols.map(function (c) { return csvCell(c[0]); }).join(";")].concat(
+      ev.signups.map(function (s) {
+        return cols.map(function (c) { return csvCell(c[1](s)); }).join(";");
+      })
+    );
+    var blob = new Blob(["﻿" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var nome = "inscritos-" + (ev.date || "") + "-" +
+      String(ev.title || "evento").normalize("NFD").replace(/[̀-ͯ]/g, "")
+        .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".csv";
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
   }
 
   function managePanelHtml(ev) {
@@ -1724,6 +1790,13 @@
         api("/api/events/" + id + "/codes/" + encodeURIComponent(btn.dataset.delcode), { method: "DELETE" }).then(loadEvents);
       });
     });
+    var exportCsv = box.querySelector("[data-exportcsv]");
+    if (exportCsv) {
+      exportCsv.addEventListener("click", function () {
+        var ev = (eventsCache || []).filter(function (e) { return e.id === id; })[0];
+        if (ev && ev.signups) exportSignupsCsv(ev);
+      });
+    }
     box.querySelectorAll("[data-delsignup]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         if (!window.confirm("Remover esta inscrição? Se houver fila de espera, a vaga passa para o próximo.")) return;
