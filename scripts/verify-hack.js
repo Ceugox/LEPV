@@ -23,11 +23,11 @@ const APP_PAGES = [
   '/hack/organizacao#pessoas', '/hack/organizacao#equipes', '/hack/organizacao#entregas', '/hack/organizacao#avaliacao',
   '/hack/organizacao#parceiros', '/hack/credenciamento#leitura',
   '/hack/organizacao#avisos', '/hack/organizacao#whatsapp', '/hack/organizacao#programacao',
-  '/hack/organizacao#visao', '/hack/organizacao#duvidas',
+  '/hack/organizacao#visao', '/hack/organizacao#duvidas', '/hack/organizacao#gravacao',
 ];
 // Telas que só aparecem para participante ou jurado: entram com pessoas de
 // verificação criadas pela própria diretoria (link pessoal consumido aqui).
-const PARTICIPANT_PAGES = ['/hack/portal#equipe', '/hack/portal#entrega', '/hack/portal#duvidas', '/hack/portal#ia'];
+const PARTICIPANT_PAGES = ['/hack/portal#equipe', '/hack/portal#entrega', '/hack/portal#duvidas', '/hack/portal#ia', '/hack/portal#gravacao'];
 const JUDGE_PAGES = ['/hack/portal#banca'];
 const MODES = [
   { name: 'desktop', viewport: { width: 1440, height: 900 }, reducedMotion: 'no-preference' },

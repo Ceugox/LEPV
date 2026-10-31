@@ -709,6 +709,28 @@ test("equipes: cria, entra por código; quem declarou grupo não usa a descobert
   eq(j.data.team.size, 2);
 });
 
+test("gravação: equipe reserva, outro membro vê e troca; organização vê e libera", async () => {
+  const r = await S.c.ana.post("/hack/api/recording/book", { slot: "10:00" });
+  eq(r.status, 200, JSON.stringify(r.data));
+  eq(r.data.mine, "10:00");
+  const b = await S.c.bruno.get("/hack/api/recording");
+  eq(b.data.mine, "10:00", "colega de equipe vê o horário");
+  eq((await S.c.bruno.post("/hack/api/recording/book", { slot: "10:15" })).data.mine, "10:15");
+  eq((await S.c.julia.get("/hack/api/recording")).status, 403, "jurada não reserva");
+  eq((await S.c.ana.get("/hack/api/admin/recording")).status, 403, "participante não vê a grade com nomes");
+  const adm = await S.admin.get("/hack/api/admin/recording");
+  eq(adm.data.slots.find((x) => x.slot === "10:15").booking.team, "Alfa");
+  eq((await S.admin.post("/hack/api/admin/recording/release", { slot: "10:15" })).status, 200);
+  eq((await S.c.ana.get("/hack/api/recording")).data.mine, null);
+  eq((await S.c.ana.post("/hack/api/recording/book", { slot: "11:00" })).status, 200);
+  eq((await S.c.bruno.post("/hack/api/recording/queue")).status, 409, "fila recusa com horário reservado");
+  eq((await S.c.bruno.post("/hack/api/recording/cancel")).data.mine, null);
+  eq((await S.c.bruno.post("/hack/api/recording/cancel")).status, 404, "nada para cancelar");
+  eq((await S.c.ana.post("/hack/api/recording/queue")).status, 409, "fila recusa com horário livre");
+  eq((await S.c.ana.del("/hack/api/recording/queue")).status, 200);
+  eq((await client().get("/hack/api/admin/recording")).status, 401);
+});
+
 test("equipes: convite só para perfil visível e sem grupo; aceito vira integrante", async () => {
   const elisaId = (await S.c.elisa.get("/hack/api/me")).data.me.id;
   eq((await S.c.ana.post("/hack/api/team/invite", { personId: elisaId })).status, 409, "perfil escondido");
@@ -1350,7 +1372,9 @@ test("credenciamento: staff só com a permissão marcada", async () => {
   const c = client();
   eq((await c.post("/hack/api/access/consume", { token: await link() })).status, 200);
   eq((await c.post("/hack/api/checkin/scan", { code: qrOf("davi@ex.com"), day: "2026-10-30" })).status, 403);
+  eq((await c.get("/hack/api/admin/recording")).status, 403, "sem credenciamento não vê a gravação");
   eq((await S.admin.patch("/hack/api/admin/people/" + sofia.id, { staffPerms: { checkin: true } })).status, 200);
+  eq((await c.get("/hack/api/admin/recording")).status, 200, "credenciamento vê a grade da gravação");
   const r = await c.post("/hack/api/checkin/scan", { code: qrOf("davi@ex.com"), day: "2026-10-30" });
   eq(r.status, 200);
   eq(r.data.status, "ok");
