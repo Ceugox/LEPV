@@ -505,7 +505,7 @@ test("permissões: toda rota da organização recusa anônimo (401) e participan
     ["GET", "/hack/api/admin/announcements"], ["POST", "/hack/api/admin/announcements"], ["POST", "/hack/api/admin/announcements/preview"],
     ["GET", "/hack/api/admin/whatsapp"], ["POST", "/hack/api/admin/deliveries/x"],
     ["GET", "/hack/api/admin/teams"], ["POST", "/hack/api/admin/teams"], ["GET", "/hack/api/admin/submissions"],
-    ["PUT", "/hack/api/admin/config/deadline"], ["GET", "/hack/api/admin/evaluation"], ["POST", "/hack/api/admin/evaluation"],
+    ["PUT", "/hack/api/admin/config/deadline"], ["GET", "/hack/api/admin/evaluation"], ["POST", "/hack/api/admin/evaluation"], ["GET", "/hack/api/admin/vote"], ["POST", "/hack/api/admin/vote"],
     ["GET", "/hack/api/admin/partners"], ["POST", "/hack/api/admin/partners/orgs"], ["PATCH", "/hack/api/admin/partners/orgs/x"],
     ["POST", "/hack/api/admin/partners/requests/x"], ["DELETE", "/hack/api/admin/partners/representatives/x"],
     ["GET", "/hack/api/admin/devices"], ["POST", "/hack/api/admin/devices/x/revoke"], ["DELETE", "/hack/api/checkin/x"],
@@ -1086,6 +1086,57 @@ test("avaliação: jurados dão nota, cada um vê só a sua; impedido não pontu
   eq(rk[0].eligibleJudges, 1, "impedido não conta");
   eq(rk[1].teamId, S.gama.id);
   eq(rk[1].judges, 2);
+});
+
+test("votação do público: finalista não vota, um voto por pessoa, contagem só para a organização", async () => {
+  const vote = (body) => S.admin.post("/hack/api/admin/vote", body);
+  const finalists = (teamIds) => S.admin.post("/hack/api/admin/evaluation", { action: "finalists", teamIds });
+  const before = (await S.admin.get("/hack/api/admin/evaluation")).data.config.finalists;
+  const solo = (await S.admin.get("/hack/api/admin/teams")).data.solo;
+  assert(solo.length >= 2, "duas pessoas sem equipe para a Delta");
+  const delta = await S.admin.post("/hack/api/admin/teams", { name: "Delta", memberIds: [solo[0].id, solo[1].id] });
+  eq(delta.status, 200);
+  const voter = await enterAs(solo[0].email);
+
+  eq((await finalists([])).status, 200);
+  eq((await vote({ action: "open" })).status, 409, "sem finalistas");
+  eq((await finalists([S.alfa.id, S.gama.id])).status, 200);
+  eq((await voter.get("/hack/api/vote")).data.finalists.length, 0, "antes de abrir a lista não aparece");
+  eq((await voter.put("/hack/api/vote", { teamId: S.gama.id })).status, 409, "não aberta");
+  const o = await vote({ action: "open" });
+  eq(o.status, 200);
+  eq(o.data.status, "open");
+  eq((await finalists([S.alfa.id])).status, 409, "finalistas travadas com a votação aberta");
+
+  const fin = await S.c.davi.get("/hack/api/vote");
+  eq(fin.data.reason, "finalist");
+  eq((await S.c.davi.put("/hack/api/vote", { teamId: S.alfa.id })).status, 403, "finalista não vota");
+  eq((await S.c.julia.get("/hack/api/vote")).status, 403, "jurada não é participante");
+  eq((await S.c.davi.get("/hack/api/admin/vote")).status, 403, "contagem é da organização");
+
+  const mine = await voter.get("/hack/api/vote");
+  eq(mine.data.reason, null);
+  eq(mine.data.finalists.length, 2);
+  eq((await voter.put("/hack/api/vote", { teamId: delta.data.team.id })).status, 400, "só finalista");
+  const v = await voter.put("/hack/api/vote", { teamId: S.gama.id });
+  eq(v.status, 200);
+  eq(v.data.myVote.id, S.gama.id);
+  assert(!JSON.stringify(v.data).includes("votes"), "participante não vê contagem");
+  eq((await voter.put("/hack/api/vote", { teamId: S.alfa.id })).status, 409, "sem troca");
+
+  const c = await vote({ action: "close" });
+  eq(c.status, 200);
+  eq(c.data.result.votes, 1);
+  eq(c.data.result.eligible, 2, "só a Delta vota");
+  eq(c.data.result.rows[0].id, S.gama.id);
+  eq(c.data.result.rows[0].tied, false);
+  eq((await voter.get("/hack/api/vote")).data.status, "closed");
+  eq((await vote({ action: "bogus" })).status, 400);
+
+  // Volta ao estado da jornada.
+  eq((await vote({ action: "reset" })).status, 200);
+  eq((await finalists(before)).status, 200);
+  eq((await S.admin.del("/hack/api/admin/teams/" + delta.data.team.id)).status, 200);
 });
 
 test("resultado: travado fecha a banca; só depois de revelar o pódio fica público, sem notas", async () => {

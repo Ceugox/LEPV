@@ -2251,6 +2251,80 @@ test("gravação: sair da fila, fim das gravações e limites de horário", () =
   assert.throws(() => REC.release(s2, "99:99", RT0), /inválido/);
 });
 
+// ---------- votação do público ----------
+const VO = require("../lib/hackathon/vote");
+const VT0 = new Date("2026-10-31T17:00:00-03:00");
+// 7 equipes de 2; t1–t5 finalistas.
+function voteState() {
+  const s = recState(7);
+  s.config.evaluation.finalists = ["t1", "t2", "t3", "t4", "t5"];
+  return s;
+}
+
+test("votação: só abre com finalistas; finalista não vota e não muda com a votação aberta", () => {
+  const s = recState(3);
+  assert.throws(() => VO.open(s, "dir", VT0), /pelo menos 2 finalistas/);
+  const v = voteState();
+  assert.throws(() => VO.cast(v, "p6a", "t1", VT0), /não está aberta/);
+  VO.open(v, "dir", VT0);
+  assert.deepStrictEqual(v.config.popularVote.finalists, ["t1", "t2", "t3", "t4", "t5"]);
+  eq1(VO.blockReason(v, "p1a"), "finalist");
+  assert.throws(() => VO.cast(v, "p1a", "t2", VT0), (e) => e.status === 403 && e.code === "finalist");
+  assert.throws(() => EV.setFinalists(v, ["t1", "t2"]), /votação do público está aberta/);
+  eq1(VO.ownView(v, "p6a").finalists.length, 5);
+  eq1(VO.ownView(v, "p6a").reason, null);
+});
+
+test("votação: um voto por pessoa, só em finalista; jurado e quem não é participante não votam", () => {
+  const s = voteState();
+  s.people.push({ id: "j1", name: "Jurado", roles: ["judge"], disabled: false });
+  VO.open(s, "dir", VT0);
+  assert.throws(() => VO.cast(s, "p6a", "t6", VT0), /finalistas/);
+  VO.cast(s, "p6a", "t1", VT0);
+  assert.throws(() => VO.cast(s, "p6a", "t2", VT0), /já votou/);
+  assert.throws(() => VO.cast(s, "j1", "t1", VT0), (e) => e.code === "cannot_vote");
+  eq1(VO.ownView(s, "p6a").myVote.id, "t1");
+  eq1(VO.ownView(s, "p6a").finalists.length, 5);
+});
+
+test("votação: contagem congela no encerramento; empate fica marcado; reabrir e zerar", () => {
+  const s = voteState();
+  VO.open(s, "dir", VT0);
+  VO.cast(s, "p6a", "t1", VT0);
+  VO.cast(s, "p6b", "t2", VT0);
+  VO.cast(s, "p7a", "t3", VT0);
+  VO.close(s, "dir", VT0);
+  assert.throws(() => VO.cast(s, "p7b", "t3", VT0), /não está aberta/);
+  const r = s.config.popularVote.result;
+  eq1(r.votes, 3);
+  eq1(r.eligible, 4, "só as equipes t6 e t7 votam");
+  eq1(r.rows.length, 5);
+  eq1(r.rows[0].position, 1);
+  eq1(r.rows[0].tied, true, "três equipes com 1 voto");
+  eq1(r.rows[3].votes, 0);
+  eq1(r.rows[3].position, 4);
+  eq1(VO.ownView(s, "p7b").finalists.length, 0, "encerrada: participante não vê a lista");
+  assert(!("result" in VO.ownView(s, "p6a")), "participante nunca vê contagem");
+  VO.reopen(s);
+  VO.cast(s, "p7b", "t3", VT0);
+  VO.close(s, "dir", VT0);
+  eq1(s.config.popularVote.result.rows[0].id, "t3");
+  eq1(s.config.popularVote.result.rows[0].tied, false);
+  VO.reset(s);
+  eq1(s.votes.length, 0);
+  eq1(s.config.popularVote.status, "idle");
+});
+
+test("votação: quem entrou numa finalista depois de votar sai da contagem", () => {
+  const s = voteState();
+  VO.open(s, "dir", VT0);
+  VO.cast(s, "p6a", "t1", VT0);
+  const t6 = s.teams.find((t) => t.id === "t6");
+  t6.members = t6.members.filter((m) => m !== "p6a");
+  s.teams.find((t) => t.id === "t1").members.push("p6a");
+  eq1(VO.tally(s).votes, 0);
+});
+
 (async () => {
   for (const t of tests) {
     try {

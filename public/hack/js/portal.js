@@ -369,6 +369,7 @@
     if (name === 'gravacao' && window.HackRecording && state.me) window.HackRecording.render($('gravacao-grid'));
     if (name === 'duvidas' && window.HackQuestions && state.me) window.HackQuestions.render($('duvidas-grid'));
     if (name === 'ia' && window.HackAI && state.me) window.HackAI.render($('ia-grid'));
+    if (name === 'votacao' && window.HackVote && state.me) window.HackVote.render($('votacao-grid'));
   });
   load();
   // Próximo horário anda com o relógio; avisos novos chegam sem recarregar.

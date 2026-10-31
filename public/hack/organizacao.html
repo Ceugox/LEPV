@@ -39,6 +39,7 @@
     <button class="tab" type="button" role="tab" data-tab="equipes" data-perm="manage">Equipes</button>
     <button class="tab" type="button" role="tab" data-tab="entregas" data-perm="manage">Entregas</button>
     <button class="tab" type="button" role="tab" data-tab="avaliacao" data-perm="manage">Avaliação</button>
+    <button class="tab" type="button" role="tab" data-tab="votacao" data-perm="manage">Votação</button>
     <button class="tab" type="button" role="tab" data-tab="parceiros" data-perm="manage">Parceiros</button>
     <button class="tab" type="button" role="tab" data-tab="avisos" data-perm="comms">Avisos</button>
     <button class="tab" type="button" role="tab" data-tab="whatsapp" data-perm="comms">WhatsApp</button>
@@ -162,6 +163,24 @@
     <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="judges-list"></ul></div>
     <h2 class="sec-h">Ranking (só a organização vê)</h2>
     <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="rank-body"></ul></div>
+  </section>
+
+  <section class="panel" data-panel="votacao" aria-label="Votação do público" hidden>
+    <div class="grid grid--2">
+      <article class="card">
+        <p class="card__k">Prêmio do público</p>
+        <div class="row" id="vote-status" style="margin-bottom:14px"></div>
+        <p class="muted small" id="vote-help"></p>
+        <div class="row" id="vote-actions" style="margin-top:12px"></div>
+      </article>
+      <article class="card">
+        <p class="card__k">Finalistas</p>
+        <ul class="list" id="vote-finalists"></ul>
+        <p class="muted small">As finalistas são as marcadas na aba Avaliação. Integrantes delas não votam.</p>
+      </article>
+    </div>
+    <h2 class="sec-h">Contagem (só a organização vê)</h2>
+    <div class="card" style="padding-top:4px;padding-bottom:4px"><ul class="list" id="vote-tally"></ul></div>
   </section>
 
   <section class="panel" data-panel="parceiros" aria-label="Parceiros" hidden>

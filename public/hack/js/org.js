@@ -1213,8 +1213,66 @@
   async function loadRecording() { drawRecording(await api('/hack/api/admin/recording')); }
   $('rec-reload').addEventListener('click', () => loadRecording().catch((e) => toast(e.message, true)));
 
+  // ---------- votação do público ----------
+  let voteTimer = null;
+  const voteWhen = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  async function voteAction(action, ok) {
+    try {
+      drawVote(await api('/hack/api/admin/vote', { method: 'POST', body: { action } }));
+      if (ok) toast(ok);
+    } catch (e) {
+      toast(e.message, true);
+      loadVote().catch(() => {});
+    }
+  }
+  function drawVote(d) {
+    const label = { idle: ['badge--warn', 'Não iniciada'], open: ['badge--ok', 'Aberta'], closed: ['badge--red', 'Encerrada'] }[d.status];
+    clear($('vote-status')).append(...[h('span.badge.' + label[0], label[1]),
+      d.result ? h('span', d.result.votes + ' de ' + d.result.eligible + ' votaram') : null].filter(Boolean));
+    $('vote-help').textContent = d.status === 'idle'
+      ? 'Inicie no fim das 5 apresentações. A partir daí, quem não é finalista vê as finalistas na aba Votação do portal.'
+      : d.status === 'open'
+        ? 'Aberta em ' + voteWhen(d.openedAt) + (d.openedBy ? ' por ' + d.openedBy : '') + '. Enquanto aberta, as finalistas não mudam.'
+        : 'Encerrada em ' + voteWhen(d.closedAt) + (d.closedBy ? ' por ' + d.closedBy : '') + '. Ninguém vota mais.';
+    const btn = (cls, txt, fn) => h('button.btn.btn--sm.' + cls, { type: 'button', onclick: fn }, txt);
+    const actions = clear($('vote-actions'));
+    if (d.status === 'idle') {
+      actions.append(btn('btn--red', 'Iniciar votação', () => {
+        if (confirmTwice('Iniciar a votação do público com as ' + d.markedFinalists.length + ' finalistas marcadas?')) voteAction('open', 'Votação aberta.');
+      }));
+    } else if (d.status === 'open') {
+      actions.append(btn('btn--red', 'Encerrar votação', () => {
+        if (confirmTwice('Encerrar a votação? Ninguém mais vota.')) voteAction('close', 'Votação encerrada.');
+      }));
+    } else {
+      actions.append(
+        btn('btn--ghost', 'Reabrir', () => { if (confirmTwice('Reabrir a votação? Os votos já dados continuam.')) voteAction('reopen', 'Votação reaberta.'); }),
+        btn('btn--danger', 'Zerar votação', () => { if (confirmTwice('Zerar? Todos os votos são apagados (use só em ensaio).')) voteAction('reset', 'Votação zerada.'); }));
+    }
+    const fin = clear($('vote-finalists'));
+    const shown = d.status === 'idle' ? d.markedFinalists : (d.result ? d.result.rows : []);
+    if (!shown.length) fin.appendChild(h('li', h('p.muted', 'Nenhuma finalista marcada. Marque na aba Avaliação.')));
+    shown.forEach((t) => fin.appendChild(h('li', h('div.list__main', h('b', t.projectName || t.name), t.projectName ? h('span', 'Equipe ' + t.name) : null))));
+    if (d.status === 'idle' && shown.length && shown.length !== 5) fin.appendChild(h('li', h('span.badge.badge--warn', shown.length + ' finalistas marcadas (o combinado são 5)')));
+    const tally = clear($('vote-tally'));
+    if (!d.result) tally.appendChild(h('li', h('p.muted', 'A contagem aparece quando a votação começar.')));
+    else d.result.rows.forEach((r) => tally.appendChild(h('li',
+      h('div.list__main', h('b', r.position + 'º · ' + (r.projectName || r.name)), h('span', r.votes + (r.votes === 1 ? ' voto' : ' votos'))),
+      // Prêmio de um vencedor só: empate importa no 1º lugar.
+      r.tied && r.position === 1 ? h('span.badge.badge--warn', 'Empate no 1º lugar: a organização decide') : null)));
+  }
+  async function loadVote() {
+    drawVote(await api('/hack/api/admin/vote'));
+    // Contagem ao vivo enquanto a aba está aberta.
+    clearInterval(voteTimer);
+    voteTimer = setInterval(() => {
+      if (document.hidden || $('vote-tally').closest('[hidden]')) return;
+      api('/hack/api/admin/vote').then(drawVote).catch(() => {});
+    }, 5000);
+  }
+
   // ---------- carga ----------
-  const loaders = { gravacao: loadRecording, visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { gravacao: loadRecording, visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, votacao: loadVote, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });
