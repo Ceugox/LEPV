@@ -72,10 +72,13 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
 {
   const s = setup();
   const r = L.openRound(s, "t1", "delivery", now);
-  error(() => L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 4.5 }, comment: "" }, now), "invalid_score");
+  // De 0,5 em 0,5, como na banca (evaluation.submitScore).
+  error(() => L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 4.2 }, comment: "" }, now), "invalid_score");
+  error(() => L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 0.5 }, comment: "" }, now), "invalid_score");
   error(() => L.saveDraft(s, "j1", r.id, { revision: 0, values: { outro: 4 }, comment: "" }, now), "invalid_score");
-  L.saveDraft(s, "j1", r.id, { revision: 0, values: {}, comment: "" }, now);
-  error(() => L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now), "invalid_score");
+  assert.strictEqual(L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 4.5 }, comment: "" }, now).values.c1, 4.5);
+  L.saveDraft(s, "j1", r.id, { revision: 1, values: {}, comment: "" }, now);
+  error(() => L.confirm(s, "j1", r.id, { revision: 2, confirm: true }, now), "invalid_score");
   E.setConflict(s, "j1", "t1", true, now);
   error(() => L.addNote(s, "j1", r.id, { opId: "operacao-1", text: "x" }, now), "conflict");
   error(() => L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now), "conflict");

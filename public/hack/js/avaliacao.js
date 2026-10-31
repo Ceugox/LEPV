@@ -114,10 +114,11 @@
         score.append(h('p.aval-section-title', 'Critério ' + (local.step + 1) + ' de ' + criteria.length));
         const field = h('fieldset.aval-criterion', h('legend', criterion.name), criterion.description ? h('p', criterion.description) : null);
         const options = h('div.aval-options');
-        for (let n = 1; n <= criterion.scaleMax; n++) {
+        // De 0,5 em 0,5, como na banca.
+        for (let n = 1; n <= criterion.scaleMax; n += 0.5) {
           const input = h('input', { type: 'radio', name: 'criterion-' + criterion.id, value: n, checked: Number(local.values[criterion.id]) === n });
           input.addEventListener('change', () => { local.values[criterion.id] = n; });
-          options.append(h('label', input, h('span', String(n))));
+          options.append(h('label', input, h('span', String(n).replace('.', ','))));
         }
         field.append(options); score.append(field);
         const comment = h('textarea', { rows: 3, maxlength: 1000, placeholder: 'Comentário para a organização (opcional)', 'aria-label': 'Comentário para a organização' }, local.comment);
@@ -143,7 +144,7 @@
         score.append(h('div.aval-actions', prev, next, save));
       } else {
         const missing = criteria.filter((c) => !local.values[c.id]);
-        const list = h('dl'); criteria.forEach((c) => list.append(h('dt', c.name), h('dd', local.values[c.id] ? String(local.values[c.id]) + ' / ' + c.scaleMax : 'Pendente')));
+        const list = h('dl'); criteria.forEach((c) => list.append(h('dt', c.name), h('dd', local.values[c.id] ? String(local.values[c.id]).replace('.', ',') + ' / ' + c.scaleMax : 'Pendente')));
         const review = h('div.aval-review', h('h4', 'Confira antes de confirmar'), list, h('p', local.comment || 'Sem comentário final.'));
         const edit = h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => { local.review = false; local.step = 0; drawDetail(); } }, 'Editar notas');
         const confirm = h('button.btn.btn--red.btn--sm', { type: 'button', disabled: !!missing.length || state.busy }, 'Confirmar avaliação');
