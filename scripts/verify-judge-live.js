@@ -169,8 +169,17 @@ async function run(base, tokens) {
     } else await run(base, tokens);
   } finally {
     if (browser) await browser.close();
-    if (server && server.exitCode === null) server.kill();
-    if (volume) fs.rmSync(volume, { recursive: true, force: true });
+    // Espera o servidor sair antes de apagar o volume: no Linux do CI ele ainda gravava
+    // na pasta durante o rmSync (ENOTEMPTY). Limpeza que falha não reprova a verificação.
+    if (server && server.exitCode === null) {
+      const exited = new Promise((resolve) => server.once('exit', resolve));
+      server.kill();
+      await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 5000))]);
+    }
+    if (volume) {
+      try { fs.rmSync(volume, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); }
+      catch (err) { console.warn('Aviso: volume temporário não removido (' + err.code + '): ' + volume); }
+    }
     if (serve && fs.existsSync(MANIFEST)) fs.unlinkSync(MANIFEST);
   }
 })().catch((err) => { console.error('FALHA:', err.message); process.exitCode = 1; });
