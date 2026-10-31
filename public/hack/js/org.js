@@ -1225,7 +1225,7 @@
     $('who').textContent = r.me.name;
     document.querySelectorAll('.tab[data-perm]').forEach((b) => { b.hidden = !r.perms[b.dataset.perm]; });
     $('link-cred').hidden = !r.perms.checkin;
-    if (!document.querySelector('.tab[data-perm]:not([hidden]):not([data-tab="gravacao"])') && location.hash !== '#gravacao') {
+    if (!document.querySelector('.tab[data-perm]:not([hidden]):not([data-tab="gravacao"])') && !(r.perms.checkin && location.hash === '#gravacao')) {
       // Staff só de credenciamento cai direto na tela de entrada; a aba
       // Gravação ele abre pelo atalho de lá (#gravacao).
       location.replace(r.perms.checkin ? '/hack/credenciamento' : '/hack/portal');

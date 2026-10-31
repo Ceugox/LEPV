@@ -2133,7 +2133,10 @@ test("e-mail da equipe: colegas com contato, o próprio sem; outra equipe fora; 
 const REC = require("../lib/hackathon/recording");
 function recState(nTeams) {
   const s = emptyState();
-  for (let i = 1; i <= nTeams; i++) s.teams.push({ id: "t" + i, name: "Equipe " + i, members: ["p" + i + "a", "p" + i + "b"], status: "confirmed" });
+  for (let i = 1; i <= nTeams; i++) {
+    s.teams.push({ id: "t" + i, name: "Equipe " + i, members: ["p" + i + "a", "p" + i + "b"], status: "confirmed", ownerId: "p" + i + "a" });
+    for (const x of ["a", "b"]) s.people.push({ id: "p" + i + x, name: "P" + i + x, roles: ["participant"], disabled: false });
+  }
   return s;
 }
 const RT0 = new Date("2026-10-31T09:00:00-03:00");
@@ -2200,18 +2203,23 @@ test("gravação: organização libera; equipe que sumiu libera o horário", () 
   assert.throws(() => REC.release(s, "12:45", RT0), /livre/);
 });
 
-test("gravação: equipes unidas levam o horário; desfeita com fila passa adiante sem travar", () => {
+test("gravação: junção de equipes leva o horário; quem saiu antes não leva", () => {
   const s = recState(3);
   REC.book(s, "p2a", "10:00", RT0);
-  // t2 unida a t1 (que não tinha horário): a reserva vai junto.
-  s.teams[0].members.push("p2a", "p2b");
-  s.teams = s.teams.filter((t) => t.id !== "t2");
-  eq1(REC.needsPrune(s), true);
-  REC.prune(s, RT0);
-  eq1(s.recordings[0].teamId, "t1");
+  TM.merge(s, "t1", "t2", RT0);
+  eq1(s.teams.some((t) => t.id === "t2"), false);
+  eq1(s.recordings[0].teamId, "t1", "B unida a A leva o horário");
   eq1(REC.needsPrune(s), false);
-  // Desfeita com fila: o horário vai para a primeira da fila, e a reserva
-  // seguinte (já limpa) não desfaz isso.
+  // Quem reservou mudou de equipe e a antiga sumiu: o horário não vai junto.
+  const s2 = recState(3);
+  REC.book(s2, "p2a", "10:00", RT0);
+  s2.teams[1].members = ["p2b"];
+  s2.teams[2].members.push("p2a");
+  s2.teams = s2.teams.filter((t) => t.id !== "t2");
+  REC.prune(s2, RT0);
+  eq1(s2.recordings.length, 0);
+});
+test("gravação: equipe desfeita com fila passa o horário adiante sem travar", () => {
   const s2 = recState(16);
   REC.SLOTS.forEach((slot, i) => REC.book(s2, "p" + (i + 1) + "a", slot, RT0));
   REC.joinQueue(s2, "p15a", RT0);
@@ -2219,6 +2227,14 @@ test("gravação: equipes unidas levam o horário; desfeita com fila passa adian
   REC.prune(s2, RT0);
   eq1(s2.recordings.find((x) => x.slot === "09:30").teamId, "t15");
   assert.throws(() => REC.book(s2, "p16a", "09:30", RT0), /Outra equipe/);
+});
+test("gravação: horário já começado liberado não vai para a fila", () => {
+  const s = recState(16);
+  REC.SLOTS.forEach((slot, i) => REC.book(s, "p" + (i + 1) + "a", slot, RT0));
+  REC.joinQueue(s, "p15a", RT0);
+  REC.release(s, "09:30", new Date("2026-10-31T09:35:00-03:00"));
+  eq1(s.recordings.some((x) => x.slot === "09:30"), false);
+  eq1(s.recordingQueue.length, 1);
 });
 test("gravação: sair da fila, fim das gravações e limites de horário", () => {
   const s = recState(16);
