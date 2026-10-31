@@ -60,14 +60,27 @@
       h('p', current ? roundType(current) + ' · ' + ((current.team && current.team.name) || 'equipe fora da avaliação') : 'A organização abrirá a próxima rodada.')),
       current && state.selected && state.selected !== current.id ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => selectRound(current.id) }, 'Ir para equipe atual') : null));
     const box = clear($('rounds'));
-    box.append(h('h2.aval-section-title', 'Rodadas'));
+    // Todas as equipes da fase ficam abertas: o jurado alterna e dá nota em qualquer uma.
+    box.append(h('h2.aval-section-title', 'Equipes'));
     const list = h('div.aval-rounds');
-    (state.live.rounds || []).slice().reverse().forEach((round) => {
-      const status = round.conflict ? 'Impedido' : round.pending ? 'Nota pendente' : round.scored ? 'Nota confirmada' : 'Sem nota';
-      list.append(h('button.aval-round', { type: 'button', 'aria-current': String(state.selected === round.id), onclick: () => selectRound(round.id) }, roundLabel(round), h('small', roundType(round) + ' · ' + status)));
+    (state.live.teams || []).forEach((team) => {
+      const status = team.conflict ? 'Impedido' : team.pending ? 'Nota pendente' : team.scored ? 'Nota confirmada' : 'Sem nota';
+      const isCurrent = current && current.teamId === team.id;
+      list.append(h('button.aval-round', { type: 'button', 'aria-current': String(Boolean(team.roundId) && state.selected === team.roundId), onclick: () => selectTeam(team) },
+        team.projectName || team.name, h('small', (isCurrent ? 'Em apresentação · ' : '') + (team.projectName ? team.name + ' · ' : '') + status)));
     });
-    if (!list.childNodes.length) box.append(h('p.muted', 'Nenhuma rodada disponível ainda.'));
+    if (!list.childNodes.length) box.append(h('p.muted', state.live.config && state.live.config.open ? 'Nenhuma equipe avaliável nesta fase.' : 'A avaliação ainda não foi aberta pela organização.'));
     else box.append(list);
+  }
+  async function selectTeam(team) {
+    if (state.busy) return;
+    if (team.roundId) return selectRound(team.roundId);
+    try {
+      const detail = await post('/judge/live/teams/' + encodeURIComponent(team.id) + '/round', {});
+      state.details[detail.round.id] = detail;
+      team.roundId = detail.round.id;
+      await selectRound(detail.round.id);
+    } catch (err) { error(err); }
   }
   async function selectRound(id) {
     if (state.busy) return;

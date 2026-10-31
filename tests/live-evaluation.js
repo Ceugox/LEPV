@@ -55,7 +55,9 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   assert.strictEqual(L.judgeView(s, s.people[0]).rounds[0].pending, true);
   assert(L.adminView(s).judges.find((j) => j.id === "j1").pending.includes(r1.id));
   L.closeRound(s, r1.id, now);
-  error(() => L.openRound(s, "t1", "delivery", now), "round_exists");
+  // Abrir de novo a mesma equipe reabre a rodada existente (não cria outra).
+  assert.strictEqual(L.openRound(s, "t1", "delivery", now).id, r1.id);
+  L.closeRound(s, r1.id, now);
   s.config.evaluation.phase = "final";
   s.config.evaluation.finalists = ["t1", "t2"];
   error(() => L.openRound(s, "t2", "delivery", now), "phase_kind_mismatch");
@@ -174,6 +176,30 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   assert.strictEqual(s.liveRounds.find((x) => x.id === r.id).status, "closed");
 }
 {
+  // Todas as equipes abertas: o jurado escolhe qualquer equipe avaliável, sem esperar a organização.
+  const s = setup();
+  const view = L.judgeView(s, s.people[0]);
+  assert.deepStrictEqual(view.teams.map((t) => [t.id, t.roundId]), [["t1", null], ["t2", null]]);
+  const r = L.ensureTeamRound(s, "j1", "t2", now);
+  assert.strictEqual(r.status, "closed");
+  assert.strictEqual(r.kind, "delivery");
+  assert.strictEqual(L.ensureTeamRound(s, "j2", "t2", now).id, r.id, "uma rodada por equipe e fase, compartilhada");
+  assert.strictEqual(L.judgeView(s, s.people[0]).teams.find((t) => t.id === "t2").roundId, r.id);
+  // Nota direto na rodada criada pelo jurado, sem a organização abrir nada.
+  L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 4.5 }, comment: "" }, now);
+  assert.strictEqual(L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now).values.c1, 4.5);
+  error(() => L.ensureTeamRound(s, "j1", "fora", now), "not_evaluable");
+  s.config.evaluation.open = false;
+  error(() => L.ensureTeamRound(s, "j1", "t1", now), "evaluation_closed");
+  s.config.evaluation.open = true;
+  // A organização ainda conduz: abrir a equipe que já tem rodada reabre a mesma, sem perder nota.
+  const opened = L.openRound(s, "t2", "delivery", now);
+  assert.strictEqual(opened.id, r.id);
+  assert.strictEqual(opened.status, "open");
+  assert.strictEqual(s.scores.find((x) => x.teamId === "t2").values.c1, 4.5);
+  error(() => L.openRound(s, "t1", "delivery", now), "round_open");
+}
+{
   // Equipe removida depois de abrir a rodada: a visão não quebra.
   const s = setup();
   const r = L.openRound(s, "t2", "delivery", now);
@@ -214,6 +240,13 @@ async function routeTests() {
     // Jurado não abre nem encerra rodada (encerrar o pitch liberaria a própria nota).
     assert.strictEqual((await request("j1", "/admin/live/rounds", "POST", { teamId: "t2", kind: "delivery" })).status, 403);
     assert.strictEqual((await request("j1", "/admin/live/rounds/" + round.id + "/close", "POST", {})).status, 403);
+    // Jurado abre qualquer equipe da fase direto, sem a organização; anônimo não.
+    const direct = await request("j1", "/judge/live/teams/t2/round", "POST", {});
+    assert.strictEqual(direct.status, 200);
+    assert.strictEqual(direct.body.round.teamId, "t2");
+    assert.strictEqual(direct.body.round.status, "closed");
+    assert.strictEqual((await request("anonimo", "/judge/live/teams/t2/round", "POST", {})).status, 401);
+    assert.strictEqual((await request("j1", "/judge/live/teams/nao-existe/round", "POST", {})).status, 409);
     const path = "/judge/live/rounds/" + round.id;
     assert.strictEqual((await request("j1", path + "/notes", "POST", { text: "segredo de Ana", opId: "teste-123" })).status, 200);
     assert.deepStrictEqual((await request("j2", path)).body.notes, []);

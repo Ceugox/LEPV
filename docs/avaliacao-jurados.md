@@ -23,6 +23,11 @@ rodadas. Observações são privadas; notas precisam de revisão e confirmação
 As notas ficam abertas durante a rodada e depois dela: só fecham quando a
 organização fecha a avaliação ou trava o resultado no painel.
 
+Todas as equipes da fase ficam abertas na lista **Equipes**: o jurado escolhe
+qualquer uma e dá nota sem esperar a rodada. A rodada dela nasce encerrada (não
+vira a "atual"); quando a organização abre a rodada dessa equipe para conduzir a
+apresentação, reabre a mesma, com as observações e notas que já estão nela.
+
 ## Configuração da assistência de IA
 
 Somente no servidor:

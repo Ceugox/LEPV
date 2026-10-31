@@ -107,6 +107,15 @@ async function run(base, tokens) {
   const round = (await api.json()).currentRound.id;
   const details = await (await b.request.get(base + '/hack/api/judge/live/rounds/' + round)).json();
   assert(!JSON.stringify(details).includes('Observação privada da Ana'), 'API não pode revelar observação');
+  // Todas as equipes abertas: a Bia escolhe Horizonte na lista e dá nota sem a organização abrir a rodada.
+  await b.locator('#rounds').getByRole('button', { name: /Horizonte/ }).click();
+  await b.locator('h2', { hasText: 'Horizonte' }).waitFor();
+  await b.locator('input[name="criterion-c1"][value="3"]').check();
+  await b.getByRole('button', { name: 'Próximo critério' }).click();
+  await b.locator('input[name="criterion-c2"][value="4"]').check();
+  await b.getByRole('button', { name: 'Revisar notas' }).click();
+  await b.getByRole('button', { name: 'Confirmar avaliação' }).click();
+  await b.getByText('Há uma avaliação confirmada.').waitFor();
   await a.locator('input[name="criterion-c1"][value="4"]').check();
   await a.getByRole('button', { name: 'Próximo critério' }).click();
   await a.locator('input[name="criterion-c2"][value="5"]').check();
@@ -119,6 +128,11 @@ async function run(base, tokens) {
   await admin.getByRole('button', { name: 'Abrir rodada' }).click();
   await a.getByText('Em avaliação agora: Horizonte').waitFor({ timeout: 18000 });
   assert.strictEqual(await a.getByLabel('Nova observação').inputValue(), 'Texto ainda em edição');
+  // A rodada que a organização abriu para Horizonte é a mesma em que a Bia já tinha dado nota.
+  const bia = await (await b.request.get(base + '/hack/api/judge/live')).json();
+  const horizonte = bia.teams.find((t) => t.id === 't2');
+  assert.strictEqual(bia.currentRound.id, horizonte.roundId, 'organização reabre a rodada criada pela jurada');
+  assert.strictEqual((await (await b.request.get(base + '/hack/api/judge/live/rounds/' + horizonte.roundId)).json()).score.values.c1, 3, 'nota dada direto preservada');
   await a.screenshot({ path: path.join(SHOTS, 'judge-mobile.png'), fullPage: true });
   await a.setViewportSize({ width: 1440, height: 900 });
   await a.screenshot({ path: path.join(SHOTS, 'judge-desktop.png'), fullPage: true });
