@@ -20,7 +20,10 @@
     if (input) input.focus();
   }
 
-  const token = new URLSearchParams(location.hash.slice(1)).get('t');
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  const token = fragment.get('t');
+  const destination = fragment.get('next') === 'avaliacao' ? '/hack/avaliacao' : '/hack/portal';
+  $('pular-senha').href = destination;
   if (token) {
     // O token sai da barra de endereço antes de qualquer coisa: não fica no
     // histórico nem num print da tela.
@@ -29,7 +32,7 @@
     api('/hack/api/access/consume', { method: 'POST', body: { token }, allow401: true })
       .then((r) => {
         if (r.needsPassword) show('senha');
-        else location.replace(r.redirect || '/hack/portal');
+        else location.replace(destination);
       })
       .catch((e) => {
         show('pedir');
@@ -39,7 +42,7 @@
     if (location.hash === '#link') show('pedir');
     // Já conectado? Vai direto ao portal. (/session responde 200 sempre: um
     // 401 aqui sujaria o console de quem só veio entrar.)
-    api('/hack/api/session').then((r) => { if (r.authenticated) location.replace('/hack/portal'); }).catch(() => {});
+    api('/hack/api/session').then((r) => { if (r.authenticated) location.replace(destination); }).catch(() => {});
   }
 
   $('ir-link').addEventListener('click', (ev) => {
@@ -64,7 +67,7 @@
     btn.disabled = true;
     try {
       const r = await api('/hack/api/access/login', { method: 'POST', body: { email, password: f.password.value }, allow401: true });
-      location.replace(r.redirect || '/hack/portal');
+      location.replace(destination);
     } catch (e) {
       f.password.value = '';
       fail('erro-entrar', e.message, f.password);
@@ -82,7 +85,7 @@
     btn.disabled = true;
     try {
       await api('/hack/api/me/password', { method: 'POST', body: { password: f.password.value } });
-      location.replace('/hack/portal');
+      location.replace(destination);
     } catch (e) {
       fail('erro-senha', e.message, f.password);
       btn.disabled = false;

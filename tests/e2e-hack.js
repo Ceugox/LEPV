@@ -322,6 +322,24 @@ test("organização: links de emergência voltam a valer e link novo não os der
   eq((await S.admin.post("/hack/api/admin/people/" + carla + "/emergency-links", { since: "2000-01-01T00:00:00Z" })).status, 409);
 });
 
+test("link da avaliação é pessoal, restrito a jurado e não aceita destino externo", async () => {
+  const jid = S.people.ids["julia@ex.com"];
+  const bad = await S.admin.post("/hack/api/admin/people/" + jid + "/link", { send: "none", destination: "https://malicious.example/" });
+  eq(bad.status, 400);
+  const participant = S.people.ids["ana@ex.com"];
+  eq((await S.admin.post("/hack/api/admin/people/" + participant + "/link", { send: "none", destination: "avaliacao" })).status, 400);
+  const link = await S.admin.post("/hack/api/admin/people/" + jid + "/link", { send: "none", destination: "avaliacao" });
+  eq(link.status, 200);
+  const fragment = new URL(link.data.url).hash.slice(1);
+  const params = new URLSearchParams(fragment);
+  eq(params.get("next"), "avaliacao");
+  const token = params.get("t");
+  const jurado = client();
+  eq((await jurado.post("/hack/api/access/consume", { token })).status, 200);
+  eq((await jurado.get("/hack/api/me")).data.perms.judge, true);
+  eq((await client().post("/hack/api/access/consume", { token })).status, 401);
+});
+
 test("organização: desconectar derruba a sessão da pessoa", async () => {
   const c = await enterAs("elisa@ex.com");
   eq((await c.get("/hack/api/me")).status, 200);

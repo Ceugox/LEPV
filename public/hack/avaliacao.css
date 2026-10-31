@@ -1,0 +1,42 @@
+/* A bancada é o foco; o formulário permanece estável durante a atualização. */
+.aval-top .app-top__title { margin-top: 24px; }
+.aval-main { max-width: 1100px; }
+.aval-status:empty { display: none; }
+.aval-status { color: var(--text-2); margin: 0 0 16px; }
+.aval-live { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 20px; border-left: 4px solid var(--red); background: #2b171b; margin-bottom: 22px; border-radius: 4px 12px 12px 4px; }
+.aval-live strong { color: #fff; }
+.aval-live p { margin: 3px 0 0; color: var(--text-2); font-size: 14px; }
+.aval-layout { display: grid; grid-template-columns: minmax(190px, 250px) minmax(0, 1fr); gap: 22px; align-items: start; }
+.aval-rounds { display: grid; gap: 8px; }
+.aval-round { color: #fff; text-align: left; width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 13px 14px; background: var(--surface); cursor: pointer; font: inherit; }
+.aval-round[aria-current="true"] { border-color: var(--red); background: #30191d; }
+.aval-round small { display: block; color: var(--text-2); margin-top: 3px; }
+.aval-section-title { font-size: 15px; margin: 0 0 12px; color: var(--text-2); }
+.aval-stack { display: grid; gap: 18px; }
+.aval-project h2 { font: condensed 800 clamp(30px, 5vw, 44px)/1 var(--f-disp); margin: 8px 0; }
+.aval-project p { color: var(--text-2); margin: 8px 0; }
+.aval-links { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+.aval-links a { color: #ffd0d2; text-decoration: underline; overflow-wrap: anywhere; }
+.aval-note { border-top: 1px solid var(--line); padding: 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aval-note p { margin: 0; }
+.aval-note small { color: var(--text-2); }
+.aval-note-card textarea, .aval-score textarea { width: 100%; min-height: 96px; padding: 12px; color: #fff; background: var(--surface); border: 1px solid #71676c; border-radius: 10px; font: inherit; }
+.aval-criteria { display: grid; gap: 16px; }
+.aval-criterion { border: 0; padding: 0; margin: 0; }
+.aval-criterion legend { font-weight: 700; font-size: 18px; margin-bottom: 8px; }
+.aval-criterion p { color: var(--text-2); margin: 0 0 12px; }
+.aval-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.aval-options label { cursor: pointer; }
+.aval-options input { position: absolute; opacity: 0; }
+.aval-options span { display: grid; place-items: center; min-width: 46px; min-height: 46px; padding: 8px; border: 1px solid #71676c; border-radius: 8px; font-weight: 700; }
+.aval-options input:checked + span { background: var(--red); border-color: var(--red); }
+.aval-options input:focus-visible + span { outline: 3px solid white; outline-offset: 2px; }
+.aval-review { border-top: 1px solid var(--line); padding-top: 16px; }
+.aval-review dl { display: grid; grid-template-columns: 1fr auto; gap: 8px 18px; }
+.aval-review dd { margin: 0; font-weight: 700; }
+.aval-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.aval-error { color: #ffb5b5; white-space: pre-wrap; }
+.aval-pending { color: #ffd273; }
+.aval-write-group { border: 0; margin: 0; padding: 0; min-width: 0; }
+.aval-write-group:disabled { opacity: .65; }
+@media (max-width: 700px) { .aval-layout { grid-template-columns: 1fr; } .aval-rounds { display: flex; overflow-x: auto; padding-bottom: 6px; } .aval-round { width: auto; min-width: 175px; } .aval-main { padding-top: 18px; } }

@@ -172,6 +172,9 @@ jobs:
       - name: Plataforma do hackathon (/hack)
         run: npm run verify:hack
 
+      - name: Avaliação dos jurados (volume isolado)
+        run: npm run verify:judge-live
+
       # ---- autópsia: só quando algo acima falhou ----
       - name: Screenshots e console das páginas
         if: failure()

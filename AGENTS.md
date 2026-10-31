@@ -53,12 +53,16 @@ npm run verify
 ```
 
 `npm test` é iCalendar, e2e do site, unidade e e2e da plataforma do hackathon,
-cada e2e contra volume isolado num diretório temporário. A e2e do hackathon
+mais a avaliação em rodadas (`live-evaluation`, `access-destination`,
+`judge-summary`, `judge-summary-route`), cada e2e contra volume isolado num
+diretório temporário. A e2e do hackathon
 roda com relógio fixo (`HACK_NOW`) antes do evento: o resultado não muda quando
 o calendário real passa pelos horários agendados.
-`npm run verify` encadeia internamente as 13 verificações (e2e, inline, CSS,
-arte, contraste, UI, texto do topo, revelação, consistência, app, abas, tags,
-diretoria) — encadeamento **dentro** do script é permitido; o que o portão
+`npm run verify` encadeia internamente o `npm test` e as verificações de browser
+(inline, CSS, arte, contraste, UI, texto do topo, revelação, consistência, app,
+abas, tags, diretoria, gastos, hackathon e `verify:judge-live`, que sobe o
+próprio servidor em volume isolado). As de browser pedem o servidor de fixtures
+do CI (`scripts/ci-fixtures.js`) na `PORT` informada — encadeamento **dentro** do script é permitido; o que o portão
 recusa é encadeamento na linha que você digita.
 
 **A e2e sozinha não cobre UI nenhuma.** Mudou qualquer coisa visual, rode

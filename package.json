@@ -6,14 +6,14 @@
   "scripts": {
     "start": "node server.js",
     "seed": "node scripts/seed-credentials.js",
-    "test": "node tests/ical.js && node tests/e2e.js && node tests/hackathon.js && node tests/e2e-hack.js",
+    "test": "node tests/ical.js && node tests/e2e.js && node tests/hackathon.js && node tests/e2e-hack.js && node tests/live-evaluation.js && node tests/access-destination.js && node tests/judge-summary.js && node tests/judge-summary-route.js",
     "verify:art": "node scripts/verify-art.js",
     "verify:contrast": "python scripts/check-contrast.py",
     "verify:ui": "node scripts/verify-ui.js",
     "verify:app": "node scripts/verify-app.js",
     "verify:tabs": "node scripts/verify-tabs.js",
     "verify:inline": "node scripts/check-inline-js.js",
-    "verify": "npm test && npm run verify:inline && npm run verify:css && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:hero && npm run verify:reveal && npm run verify:consistency && npm run verify:app && npm run verify:tabs && npm run verify:tags && npm run verify:board && npm run verify:reimbursements && npm run verify:hack",
+    "verify": "npm test && npm run verify:inline && npm run verify:css && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:hero && npm run verify:reveal && npm run verify:consistency && npm run verify:app && npm run verify:tabs && npm run verify:tags && npm run verify:board && npm run verify:reimbursements && npm run verify:hack && npm run verify:judge-live",
     "verify:hero": "node scripts/verify-hero-text.js",
     "verify:consistency": "node scripts/verify-consistency.js",
     "verify:reveal": "node scripts/verify-reveal.js",
@@ -21,7 +21,8 @@
     "verify:tags": "node scripts/verify-tags.js",
     "verify:board": "node scripts/verify-board.js",
     "verify:reimbursements": "node scripts/verify-reimbursements.js",
-    "verify:hack": "node scripts/verify-hack.js"
+    "verify:hack": "node scripts/verify-hack.js",
+    "verify:judge-live": "node scripts/verify-judge-live.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

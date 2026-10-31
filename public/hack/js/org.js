@@ -89,9 +89,9 @@
   // onDone: quem abriu o diálogo recarrega a própria tela (Pessoas, Visão geral).
   function linkDialog(p, onDone) {
     const out = h('div.stack');
-    const gen = async (send) => {
+    const gen = async (send, destination) => {
       try {
-        const r = await api('/hack/api/admin/people/' + p.id + '/link', { method: 'POST', body: { send } });
+        const r = await api('/hack/api/admin/people/' + p.id + '/link', { method: 'POST', body: destination ? { send, destination } : { send } });
         fill(out,
           h('label.field', h('span', 'Link pessoal (vale 7 dias, uso único)'),
             h('div.copy', h('input', { value: r.url, readonly: true, 'aria-label': 'Link de acesso' }),
@@ -109,6 +109,7 @@
       h('p.muted', 'Gere um link para mandar pelo WhatsApp ou envie direto por e-mail.'),
       h('div.row',
         h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => gen('none') }, 'Gerar link'),
+        p.roles && p.roles.includes('judge') ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => gen('none', 'avaliacao') }, 'Gerar link da avaliação') : null,
         state.emailEnabled && p.email ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => gen('email') }, 'Enviar por e-mail') : null,
         h('button.btn.btn--danger.btn--sm', { type: 'button', onclick: async () => {
           try {
