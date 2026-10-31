@@ -65,6 +65,7 @@
   }
   async function selectRound(id) {
     if (state.busy) return;
+    if (state.refresh && state.refresh !== id) state.refresh = null;
     state.selected = id; drawLive();
     if (!state.details[id]) {
       clear($('detail')).append(h('p.muted', 'Carregando equipe…'));
@@ -87,7 +88,7 @@
     const notes = h('article.card.aval-note-card', h('h3.card__title', 'Minhas observações'), h('p.muted.small', 'Privadas. Escreva durante a apresentação; você pode retornar a esta rodada.'));
     (detail.notes || []).forEach((n) => notes.append(h('div.aval-note', h('p', n.text), h('small', n.createdAt ? new Date(n.createdAt).toLocaleString('pt-BR') : ''))));
     const note = h('textarea', { rows: 3, maxlength: 3000, placeholder: 'Escreva uma observação', 'aria-label': 'Nova observação' }, local.note);
-    note.addEventListener('input', () => { if (local.note !== note.value) local.opId = null; local.note = note.value; });
+    note.addEventListener('input', () => { if (local.note !== note.value) local.opId = null; local.note = note.value; local.touched = true; });
     const noteButton = h('button.btn.btn--red.btn--sm', { type: 'button' }, 'Salvar observação');
     noteButton.addEventListener('click', async () => {
       if (!local.note.trim() || state.busy) return;
@@ -100,29 +101,34 @@
     const summaryBox = h('div', { 'aria-live': 'polite' });
     // O resumo é pago e limitado: redesenhar a tela (trocar de critério, salvar nota) não o descarta.
     const kept = state.summaries[id];
-    state.summaries[id] = { box: summaryBox, revision: kept ? kept.revision : null, text: kept ? kept.text : null };
-    if (kept && kept.text && kept.revision === detail.notesRevision) {
-      summaryBox.append(h('p.muted.small', 'Resumo das suas observações. Suas notas não foram alteradas.'), h('p.aval-note', kept.text));
-    } else if (kept && kept.text) {
-      state.summaries[id].revision = null;
-      summaryBox.textContent = 'As observações mudaram. Gere o resumo novamente.';
-    }
-    const summary = h('button.btn.btn--ghost.btn--sm', { type: 'button', disabled: !(detail.notes || []).length }, 'Organizar minhas observações');
+    const sum = state.summaries[id] = { box: summaryBox, revision: kept ? kept.revision : null, text: kept ? kept.text : null,
+      pending: Boolean(kept && kept.pending), message: kept ? kept.message : null };
+    // Escreve sempre na caixa ATUAL: um redesenho no meio da chamada não manda o resultado para fora da tela.
+    const paint = () => {
+      const box = state.summaries[id].box;
+      if (state.summaries[id].pending) box.textContent = 'Organizando suas observações…';
+      else if (state.summaries[id].message) box.textContent = state.summaries[id].message;
+      else if (state.summaries[id].text && state.summaries[id].revision === (state.details[id] || detail).notesRevision) {
+        clear(box).append(h('p.muted.small', 'Resumo das suas observações. Suas notas não foram alteradas.'), h('p.aval-note', state.summaries[id].text));
+      } else if (state.summaries[id].text) { state.summaries[id].revision = null; box.textContent = 'As observações mudaram. Gere o resumo novamente.'; }
+    };
+    paint();
+    const summary = h('button.btn.btn--ghost.btn--sm', { type: 'button', disabled: sum.pending || !(detail.notes || []).length }, 'Organizar minhas observações');
     summary.addEventListener('click', async () => {
-      summary.disabled = true;
-      summaryBox.textContent = 'Organizando suas observações…';
+      if (state.summaries[id].pending) return;
+      Object.assign(state.summaries[id], { pending: true, message: null });
+      summary.disabled = true; paint();
       try {
         const result = await api(pathRound(id) + '/summary', { method: 'POST', body: {}, timeoutMs: 35000 });
         const latest = await api(pathRound(id));
-        if (latest.notesRevision !== result.notesRevision) {
-          summaryBox.textContent = 'As observações mudaram. Gere o resumo novamente.';
-          return;
-        }
-        state.summaries[id].revision = result.notesRevision;
-        state.summaries[id].text = result.summary;
-        clear(summaryBox).append(h('p.muted.small', 'Resumo das suas observações. Suas notas não foram alteradas.'), h('p.aval-note', result.summary));
-      } catch (err) { summaryBox.textContent = 'Resumo indisponível: ' + err.message; }
-      finally { summary.disabled = false; }
+        if (latest.notesRevision !== result.notesRevision) state.summaries[id].message = 'As observações mudaram. Gere o resumo novamente.';
+        else Object.assign(state.summaries[id], { revision: result.notesRevision, text: result.summary });
+      } catch (err) { state.summaries[id].message = 'Resumo indisponível: ' + err.message; }
+      finally {
+        state.summaries[id].pending = false;
+        paint();
+        if (state.selected === id) drawDetail();
+      }
     });
     const notesWrite = h('fieldset.aval-write-group', { id: 'notes-write' }, note, h('div.aval-actions', noteButton));
     notes.append(notesWrite, h('div.aval-actions', summary), summaryBox); root.append(notes);
@@ -139,7 +145,7 @@
         // De 0,5 em 0,5, como na banca.
         for (let n = 1; n <= criterion.scaleMax; n += 0.5) {
           const input = h('input', { type: 'radio', name: 'criterion-' + criterion.id, value: n, checked: Number(local.values[criterion.id]) === n });
-          input.addEventListener('change', () => { local.values[criterion.id] = n; });
+          input.addEventListener('change', () => { local.values[criterion.id] = n; local.touched = true; });
           options.append(h('label', input, h('span', String(n).replace('.', ','))));
         }
         field.append(options);
@@ -148,7 +154,7 @@
         if (anchors.length) field.append(h('small.muted', anchors.join(' · ')));
         score.append(field);
         const comment = h('textarea', { rows: 3, maxlength: 1000, placeholder: 'Comentário para a organização (opcional)', 'aria-label': 'Comentário para a organização' }, local.comment);
-        comment.addEventListener('input', () => { local.comment = comment.value; });
+        comment.addEventListener('input', () => { local.comment = comment.value; local.touched = true; });
         score.append(h('label.field', h('span', 'Comentário final'), comment));
         const prev = h('button.btn.btn--ghost.btn--sm', { type: 'button', disabled: local.step === 0, onclick: () => { local.step--; drawDetail(); } }, 'Anterior');
         const next = h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => {
@@ -183,7 +189,7 @@
             toast('Avaliação confirmada.');
             // A nota já está gravada: falha ao recarregar a tela não pode parecer confirmação perdida.
             try { state.details[id] = await api(pathRound(id)); delete state.local[id]; if (state.selected === id) drawDetail(); }
-            catch (_) { state.refresh = id; toast('Avaliação confirmada. A tela não atualizou; ela se atualiza sozinha em instantes.', true); }
+            catch (_) { state.refresh = id; local.touched = false; toast('Avaliação confirmada. A tela não atualizou; ela se atualiza sozinha em instantes.', true); }
           } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
           finally { state.busy = false; confirm.disabled = false; }
         });
@@ -237,10 +243,17 @@
         if (!state.selected && state.live.currentRound) await selectRound(state.live.currentRound.id);
         // Carga da equipe que falhou (rede do local) ou tela a atualizar depois de confirmar: tenta de novo.
         else if (state.selected && !state.busy && (!state.details[state.selected] || state.refresh === state.selected)) {
+          // Bloco próprio: falha aqui não pula a sincronização de impedimento e fase logo abaixo.
           const id = state.selected;
-          state.details[id] = await api(pathRound(id));
-          if (state.refresh === id) { state.refresh = null; delete state.local[id]; }
-          if (state.selected === id) drawDetail();
+          try {
+            state.details[id] = await api(pathRound(id));
+            if (state.refresh === id) {
+              state.refresh = null;
+              // Só descarta a cópia local se o jurado não digitou nada depois da confirmação.
+              if (state.local[id] && !state.local[id].touched) delete state.local[id];
+            }
+            if (state.selected === id) drawDetail();
+          } catch (err) { errors.push(err); }
         }
         const selectedRound = state.live.rounds.find((r) => r.id === state.selected);
         if (selectedRound && state.details[state.selected]) {
