@@ -132,22 +132,23 @@ async function run(base, tokens) {
   assert(pitchResponse.ok());
   const pitch = (await pitchResponse.json()).round;
   await a.reload({ waitUntil: 'domcontentloaded' });
-  await a.getByText('Durante o pitch, registre observações.').waitFor();
-  assert(await a.locator('#score-write input').first().isDisabled(), 'notas de pitch antes do encerramento bloqueadas');
+  // Nota do pitch aberta com a rodada em andamento: só fecha quando a organização fecha a avaliação.
+  await a.locator('#score-write').waitFor();
+  await a.waitForFunction(() => !document.getElementById('score-write').disabled, { timeout: 18000 });
   await a.getByLabel('Nova observação').fill('Pitch claro, sem evidência do custo operacional.');
   await a.getByRole('button', { name: 'Salvar observação' }).click();
   await a.getByText('Pitch claro, sem evidência do custo operacional.').waitFor();
   await a.getByRole('button', { name: 'Organizar minhas observações' }).click();
   await a.getByText('Resumo indisponível:', { exact: false }).waitFor();
   assert((await a.locator('#detail').innerText()).includes('Pitch claro, sem evidência do custo operacional.'), 'falha de IA preserva comentário');
-  assert((await desktop.request.post(base + '/hack/api/admin/live/rounds/' + pitch.id + '/close', { data: {} })).ok());
-  await a.waitForFunction(() => !document.getElementById('score-write').disabled, { timeout: 18000 });
   await a.locator('input[name="criterion-c1"][value="2"]').check();
   await a.getByRole('button', { name: 'Próximo critério' }).click();
   await a.locator('input[name="criterion-c2"][value="3"]').check();
   await a.getByRole('button', { name: 'Revisar notas' }).click();
   await a.getByRole('button', { name: 'Confirmar avaliação' }).click();
   await a.getByText('Há uma avaliação confirmada.').waitFor();
+  // Encerrar o pitch depois da nota não a apaga nem a trava.
+  assert((await desktop.request.post(base + '/hack/api/admin/live/rounds/' + pitch.id + '/close', { data: {} })).ok());
   const mainScore = await (await a.request.get(base + '/hack/api/judge/live/rounds/' + round)).json();
   assert.strictEqual(mainScore.score.values.c1, 4, 'nota da primeira fase preservada');
   const finalScore = await (await a.request.get(base + '/hack/api/judge/live/rounds/' + pitch.id)).json();

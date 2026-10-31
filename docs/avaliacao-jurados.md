@@ -20,6 +20,8 @@ Para os pitches, selecione os finalistas e ative a fase final no painel existent
 Finalize pendências da fase principal antes da transição, ou retorne à fase
 principal para concluí-las. Abra e encerre cada apresentação pelo controle de
 rodadas. Observações são privadas; notas precisam de revisão e confirmação.
+As notas ficam abertas durante a rodada e depois dela: só fecham quando a
+organização fecha a avaliação ou trava o resultado no painel.
 
 ## Configuração da assistência de IA
 

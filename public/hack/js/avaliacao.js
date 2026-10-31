@@ -219,10 +219,10 @@
     const config = state.live.config;
     const blocked = !config.open || config.resultsLocked || detail.conflict;
     const phaseChanged = detail.round.phase !== config.phase;
-    const pitchOpen = detail.round.kind === 'pitch' && detail.round.status === 'open';
+    // Notas abertas durante a rodada e depois dela: só fecham quando a organização fecha a avaliação.
     $('notes-write').disabled = blocked;
-    $('score-write').disabled = blocked || phaseChanged || pitchOpen;
-    $('write-status').textContent = detail.conflict ? 'Você está impedido de avaliar esta equipe. Os textos nesta tela foram mantidos.' : blocked ? 'Avaliação fechada ou resultado travado. Os textos nesta tela foram mantidos.' : phaseChanged ? 'Esta rodada pertence a outra fase. As notas ficam disponíveis para consulta.' : pitchOpen ? 'Durante o pitch, registre observações. As notas serão liberadas ao encerrar a apresentação.' : '';
+    $('score-write').disabled = blocked || phaseChanged;
+    $('write-status').textContent = detail.conflict ? 'Você está impedido de avaliar esta equipe. Os textos nesta tela foram mantidos.' : blocked ? 'Avaliação fechada ou resultado travado. Os textos nesta tela foram mantidos.' : phaseChanged ? 'Esta rodada pertence a outra fase. As notas ficam disponíveis para consulta.' : '';
   }
   function drawAdmin() {
     const data = state.admin, root = clear($('admin-content'));

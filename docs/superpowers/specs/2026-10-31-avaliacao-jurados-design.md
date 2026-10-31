@@ -16,9 +16,11 @@ Na primeira fase, a organização abre uma rodada de entrega para uma equipe e
 todos os jurados registram suas notas pelos critérios existentes, cada um só
 nos critérios dos próprios pilares naquela fase (os mesmos que a banca grava;
 pedir os outros deixaria a rodada pendente para sempre). Na segunda,
-a organização abre a rodada de pitch: cada jurado anota comentários privados e,
-quando a apresentação encerra, atribui as notas por critério com apoio de um
-resumo de seus próprios registros.
+a organização abre a rodada de pitch: cada jurado anota comentários privados e
+atribui as notas por critério, com apoio de um resumo de seus próprios registros.
+As notas ficam abertas com a rodada em andamento ou encerrada e só fecham quando a
+organização fecha a avaliação (decisão de 31/10: antes, o pitch travava as notas
+até o encerramento da apresentação).
 
 A organização pode avançar com jurados pendentes. O formulário antigo permanece
 vinculado explicitamente à equipe anterior, com botão para acessar a equipe atual.

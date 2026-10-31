@@ -61,9 +61,17 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   error(() => L.openRound(s, "t2", "delivery", now), "phase_kind_mismatch");
   const r2 = L.openRound(s, "t2", "pitch", now);
   L.saveDraft(s, "j1", r2.id, { revision: 0, values: { c1: 3 }, comment: "" }, now);
-  error(() => L.confirm(s, "j1", r2.id, { revision: 1, confirm: true }, now), "pitch_ongoing");
-  L.closeRound(s, r2.id, now);
+  // Nota do pitch vale com a rodada aberta: só fecha quando a organização fecha a avaliação.
   assert.strictEqual(L.confirm(s, "j1", r2.id, { revision: 1, confirm: true }, now).values.c1, 3);
+  L.saveDraft(s, "j1", r2.id, { revision: 1, values: { c1: 4 }, comment: "" }, now);
+  assert.strictEqual(L.confirm(s, "j1", r2.id, { revision: 2, confirm: true }, now).values.c1, 4);
+  L.closeRound(s, r2.id, now);
+  // Rodada encerrada continua editável enquanto a avaliação estiver aberta.
+  L.saveDraft(s, "j1", r2.id, { revision: 2, values: { c1: 3 }, comment: "" }, now);
+  assert.strictEqual(L.confirm(s, "j1", r2.id, { revision: 3, confirm: true }, now).values.c1, 3);
+  s.config.evaluation.open = false;
+  error(() => L.saveDraft(s, "j1", r2.id, { revision: 3, values: { c1: 5 }, comment: "" }, now), "evaluation_closed");
+  s.config.evaluation.open = true;
   L.addNote(s, "j1", r1.id, { opId: "operacao-2", text: "Complemento anterior" }, now);
   assert.strictEqual(L.getJudgeRound(s, "j1", r2.id).notes.length, 0);
   assert.strictEqual(L.getJudgeRound(s, "j1", r1.id).notes.length, 2);
