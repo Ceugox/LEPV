@@ -722,6 +722,13 @@ test("gravação: equipe reserva, outro membro vê e troca; organização vê e 
   eq(adm.data.slots.find((x) => x.slot === "10:15").booking.team, "Alfa");
   eq((await S.admin.post("/hack/api/admin/recording/release", { slot: "10:15" })).status, 200);
   eq((await S.c.ana.get("/hack/api/recording")).data.mine, null);
+  eq((await S.c.ana.post("/hack/api/recording/book", { slot: "11:00" })).status, 200);
+  eq((await S.c.bruno.post("/hack/api/recording/queue")).status, 409, "fila recusa com horário reservado");
+  eq((await S.c.bruno.post("/hack/api/recording/cancel")).data.mine, null);
+  eq((await S.c.bruno.post("/hack/api/recording/cancel")).status, 404, "nada para cancelar");
+  eq((await S.c.ana.post("/hack/api/recording/queue")).status, 409, "fila recusa com horário livre");
+  eq((await S.c.ana.del("/hack/api/recording/queue")).status, 200);
+  eq((await client().get("/hack/api/admin/recording")).status, 401);
 });
 
 test("equipes: convite só para perfil visível e sem grupo; aceito vira integrante", async () => {
@@ -1365,7 +1372,9 @@ test("credenciamento: staff só com a permissão marcada", async () => {
   const c = client();
   eq((await c.post("/hack/api/access/consume", { token: await link() })).status, 200);
   eq((await c.post("/hack/api/checkin/scan", { code: qrOf("davi@ex.com"), day: "2026-10-30" })).status, 403);
+  eq((await c.get("/hack/api/admin/recording")).status, 403, "sem credenciamento não vê a gravação");
   eq((await S.admin.patch("/hack/api/admin/people/" + sofia.id, { staffPerms: { checkin: true } })).status, 200);
+  eq((await c.get("/hack/api/admin/recording")).status, 200, "credenciamento vê a grade da gravação");
   const r = await c.post("/hack/api/checkin/scan", { code: qrOf("davi@ex.com"), day: "2026-10-30" });
   eq(r.status, 200);
   eq(r.data.status, "ok");

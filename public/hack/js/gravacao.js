@@ -37,7 +37,7 @@
         h('p', 'Horário da ' + d.team.name + '. Chegue na sala uns minutos antes.'));
       if (!started) head.append(h('div.row', h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => act('/hack/api/recording/cancel', { method: 'POST' }, 'Horário cancelado.') }, 'Cancelar horário')),
         h('p.muted.small', 'Para trocar, escolha outro horário livre abaixo.'));
-    } else if (d.queue.position) {
+    } else if (d.queue.position && d.slots.some((s) => s.status === 'free' || s.status === 'taken')) {
       head.append(h('h3.card__title', 'Na fila: ' + d.queue.position + 'º lugar'),
         h('p', 'Se algum horário for liberado, ele vai automaticamente para a primeira equipe da fila. Volte aqui para conferir.'),
         h('div.row', h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => act('/hack/api/recording/queue', { method: 'DELETE' }, 'Equipe saiu da fila.') }, 'Sair da fila')));
@@ -51,9 +51,10 @@
     }
 
     const st = { free: ['badge--ok', 'Livre'], taken: ['badge--warn', 'Reservado'], live: ['badge--red', 'Gravando agora'], past: ['', 'Encerrado'] };
+    const mineStarted = d.mine && ['live', 'past'].includes(d.slots.find((s) => s.slot === d.mine).status);
     const grid = h('article.card', h('p.card__k', 'Horários'), h('ul.list', d.slots.map((s) => {
       const [cls, txt] = s.mine ? ['badge--red', 'Sua equipe'] : st[s.status];
-      const btn = s.status === 'free'
+      const btn = s.status === 'free' && !mineStarted
         ? h('button.btn.btn--red.btn--sm', { type: 'button', onclick: () => act('/hack/api/recording/book', { method: 'POST', body: { slot: s.slot } }, 'Horário ' + label(s.slot) + ' reservado.') }, d.mine ? 'Trocar para este' : 'Reservar')
         : null;
       return h('li', h('div.list__main', h('b', label(s.slot) + ' – ' + label(end(s.slot, d.minutes))),

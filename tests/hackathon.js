@@ -2196,7 +2196,43 @@ test("gravação: organização libera; equipe que sumiu libera o horário", () 
   const v = REC.adminView(s, RT0);
   eq1(v.slots[0].booking.team, "Equipe 16");
   eq1(v.queue.length, 0);
-  assert.throws(() => REC.release(s, "08:00", RT0), /livre/);
+  REC.release(s, "12:45", RT0);
+  assert.throws(() => REC.release(s, "12:45", RT0), /livre/);
+});
+
+test("gravação: equipes unidas levam o horário; desfeita com fila passa adiante sem travar", () => {
+  const s = recState(3);
+  REC.book(s, "p2a", "10:00", RT0);
+  // t2 unida a t1 (que não tinha horário): a reserva vai junto.
+  s.teams[0].members.push("p2a", "p2b");
+  s.teams = s.teams.filter((t) => t.id !== "t2");
+  eq1(REC.needsPrune(s), true);
+  REC.prune(s, RT0);
+  eq1(s.recordings[0].teamId, "t1");
+  eq1(REC.needsPrune(s), false);
+  // Desfeita com fila: o horário vai para a primeira da fila, e a reserva
+  // seguinte (já limpa) não desfaz isso.
+  const s2 = recState(16);
+  REC.SLOTS.forEach((slot, i) => REC.book(s2, "p" + (i + 1) + "a", slot, RT0));
+  REC.joinQueue(s2, "p15a", RT0);
+  s2.teams = s2.teams.filter((t) => t.id !== "t1");
+  REC.prune(s2, RT0);
+  eq1(s2.recordings.find((x) => x.slot === "09:30").teamId, "t15");
+  assert.throws(() => REC.book(s2, "p16a", "09:30", RT0), /Outra equipe/);
+});
+test("gravação: sair da fila, fim das gravações e limites de horário", () => {
+  const s = recState(16);
+  REC.SLOTS.forEach((slot, i) => REC.book(s, "p" + (i + 1) + "a", slot, RT0));
+  REC.joinQueue(s, "p15a", RT0);
+  REC.leaveQueue(s, "p15b", RT0);
+  eq1(s.recordingQueue.length, 0);
+  const late = new Date("2026-10-31T12:45:00-03:00");
+  assert.throws(() => REC.joinQueue(s, "p15a", late), /acabaram/);
+  const s2 = recState(1);
+  assert.throws(() => REC.book(s2, "p1a", "12:45", late), /já começou/, "no minuto exato já começou");
+  REC.book(s2, "p1a", "12:45", new Date(late.getTime() - 1000));
+  eq1(REC.ownView(s2, "p1a", new Date("2026-10-31T13:00:00-03:00")).slots[13].status, "past");
+  assert.throws(() => REC.release(s2, "99:99", RT0), /inválido/);
 });
 
 (async () => {

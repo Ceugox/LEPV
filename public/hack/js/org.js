@@ -1207,7 +1207,7 @@
     const queue = h('article.card', h('p.card__k', 'Fila de espera'), h('h3.card__title', r.queue.length + ' equipe(s)'),
       r.queue.length
         ? h('ol.list', r.queue.map((q) => h('li', h('div.list__main', h('b', q.team), h('span', 'por ' + q.by + ' · ' + fmtWhen(q.at))))))
-        : h('p.muted', 'Ninguém na fila. Ela só abre quando todos os horários estão reservados.'));
+        : h('p.muted', 'Ninguém na fila. A equipe só entra na fila quando não há horário livre.'));
     clear($('rec-grid')).append(grid, queue);
   }
   async function loadRecording() { drawRecording(await api('/hack/api/admin/recording')); }
@@ -1225,8 +1225,9 @@
     $('who').textContent = r.me.name;
     document.querySelectorAll('.tab[data-perm]').forEach((b) => { b.hidden = !r.perms[b.dataset.perm]; });
     $('link-cred').hidden = !r.perms.checkin;
-    if (!document.querySelector('.tab[data-perm]:not([hidden])')) {
-      // Staff só de credenciamento cai direto na tela de entrada.
+    if (!document.querySelector('.tab[data-perm]:not([hidden]):not([data-tab="gravacao"])') && location.hash !== '#gravacao') {
+      // Staff só de credenciamento cai direto na tela de entrada; a aba
+      // Gravação ele abre pelo atalho de lá (#gravacao).
       location.replace(r.perms.checkin ? '/hack/credenciamento' : '/hack/portal');
       return;
     }
