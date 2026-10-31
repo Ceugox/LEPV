@@ -13,7 +13,9 @@ Materiais são os entregues no site. Apenas texto nesta versão, por decisão do
 usuário após a discussão de áudio. Não existe integração com WhatsApp.
 
 Na primeira fase, a organização abre uma rodada de entrega para uma equipe e
-todos os jurados registram suas notas pelos critérios existentes. Na segunda,
+todos os jurados registram suas notas pelos critérios existentes, cada um só
+nos critérios dos próprios pilares naquela fase (os mesmos que a banca grava;
+pedir os outros deixaria a rodada pendente para sempre). Na segunda,
 a organização abre a rodada de pitch: cada jurado anota comentários privados e,
 quando a apresentação encerra, atribui as notas por critério com apoio de um
 resumo de seus próprios registros.

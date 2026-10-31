@@ -41,7 +41,9 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   assert.strictEqual(s.scores[0].updatedAt, firstUpdate);
   s.scores[0].values.c1 = 3;
   error(() => L.confirm(s, "j1", r1.id, { confirm: true, revision: 1 }, now), "score_changed");
-  assert(L.adminView(s).judges.find((j) => j.id === "j1").pending.includes(r1.id));
+  // Nota oficial mudou fora da rodada: é correção da banca, não pendência; a rodada passa a mostrá-la.
+  assert(!L.adminView(s).judges.find((j) => j.id === "j1").pending.includes(r1.id));
+  assert.strictEqual(L.getJudgeRound(s, "j1", r1.id).draft.values.c1, 3);
   assert.strictEqual(s.scores[0].values.c1, 3);
   s.scores[0].values.c1 = 4;
   assert.strictEqual(s.scores.length, 1);
@@ -122,6 +124,34 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   assert.strictEqual(L.judgeView(s, s.people[1]).rounds[0].pending, false);
 }
 {
+  // Nota corrigida pelo formulário da banca: a rodada mostra a oficial e não a sobrescreve em silêncio.
+  const s = setup();
+  const r = L.openRound(s, "t1", "delivery", now);
+  L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 4 }, comment: "" }, now);
+  L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now);
+  E.submitScore(s, "j1", "t1", { values: { c1: 5 }, comment: "corrigido" }, now);
+  const v = L.getJudgeRound(s, "j1", r.id);
+  assert.strictEqual(v.draft.values.c1, 5);
+  assert.strictEqual(v.draft.comment, "corrigido");
+  assert.strictEqual(L.judgeView(s, s.people[0]).rounds[0].pending, false);
+}
+{
+  // Troca de fase: a rodada da fase anterior deixa de ser a atual, não pende e não trava a próxima.
+  const s = setup();
+  s.config.evaluation.criteria.push({ id: "f1", name: "Pitch", description: "", weight: 1, scaleMax: 5, phase: "final" });
+  s.config.evaluation.criteria[0].phase = "main";
+  const r = L.openRound(s, "t1", "delivery", now);
+  s.config.evaluation.finalists = ["t1", "t2"];
+  E.setPhase(s, "final");
+  const view = L.judgeView(s, s.people[0]);
+  assert.strictEqual(view.currentRound, null);
+  assert.strictEqual(view.rounds.find((x) => x.id === r.id).pending, false);
+  assert.strictEqual(L.adminView(s).currentRound, null);
+  const p = L.openRound(s, "t2", "pitch", now);
+  assert.strictEqual(L.judgeView(s, s.people[0]).currentRound.id, p.id);
+  assert.strictEqual(s.liveRounds.find((x) => x.id === r.id).status, "closed");
+}
+{
   // Equipe removida depois de abrir a rodada: a visão não quebra.
   const s = setup();
   const r = L.openRound(s, "t2", "delivery", now);
@@ -159,6 +189,9 @@ async function routeTests() {
   try {
     assert.strictEqual((await request("anonimo", "/judge/live")).status, 401);
     assert.strictEqual((await request("j1", "/admin/live")).status, 403);
+    // Jurado não abre nem encerra rodada (encerrar o pitch liberaria a própria nota).
+    assert.strictEqual((await request("j1", "/admin/live/rounds", "POST", { teamId: "t2", kind: "delivery" })).status, 403);
+    assert.strictEqual((await request("j1", "/admin/live/rounds/" + round.id + "/close", "POST", {})).status, 403);
     const path = "/judge/live/rounds/" + round.id;
     assert.strictEqual((await request("j1", path + "/notes", "POST", { text: "segredo de Ana", opId: "teste-123" })).status, 200);
     assert.deepStrictEqual((await request("j2", path)).body.notes, []);

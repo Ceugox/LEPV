@@ -51,7 +51,7 @@
   function drawLive() {
     const current = state.live && state.live.currentRound;
     clear($('live')).append(h('div.aval-live', h('div', h('strong', current ? 'Em avaliação agora: ' + roundLabel(current) : 'Aguardando a próxima equipe'),
-      h('p', current ? roundType(current) + ' · ' + (current.team.name || '') : 'A organização abrirá a próxima rodada.')),
+      h('p', current ? roundType(current) + ' · ' + ((current.team && current.team.name) || 'equipe fora da avaliação') : 'A organização abrirá a próxima rodada.')),
       current && state.selected && state.selected !== current.id ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: () => selectRound(current.id) }, 'Ir para equipe atual') : null));
     const box = clear($('rounds'));
     box.append(h('h2.aval-section-title', 'Rodadas'));
@@ -171,7 +171,10 @@
             const saved = await put(pathRound(id) + '/draft', { values: local.values, comment: local.comment, revision: local.revision });
             local.revision = saved.draft.revision;
             await post(pathRound(id) + '/confirm', { revision: local.revision, confirm: true });
-            toast('Avaliação confirmada.'); state.details[id] = await api(pathRound(id)); delete state.local[id]; if (state.selected === id) drawDetail();
+            toast('Avaliação confirmada.');
+            // A nota já está gravada: falha ao recarregar a tela não pode parecer confirmação perdida.
+            try { state.details[id] = await api(pathRound(id)); delete state.local[id]; if (state.selected === id) drawDetail(); }
+            catch (_) { toast('Avaliação confirmada. A tela não atualizou; ela se atualiza sozinha em instantes.', true); }
           } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
           finally { state.busy = false; confirm.disabled = false; }
         });
@@ -217,8 +220,10 @@
     // Atualização forçada (abrir/encerrar rodada) durante um polling: roda logo depois dele, não some.
     if (state.loading) { if (forceAdmin) state.forceAfter = true; return; }
     state.loading = true;
-    try {
-      if (state.perms.judge) {
+    // Banca e organização atualizam separadas: erro de uma não congela a outra.
+    const errors = [];
+    if (state.perms.judge) try {
+      {
         state.live = await api('/judge/live'); drawLive();
         if (!state.selected && state.live.currentRound) await selectRound(state.live.currentRound.id);
         const selectedRound = state.live.rounds.find((r) => r.id === state.selected);
@@ -236,16 +241,14 @@
           }
         }
       }
-      if (state.perms.manage) {
-        state.admin = await api('/admin/live');
-        if (forceAdmin || !$('admin').contains(document.activeElement)) drawAdmin();
-      }
-      $('status').textContent = '';
-    } catch (err) { $('status').textContent = 'Atualização indisponível: ' + err.message + ' Seus textos nesta tela foram mantidos.'; }
-    finally {
-      state.loading = false;
-      if (state.forceAfter) { state.forceAfter = false; poll(true); }
-    }
+    } catch (err) { errors.push(err); }
+    if (state.perms.manage) try {
+      state.admin = await api('/admin/live');
+      if (forceAdmin || !$('admin').contains(document.activeElement)) drawAdmin();
+    } catch (err) { errors.push(err); }
+    $('status').textContent = errors.length ? 'Atualização indisponível: ' + errors[0].message + ' Seus textos nesta tela foram mantidos.' : '';
+    state.loading = false;
+    if (state.forceAfter) { state.forceAfter = false; poll(true); }
   }
   $('sair').addEventListener('click', () => window.Hack.logout());
   async function init() {
@@ -254,7 +257,11 @@
       if (!state.perms.judge && !state.perms.manage) { $('status').textContent = 'Esta área é restrita à banca e à organização.'; return; }
       state.view = state.perms.judge ? 'banca' : 'admin'; nav(); show(state.view); await poll();
       setInterval(poll, 12000);
-    } catch (err) { $('status').textContent = err.message; }
+    } catch (err) {
+      // Falha passageira (rede do local) não deixa a tela parada até recarregar.
+      $('status').textContent = err.message + ' Tentando de novo…';
+      setTimeout(init, 5000);
+    }
   }
   init();
 })();

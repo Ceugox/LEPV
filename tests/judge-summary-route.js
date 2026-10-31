@@ -48,7 +48,7 @@ async function harness(test) {
   const server = await new Promise((resolve) => { const inst = app.listen(0, "127.0.0.1", () => resolve(inst)); });
   const url = "http://127.0.0.1:" + server.address().port + "/hack/api/judge/live/rounds/" + round.id + "/summary";
   const h = { state, round, entered, release: () => releaseResolve(), input: () => captured,
-    calls: () => calls, setActor: (id) => { currentId = id; }, fail: () => { failure = true; },
+    calls: () => calls, setActor: (id) => { currentId = id; }, fail: () => { failure = true; }, recover: () => { failure = false; },
     request: async () => { const response = await fetch(url, { method: "POST" }); return { status: response.status, body: await response.json() }; } };
   try { await test(h); }
   finally { releaseResolve(); await new Promise((resolve) => server.close(resolve)); }
@@ -96,6 +96,34 @@ async function main() {
     h.state.conflicts.push({ judgeId: "j1", teamId: "t1" });
     h.release(); const response = await result;
     assert.equal(response.status, 409); assert.equal(response.body.error, "summary_stale");
+  });
+  await harness(async (h) => {
+    // Um resumo por vez por jurado: o segundo pedido não dispara outra chamada paga.
+    const first = h.request(); await h.entered;
+    const second = await h.request();
+    assert.equal(second.status, 409); assert.equal(second.body.error, "summary_pending"); assert.equal(h.calls(), 1);
+    h.release(); assert.equal((await first).status, 200);
+  });
+  await harness(async (h) => {
+    // Limite de 4 por minuto por jurado.
+    h.release();
+    for (let i = 0; i < 4; i++) assert.equal((await h.request()).status, 200);
+    const fifth = await h.request();
+    assert.equal(fifth.status, 429); assert.equal(fifth.body.error, "summary_rate"); assert.equal(h.calls(), 4);
+  });
+  await harness(async (h) => {
+    // Falha do provedor não trava o jurado: a próxima tentativa funciona.
+    h.fail(); h.release();
+    assert.equal((await h.request()).status, 503);
+    h.recover();
+    const retry = await h.request();
+    assert.equal(retry.status, 200); assert.equal(retry.body.summary, "Resumo de Ana");
+  });
+  await harness(async (h) => {
+    // Equipe removida depois de abrir a rodada: recusa clara, sem chamar a IA.
+    h.state.teams = [];
+    const response = await h.request();
+    assert.equal(response.status, 409); assert.equal(response.body.error, "team_removed"); assert.equal(h.calls(), 0);
   });
   console.log("judge-summary-route: privacidade e corridas passaram");
 }
