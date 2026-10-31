@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0b0b0d">
+<title>Avaliação · Hackathon LEPV</title>
+<link rel="icon" href="/hack/img/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/hack/hack.css">
+<link rel="stylesheet" href="/hack/app.css">
+<link rel="stylesheet" href="/hack/avaliacao.css">
+</head>
+<body class="app">
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
+<header class="app-top aval-top">
+  <div class="app-top__media" aria-hidden="true"><img src="/hack/img/pao-acucar-noite.jpg" alt="" width="2400" height="1350"></div>
+  <div class="app-top__bar">
+    <a class="app-top__brand" href="/hack/portal"><img src="/hack/img/logo-mark-white.png" alt="" width="30" height="28"><span>LEPV</span></a>
+    <div class="app-top__who"><span class="app-top__name" id="who"></span><button class="btn btn--ghost btn--sm" id="sair" type="button">Sair</button></div>
+  </div>
+  <div class="app-top__title"><p class="eyebrow">1º Hackathon LEPV &amp; FGV</p><h1>Avaliação<br><em>da banca.</em></h1><p>Registre suas observações e confirme suas notas por equipe.</p></div>
+</header>
+<nav class="tabs" aria-label="Área de avaliação"><div class="tabs__in" id="nav"></div></nav>
+<main class="app-main aval-main" id="conteudo">
+  <p id="status" class="aval-status" role="status" aria-live="polite">Carregando avaliação…</p>
+  <section id="banca" hidden aria-label="Minha avaliação"><div id="live"></div><div class="aval-layout"><aside id="rounds"></aside><div class="aval-stack" id="detail"></div></div></section>
+  <section id="admin" hidden aria-label="Organização da banca"><div id="admin-content"></div></section>
+</main>
+<script src="/hack/js/hack-app.js"></script>
+<script src="/hack/js/avaliacao.js"></script>
+</body>
+</html>

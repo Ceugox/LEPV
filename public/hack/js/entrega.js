@@ -111,6 +111,7 @@
       out.push(h('article.card', h('p.card__k', 'Sem critérios para você'),
         h('p', 'Nesta fase você não tem critério para avaliar (os pilares marcados para você não têm critério). Fale com a organização se isso não estiver certo.')));
     }
+    out.push(h('p', h('a.btn.btn--red.btn--sm', { href: '/hack/avaliacao' }, 'Abrir avaliação em rodadas')));
     if (!d.teams.length) out.push(h('p.empty', 'Nenhuma equipe com entrega completa ainda.'));
     d.teams.forEach((t) => out.push(teamCard(d, t, box)));
     clear(box).append(...out);

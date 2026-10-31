@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "seed": "node scripts/seed-credentials.js",
-    "test": "node tests/ical.js && node tests/e2e.js && node tests/hackathon.js && node tests/e2e-hack.js",
+    "test": "node tests/ical.js && node tests/e2e.js && node tests/hackathon.js && node tests/e2e-hack.js && node tests/live-evaluation.js && node tests/access-destination.js && node tests/judge-summary.js && node tests/judge-summary-route.js",
     "verify:art": "node scripts/verify-art.js",
     "verify:contrast": "python scripts/check-contrast.py",
     "verify:ui": "node scripts/verify-ui.js",
@@ -21,7 +21,8 @@
     "verify:tags": "node scripts/verify-tags.js",
     "verify:board": "node scripts/verify-board.js",
     "verify:reimbursements": "node scripts/verify-reimbursements.js",
-    "verify:hack": "node scripts/verify-hack.js"
+    "verify:hack": "node scripts/verify-hack.js",
+    "verify:judge-live": "node scripts/verify-judge-live.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
