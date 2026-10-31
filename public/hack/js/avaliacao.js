@@ -65,7 +65,8 @@
   }
   async function selectRound(id) {
     if (state.busy) return;
-    if (state.refresh && state.refresh !== id) state.refresh = null;
+    // Saindo da rodada com recarga pendente: descarta a cópia velha para recarregar ao voltar.
+    if (state.refresh && state.refresh !== id) { delete state.details[state.refresh]; state.refresh = null; }
     state.selected = id; drawLive();
     if (!state.details[id]) {
       clear($('detail')).append(h('p.muted', 'Carregando equipe…'));
@@ -122,12 +123,13 @@
         const result = await api(pathRound(id) + '/summary', { method: 'POST', body: {}, timeoutMs: 35000 });
         const latest = await api(pathRound(id));
         if (latest.notesRevision !== result.notesRevision) state.summaries[id].message = 'As observações mudaram. Gere o resumo novamente.';
-        else Object.assign(state.summaries[id], { revision: result.notesRevision, text: result.summary });
+        else { state.details[id] = latest; Object.assign(state.summaries[id], { revision: result.notesRevision, text: result.summary }); }
       } catch (err) { state.summaries[id].message = 'Resumo indisponível: ' + err.message; }
       finally {
         state.summaries[id].pending = false;
         paint();
-        if (state.selected === id) drawDetail();
+        // Não redesenha no meio de outra operação (salvar nota, confirmar): ela redesenha ao terminar.
+        if (state.selected === id && !state.busy) drawDetail();
       }
     });
     const notesWrite = h('fieldset.aval-write-group', { id: 'notes-write' }, note, h('div.aval-actions', noteButton));
