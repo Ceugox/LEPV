@@ -136,6 +136,20 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   assert.strictEqual(L.judgeView(s, s.people[0]).rounds[0].pending, false);
 }
 {
+  // Rascunho não confirmado mais velho que a nota dada pelo formulário da banca: vale a nota.
+  const s = setup();
+  const r = L.openRound(s, "t1", "delivery", now);
+  L.saveDraft(s, "j1", r.id, { revision: 0, values: { c1: 3 }, comment: "" }, now);
+  E.submitScore(s, "j1", "t1", { values: { c1: 5 }, comment: "" }, new Date(now.getTime() + 60000));
+  assert.strictEqual(L.getJudgeRound(s, "j1", r.id).draft.values.c1, 5);
+  assert.strictEqual(L.getJudgeRound(s, "j1", r.id).draft.revision, 1);
+  assert.strictEqual(L.judgeView(s, s.people[0]).rounds[0].pending, false);
+  // Rascunho editado depois da nota volta a valer e a pender.
+  L.saveDraft(s, "j1", r.id, { revision: 1, values: { c1: 4 }, comment: "" }, new Date(now.getTime() + 120000));
+  assert.strictEqual(L.getJudgeRound(s, "j1", r.id).draft.values.c1, 4);
+  assert.strictEqual(L.judgeView(s, s.people[0]).rounds[0].pending, true);
+}
+{
   // Troca de fase: a rodada da fase anterior deixa de ser a atual, não pende e não trava a próxima.
   const s = setup();
   s.config.evaluation.criteria.push({ id: "f1", name: "Pitch", description: "", weight: 1, scaleMax: 5, phase: "final" });

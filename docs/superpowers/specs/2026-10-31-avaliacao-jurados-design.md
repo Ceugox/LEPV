@@ -51,6 +51,7 @@ confirmação, enquanto a fase e avaliação permitirem.
 3. Polling de rodada não apaga texto em edição nem muda seu destino silenciosamente.
 4. Comentário reenviado com o mesmo identificador não duplica.
 5. Confirmação valida revisão do rascunho, critérios, fase e impedimento atuais.
-6. Pendências incluem rascunhos ainda não confirmados e divergências com a nota oficial.
+6. Pendências incluem rascunhos não confirmados mais novos que a nota oficial. Nota
+   corrigida pelo formulário da banca não é pendência: vira o ponto de partida da rodada.
 7. Resumo assíncrono é rejeitado se identidade, critérios ou comentários mudarem.
 8. Interface funciona em celular e desktop, com alternativa manual sem IA.

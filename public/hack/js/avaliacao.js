@@ -98,7 +98,15 @@
       finally { state.busy = false; noteButton.disabled = false; note.disabled = false; }
     });
     const summaryBox = h('div', { 'aria-live': 'polite' });
-    state.summaries[id] = { box: summaryBox, revision: null };
+    // O resumo é pago e limitado: redesenhar a tela (trocar de critério, salvar nota) não o descarta.
+    const kept = state.summaries[id];
+    state.summaries[id] = { box: summaryBox, revision: kept ? kept.revision : null, text: kept ? kept.text : null };
+    if (kept && kept.text && kept.revision === detail.notesRevision) {
+      summaryBox.append(h('p.muted.small', 'Resumo das suas observações. Suas notas não foram alteradas.'), h('p.aval-note', kept.text));
+    } else if (kept && kept.text) {
+      state.summaries[id].revision = null;
+      summaryBox.textContent = 'As observações mudaram. Gere o resumo novamente.';
+    }
     const summary = h('button.btn.btn--ghost.btn--sm', { type: 'button', disabled: !(detail.notes || []).length }, 'Organizar minhas observações');
     summary.addEventListener('click', async () => {
       summary.disabled = true;
@@ -111,6 +119,7 @@
           return;
         }
         state.summaries[id].revision = result.notesRevision;
+        state.summaries[id].text = result.summary;
         clear(summaryBox).append(h('p.muted.small', 'Resumo das suas observações. Suas notas não foram alteradas.'), h('p.aval-note', result.summary));
       } catch (err) { summaryBox.textContent = 'Resumo indisponível: ' + err.message; }
       finally { summary.disabled = false; }
@@ -174,7 +183,7 @@
             toast('Avaliação confirmada.');
             // A nota já está gravada: falha ao recarregar a tela não pode parecer confirmação perdida.
             try { state.details[id] = await api(pathRound(id)); delete state.local[id]; if (state.selected === id) drawDetail(); }
-            catch (_) { toast('Avaliação confirmada. A tela não atualizou; ela se atualiza sozinha em instantes.', true); }
+            catch (_) { state.refresh = id; toast('Avaliação confirmada. A tela não atualizou; ela se atualiza sozinha em instantes.', true); }
           } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
           finally { state.busy = false; confirm.disabled = false; }
         });
@@ -226,6 +235,13 @@
       {
         state.live = await api('/judge/live'); drawLive();
         if (!state.selected && state.live.currentRound) await selectRound(state.live.currentRound.id);
+        // Carga da equipe que falhou (rede do local) ou tela a atualizar depois de confirmar: tenta de novo.
+        else if (state.selected && !state.busy && (!state.details[state.selected] || state.refresh === state.selected)) {
+          const id = state.selected;
+          state.details[id] = await api(pathRound(id));
+          if (state.refresh === id) { state.refresh = null; delete state.local[id]; }
+          if (state.selected === id) drawDetail();
+        }
         const selectedRound = state.live.rounds.find((r) => r.id === state.selected);
         if (selectedRound && state.details[state.selected]) {
           state.details[state.selected].round = selectedRound;
