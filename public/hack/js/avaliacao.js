@@ -13,6 +13,18 @@
   const put = (path, body) => api(path, { method: 'PUT', body });
   const pathRound = (id) => '/judge/live/rounds/' + encodeURIComponent(id);
   function error(err) { toast(err.message || 'Não foi possível concluir. Tente novamente.', true); }
+  // Rascunho salvo em outro aparelho: adota a revisão nova e mantém as notas desta tela,
+  // para o próximo "Salvar" substituir em vez de travar em 409 para sempre.
+  async function recoverStale(id, local, err) {
+    if (!err || err.code !== 'stale_revision') return false;
+    try {
+      const fresh = await api(pathRound(id));
+      local.revision = fresh.draft.revision;
+      state.details[id] = fresh;
+      toast('O rascunho mudou em outro aparelho. Mantivemos as notas desta tela: salve de novo para usá-las.', true);
+    } catch (e) { error(e); }
+    return true;
+  }
   function show(view) {
     state.view = view;
     $('banca').hidden = view !== 'banca'; $('admin').hidden = view !== 'admin';
@@ -66,6 +78,7 @@
     if (!detail) return;
     const local = localFor(id, detail), round = detail.round, team = round.team;
     const root = clear($('detail'));
+    if (!team) { root.append(h('article.card', h('p', 'Esta equipe saiu da avaliação (removida ou unida a outra). Fale com a organização.'))); return; }
     const project = h('article.card.aval-project', h('span.badge', roundType(round)), h('h2', team.projectName || team.name),
       team.projectName ? h('p', team.name) : null,
       h('div.aval-links', link('Repositório', team.repoUrl), link('Slides', team.slides && team.slides.url), link('Vídeo ou demonstração', team.videoUrl)));
@@ -120,7 +133,11 @@
           input.addEventListener('change', () => { local.values[criterion.id] = n; });
           options.append(h('label', input, h('span', String(n).replace('.', ','))));
         }
-        field.append(options); score.append(field);
+        field.append(options);
+        // Âncoras da banca, só nos inteiros (mesmo texto do formulário de notas).
+        const anchors = (criterion.anchors || []).map((a, i) => a ? (i + 1) + ' = ' + a : null).filter(Boolean);
+        if (anchors.length) field.append(h('small.muted', anchors.join(' · ')));
+        score.append(field);
         const comment = h('textarea', { rows: 3, maxlength: 1000, placeholder: 'Comentário para a organização (opcional)', 'aria-label': 'Comentário para a organização' }, local.comment);
         comment.addEventListener('input', () => { local.comment = comment.value; });
         score.append(h('label.field', h('span', 'Comentário final'), comment));
@@ -138,7 +155,7 @@
             const saved = await put(pathRound(id) + '/draft', { values: local.values, comment: local.comment, revision: local.revision });
             local.revision = saved.draft.revision;
             toast('Rascunho salvo.');
-          } catch (err) { error(err); }
+          } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
           finally { state.busy = false; save.disabled = false; }
         });
         score.append(h('div.aval-actions', prev, next, save));
@@ -155,7 +172,7 @@
             local.revision = saved.draft.revision;
             await post(pathRound(id) + '/confirm', { revision: local.revision, confirm: true });
             toast('Avaliação confirmada.'); state.details[id] = await api(pathRound(id)); delete state.local[id]; if (state.selected === id) drawDetail();
-          } catch (err) { error(err); }
+          } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
           finally { state.busy = false; confirm.disabled = false; }
         });
         review.append(h('div.aval-actions', edit, confirm)); score.append(review);
@@ -197,7 +214,9 @@
     root.append(h('div.aval-stack', pending));
   }
   async function poll(forceAdmin) {
-    if (state.loading) return; state.loading = true;
+    // Atualização forçada (abrir/encerrar rodada) durante um polling: roda logo depois dele, não some.
+    if (state.loading) { if (forceAdmin) state.forceAfter = true; return; }
+    state.loading = true;
     try {
       if (state.perms.judge) {
         state.live = await api('/judge/live'); drawLive();
@@ -223,7 +242,10 @@
       }
       $('status').textContent = '';
     } catch (err) { $('status').textContent = 'Atualização indisponível: ' + err.message + ' Seus textos nesta tela foram mantidos.'; }
-    finally { state.loading = false; }
+    finally {
+      state.loading = false;
+      if (state.forceAfter) { state.forceAfter = false; poll(true); }
+    }
   }
   $('sair').addEventListener('click', () => window.Hack.logout());
   async function init() {

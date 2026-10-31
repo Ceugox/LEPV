@@ -2,9 +2,14 @@
 
 ## Acesso e rodadas
 
-Na organização, aba Pessoas, localize o jurado cadastrado e gere o **Link da
-avaliação**. Ele identifica aquela pessoa, vale uma vez e inicia a sessão do
-navegador. O link pode ser copiado e enviado manualmente pela organização.
+Na organização, aba Pessoas, localize o jurado cadastrado, clique em **Link** e
+depois em **Gerar link da avaliação** (o botão só aparece para quem tem papel de
+jurado). O link identifica aquela pessoa, vale uma vez, inicia a sessão do
+navegador e abre direto a avaliação. Copie e envie manualmente: o link mandado
+por e-mail é o do portal comum, sem o atalho para a avaliação.
+
+A IA do resumo recebe o nome da equipe, os critérios e os comentários do próprio
+jurado (nada de outros jurados, nem notas).
 
 Em `/hack/avaliacao`, a diretoria vê o controle de rodadas. Antes de abrir a
 primeira, configure e trave critérios e abra a avaliação no painel existente.
@@ -22,7 +27,7 @@ Somente no servidor:
 
 - `HACK_JUDGE_AI_KEY`: chave da Anthropic exclusiva para a assistência, ou
   `ANTHROPIC_API_KEY` como alternativa.
-- `HACK_JUDGE_AI_MODEL`: opcional; padrão `claude-sonnet-4-5`.
+- `HACK_JUDGE_AI_MODEL`: opcional; padrão `claude-sonnet-5-5`.
 
 Nenhuma chave vai para o navegador. Não há carregamento automático de `.env`;
 configure as variáveis no processo local ou no ambiente do serviço ao publicar.

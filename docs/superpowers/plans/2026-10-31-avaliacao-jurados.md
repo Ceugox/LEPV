@@ -17,7 +17,7 @@ comentários do próprio jurado. A confirmação usa `evaluation.submitScore`.
 
 - Não publicar nem enviar mensagens ou links reais. Mostrar prévia local.
 - Nunca colocar chave em bundle, log, fixture ou commit.
-- Respeitar fase, impedimentos, jurados bloqueados, escalas inteiras e travas.
+- Respeitar fase, impedimentos, jurados bloqueados, escalas de 0,5 em 0,5 (como a banca), pilares do jurado e travas.
 - Não perder rascunho ao atualizar rodada; confirmação explícita e por revisão.
 - Nenhuma IA atribui nota ou altera comentários originais.
 - Apenas texto nesta versão, conforme decisão posterior do usuário.

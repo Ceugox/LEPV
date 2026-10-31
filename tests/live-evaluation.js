@@ -95,6 +95,39 @@ function error(fn, code) { assert.throws(fn, (e) => e.code === code); }
   error(() => L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now), "phase_changed");
   assert.strictEqual(s.scores.length, 0);
 }
+{
+  // Critérios por pilar e por fase: a rodada pede só os do jurado, como a banca grava (criteriaFor).
+  const s = setup();
+  s.config.evaluation.criteria = [
+    { id: "tec", name: "Tech", description: "", weight: 1, scaleMax: 5, phase: "main", pillar: "tech", anchors: ["fraco", "", "ok", "", "ótimo"] },
+    { id: "neg", name: "Negócio", description: "", weight: 1, scaleMax: 5, phase: "main", pillar: "business" },
+    { id: "fin", name: "Pitch", description: "", weight: 1, scaleMax: 5, phase: "final" },
+  ];
+  s.people.find((p) => p.id === "j1").judgePillars = ["tech"];
+  const r = L.openRound(s, "t1", "delivery", now);
+  const view = L.getJudgeRound(s, "j1", r.id);
+  assert.deepStrictEqual(view.criteria.map((c) => c.id), ["tec"]);
+  assert.deepStrictEqual(view.criteria[0].anchors, ["fraco", "", "ok", "", "ótimo"]);
+  assert.deepStrictEqual(L.judgeView(s, s.people[0]).criteria.map((c) => c.id), ["tec"]);
+  error(() => L.saveDraft(s, "j1", r.id, { revision: 0, values: { neg: 3 }, comment: "" }, now), "invalid_score");
+  error(() => L.saveDraft(s, "j1", r.id, { revision: 0, values: { fin: 3 }, comment: "" }, now), "invalid_score");
+  L.saveDraft(s, "j1", r.id, { revision: 0, values: { tec: 3.5 }, comment: "ok" }, now);
+  L.closeRound(s, r.id, now);
+  L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now);
+  // Confirmada, a rodada sai das pendências; repetir a confirmação devolve a mesma nota.
+  assert.strictEqual(L.judgeView(s, s.people[0]).rounds[0].pending, false);
+  assert.strictEqual(L.confirm(s, "j1", r.id, { revision: 1, confirm: true }, now).values.tec, 3.5);
+  // Jurado sem critério nesta fase não fica pendente para sempre.
+  s.people.find((p) => p.id === "j2").judgePillars = ["impact"];
+  assert.strictEqual(L.judgeView(s, s.people[1]).rounds[0].pending, false);
+}
+{
+  // Equipe removida depois de abrir a rodada: a visão não quebra.
+  const s = setup();
+  const r = L.openRound(s, "t2", "delivery", now);
+  s.teams = s.teams.filter((t) => t.id !== "t2");
+  assert.strictEqual(L.getJudgeRound(s, "j1", r.id).round.team, null);
+}
 console.log("live-evaluation: testes passaram");
 
 async function routeTests() {

@@ -13,7 +13,7 @@
     "verify:app": "node scripts/verify-app.js",
     "verify:tabs": "node scripts/verify-tabs.js",
     "verify:inline": "node scripts/check-inline-js.js",
-    "verify": "npm test && npm run verify:inline && npm run verify:css && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:hero && npm run verify:reveal && npm run verify:consistency && npm run verify:app && npm run verify:tabs && npm run verify:tags && npm run verify:board && npm run verify:reimbursements && npm run verify:hack",
+    "verify": "npm test && npm run verify:inline && npm run verify:css && npm run verify:art && npm run verify:contrast && npm run verify:ui && npm run verify:hero && npm run verify:reveal && npm run verify:consistency && npm run verify:app && npm run verify:tabs && npm run verify:tags && npm run verify:board && npm run verify:reimbursements && npm run verify:hack && npm run verify:judge-live",
     "verify:hero": "node scripts/verify-hero-text.js",
     "verify:consistency": "node scripts/verify-consistency.js",
     "verify:reveal": "node scripts/verify-reveal.js",
