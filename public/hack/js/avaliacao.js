@@ -12,6 +12,12 @@
   const post = (path, body) => api(path, { method: 'POST', body });
   const put = (path, body) => api(path, { method: 'PUT', body });
   const pathRound = (id) => '/judge/live/rounds/' + encodeURIComponent(id);
+  // Redesenho pedido durante outra operação (ex.: resumo que terminou no meio de salvar) roda ao fim dela.
+  function afterBusy() {
+    if (!state.redrawAfterBusy) return;
+    state.redrawAfterBusy = false;
+    if (state.selected) drawDetail();
+  }
   function error(err) { toast(err.message || 'Não foi possível concluir. Tente novamente.', true); }
   // Rascunho salvo em outro aparelho: adota a revisão nova e mantém as notas desta tela,
   // para o próximo "Salvar" substituir em vez de travar em 409 para sempre.
@@ -97,7 +103,7 @@
       local.opId = local.opId || (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
       try { const result = await post(pathRound(id) + '/notes', { text: local.note.trim(), opId: local.opId }); local.note = ''; local.opId = null; state.details[id] = result; if (state.selected === id) drawDetail(); toast('Observação salva.'); }
       catch (err) { error(err); }
-      finally { state.busy = false; noteButton.disabled = false; note.disabled = false; }
+      finally { state.busy = false; noteButton.disabled = false; note.disabled = false; afterBusy(); }
     });
     const summaryBox = h('div', { 'aria-live': 'polite' });
     // O resumo é pago e limitado: redesenhar a tela (trocar de critério, salvar nota) não o descarta.
@@ -123,13 +129,17 @@
         const result = await api(pathRound(id) + '/summary', { method: 'POST', body: {}, timeoutMs: 35000 });
         const latest = await api(pathRound(id));
         if (latest.notesRevision !== result.notesRevision) state.summaries[id].message = 'As observações mudaram. Gere o resumo novamente.';
-        else { state.details[id] = latest; Object.assign(state.summaries[id], { revision: result.notesRevision, text: result.summary }); }
+        else {
+          // Resposta atrasada não pode desfazer uma observação salva enquanto o resumo rodava.
+          if (!state.details[id] || latest.notesRevision >= state.details[id].notesRevision) state.details[id] = latest;
+          Object.assign(state.summaries[id], { revision: result.notesRevision, text: result.summary });
+        }
       } catch (err) { state.summaries[id].message = 'Resumo indisponível: ' + err.message; }
       finally {
         state.summaries[id].pending = false;
         paint();
         // Não redesenha no meio de outra operação (salvar nota, confirmar): ela redesenha ao terminar.
-        if (state.selected === id && !state.busy) drawDetail();
+        if (state.selected === id) { if (state.busy) state.redrawAfterBusy = true; else drawDetail(); }
       }
     });
     const notesWrite = h('fieldset.aval-write-group', { id: 'notes-write' }, note, h('div.aval-actions', noteButton));
@@ -173,7 +183,7 @@
             local.revision = saved.draft.revision;
             toast('Rascunho salvo.');
           } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
-          finally { state.busy = false; save.disabled = false; }
+          finally { state.busy = false; save.disabled = false; afterBusy(); }
         });
         score.append(h('div.aval-actions', prev, next, save));
       } else {
@@ -193,7 +203,7 @@
             try { state.details[id] = await api(pathRound(id)); delete state.local[id]; if (state.selected === id) drawDetail(); }
             catch (_) { state.refresh = id; local.touched = false; toast('Avaliação confirmada. A tela não atualizou; ela se atualiza sozinha em instantes.', true); }
           } catch (err) { if (!(await recoverStale(id, local, err))) error(err); }
-          finally { state.busy = false; confirm.disabled = false; }
+          finally { state.busy = false; confirm.disabled = false; afterBusy(); }
         });
         review.append(h('div.aval-actions', edit, confirm)); score.append(review);
       }
