@@ -709,6 +709,21 @@ test("equipes: cria, entra por código; quem declarou grupo não usa a descobert
   eq(j.data.team.size, 2);
 });
 
+test("gravação: equipe reserva, outro membro vê e troca; organização vê e libera", async () => {
+  const r = await S.c.ana.post("/hack/api/recording/book", { slot: "10:00" });
+  eq(r.status, 200, JSON.stringify(r.data));
+  eq(r.data.mine, "10:00");
+  const b = await S.c.bruno.get("/hack/api/recording");
+  eq(b.data.mine, "10:00", "colega de equipe vê o horário");
+  eq((await S.c.bruno.post("/hack/api/recording/book", { slot: "10:15" })).data.mine, "10:15");
+  eq((await S.c.julia.get("/hack/api/recording")).status, 403, "jurada não reserva");
+  eq((await S.c.ana.get("/hack/api/admin/recording")).status, 403, "participante não vê a grade com nomes");
+  const adm = await S.admin.get("/hack/api/admin/recording");
+  eq(adm.data.slots.find((x) => x.slot === "10:15").booking.team, "Alfa");
+  eq((await S.admin.post("/hack/api/admin/recording/release", { slot: "10:15" })).status, 200);
+  eq((await S.c.ana.get("/hack/api/recording")).data.mine, null);
+});
+
 test("equipes: convite só para perfil visível e sem grupo; aceito vira integrante", async () => {
   const elisaId = (await S.c.elisa.get("/hack/api/me")).data.me.id;
   eq((await S.c.ana.post("/hack/api/team/invite", { personId: elisaId })).status, 409, "perfil escondido");

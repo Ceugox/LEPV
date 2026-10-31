@@ -1183,8 +1183,38 @@
     });
   }
 
+  // ---------- sala de gravação ----------
+  const recLabel = (slot) => slot.replace(':', 'h');
+  function drawRecording(r) {
+    const booked = r.slots.filter((x) => x.booking).length;
+    $('rec-sum').textContent = booked + ' de ' + r.slots.length + ' horários reservados · ' + r.queue.length + ' equipe(s) na fila · ' + fmtWhen(new Date().toISOString());
+    const st = { free: ['badge--ok', 'Livre'], taken: ['badge--warn', 'Reservado'], live: ['badge--red', 'Gravando agora'], past: ['', 'Encerrado'] };
+    const grid = h('article.card', h('p.card__k', 'Grade · blocos de ' + r.minutes + ' min'), h('ul.list', r.slots.map((x) => {
+      const [cls, txt] = st[x.status];
+      const b = x.booking;
+      const msg = b ? 'Liberar ' + recLabel(x.slot) + ' da ' + b.team + '?' : '';
+      return h('li', h('div.list__main',
+        h('b', recLabel(x.slot) + (b ? ' · ' + b.team : '')),
+        h('span', h('span' + (cls ? '.badge.' + cls : '.badge'), txt), b ? ' por ' + b.by + ' · ' + fmtWhen(b.at) + (b.fromQueue ? ' · veio da fila' : '') : '')),
+      b ? h('button.btn.btn--ghost.btn--sm', { type: 'button', onclick: async () => {
+        if (!confirmTwice(msg)) return;
+        try {
+          drawRecording(await api('/hack/api/admin/recording/release', { method: 'POST', body: { slot: x.slot } }));
+          toast('Horário liberado.');
+        } catch (e) { toast(e.message, true); loadRecording().catch(() => {}); }
+      } }, 'Liberar') : null);
+    })));
+    const queue = h('article.card', h('p.card__k', 'Fila de espera'), h('h3.card__title', r.queue.length + ' equipe(s)'),
+      r.queue.length
+        ? h('ol.list', r.queue.map((q) => h('li', h('div.list__main', h('b', q.team), h('span', 'por ' + q.by + ' · ' + fmtWhen(q.at))))))
+        : h('p.muted', 'Ninguém na fila. Ela só abre quando todos os horários estão reservados.'));
+    clear($('rec-grid')).append(grid, queue);
+  }
+  async function loadRecording() { drawRecording(await api('/hack/api/admin/recording')); }
+  $('rec-reload').addEventListener('click', () => loadRecording().catch((e) => toast(e.message, true)));
+
   // ---------- carga ----------
-  const loaders = { visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { gravacao: loadRecording, visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });

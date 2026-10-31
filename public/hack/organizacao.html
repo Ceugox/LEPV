@@ -44,6 +44,7 @@
     <button class="tab" type="button" role="tab" data-tab="whatsapp" data-perm="comms">WhatsApp</button>
     <button class="tab" type="button" role="tab" data-tab="duvidas" data-perm="comms">Dúvidas <span class="tab__n" id="n-duvidas" hidden></span></button>
     <button class="tab" type="button" role="tab" data-tab="programacao" data-perm="manage">Programação</button>
+    <button class="tab" type="button" role="tab" data-tab="gravacao" data-perm="checkin">Gravação</button>
   </div>
 </nav>
 
@@ -53,6 +54,12 @@
       <button class="btn btn--ghost btn--sm" type="button" id="ov-reload">Atualizar</button></div>
     <div class="grid grid--3" id="ov-stats"></div>
     <div class="grid grid--2" id="ov-lists" style="margin-top:18px"></div>
+  </section>
+
+  <section class="panel" data-panel="gravacao" aria-label="Gravação" hidden>
+    <div class="row" style="margin-bottom:16px"><span class="muted small" id="rec-sum"></span><span class="spacer"></span>
+      <button class="btn btn--ghost btn--sm" type="button" id="rec-reload">Atualizar</button></div>
+    <div class="grid grid--2" id="rec-grid"></div>
   </section>
 
   <section class="panel" data-panel="duvidas" aria-label="Dúvidas" hidden>

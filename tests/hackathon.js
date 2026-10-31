@@ -2129,6 +2129,76 @@ test("e-mail da equipe: colegas com contato, o próprio sem; outra equipe fora; 
   assert(d.text.includes("Submissão dos projetos"), "sem equipe recebe a programação");
 });
 
+// ---------- sala de gravação do pitch ----------
+const REC = require("../lib/hackathon/recording");
+function recState(nTeams) {
+  const s = emptyState();
+  for (let i = 1; i <= nTeams; i++) s.teams.push({ id: "t" + i, name: "Equipe " + i, members: ["p" + i + "a", "p" + i + "b"], status: "confirmed" });
+  return s;
+}
+const RT0 = new Date("2026-10-31T09:00:00-03:00");
+
+test("gravação: 14 blocos de 15 min das 9h30 às 12h45", () => {
+  eq1(REC.SLOTS.length, 14);
+  eq1(REC.SLOTS[0], "09:30");
+  eq1(REC.SLOTS[13], "12:45");
+});
+test("gravação: um horário por equipe; trocar libera o anterior", () => {
+  const s = recState(2);
+  REC.book(s, "p1a", "09:30", RT0);
+  assert.throws(() => REC.book(s, "p2a", "09:30", RT0), /Outra equipe/);
+  REC.book(s, "p1b", "10:00", RT0);
+  eq1(s.recordings.length, 1);
+  eq1(s.recordings[0].slot, "10:00");
+  eq1(REC.ownView(s, "p2a", RT0).slots.find((x) => x.slot === "09:30").status, "free");
+  eq1(REC.ownView(s, "p1a", RT0).mine, "10:00");
+});
+test("gravação: sem equipe não reserva; horário começado não aceita reserva", () => {
+  const s = recState(1);
+  assert.throws(() => REC.book(s, "ninguem", "10:00", RT0), /equipe/);
+  assert.throws(() => REC.book(s, "p1a", "09:30", new Date("2026-10-31T09:31:00-03:00")), /já começou/);
+  assert.throws(() => REC.book(s, "p1a", "08:00", RT0), /inválido/);
+});
+test("gravação: horário começado não troca nem cancela", () => {
+  const s = recState(1);
+  REC.book(s, "p1a", "09:30", RT0);
+  const t = new Date("2026-10-31T09:35:00-03:00");
+  assert.throws(() => REC.cancel(s, "p1a", t), /já começou/);
+  assert.throws(() => REC.book(s, "p1a", "10:00", t), /já começou/);
+  eq1(REC.ownView(s, "p1a", t).slots[0].status, "live");
+});
+test("gravação: fila só sem horário livre; cancelamento promove a primeira", () => {
+  const s = recState(16);
+  REC.SLOTS.forEach((slot, i) => REC.book(s, "p" + (i + 1) + "a", slot, RT0));
+  assert.throws(() => REC.joinQueue(s, "p1a", RT0), /já tem horário/);
+  REC.joinQueue(s, "p15a", RT0);
+  REC.joinQueue(s, "p16a", RT0);
+  eq1(REC.ownView(s, "p16b", RT0).queue.position, 2);
+  REC.cancel(s, "p3a", RT0);
+  const b = s.recordings.find((x) => x.slot === REC.SLOTS[2]);
+  eq1(b.teamId, "t15");
+  eq1(b.fromQueue, true);
+  eq1(REC.ownView(s, "p16a", RT0).queue.position, 1);
+  // Com horário livre, a fila recusa.
+  const s2 = recState(1);
+  assert.throws(() => REC.joinQueue(s2, "p1a", RT0), /horário livre/);
+});
+test("gravação: organização libera; equipe que sumiu libera o horário", () => {
+  const s = recState(16);
+  REC.SLOTS.forEach((slot, i) => REC.book(s, "p" + (i + 1) + "a", slot, RT0));
+  REC.joinQueue(s, "p15a", RT0);
+  REC.joinQueue(s, "p16a", RT0);
+  REC.release(s, "12:45", RT0);
+  eq1(s.recordings.find((x) => x.slot === "12:45").teamId, "t15");
+  s.teams = s.teams.filter((t) => t.id !== "t1");
+  REC.prune(s, RT0);
+  eq1(s.recordings.find((x) => x.slot === "09:30").teamId, "t16");
+  const v = REC.adminView(s, RT0);
+  eq1(v.slots[0].booking.team, "Equipe 16");
+  eq1(v.queue.length, 0);
+  assert.throws(() => REC.release(s, "08:00", RT0), /livre/);
+});
+
 (async () => {
   for (const t of tests) {
     try {

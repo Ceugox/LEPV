@@ -366,6 +366,7 @@
     if (name === 'entrega' && window.HackSubmission && state.me) window.HackSubmission.render($('entrega-grid'));
     if (name === 'banca' && window.HackJudge && state.me) window.HackJudge.render($('banca-grid'));
     if (name === 'parceiro' && state.me) renderPartner();
+    if (name === 'gravacao' && window.HackRecording && state.me) window.HackRecording.render($('gravacao-grid'));
     if (name === 'duvidas' && window.HackQuestions && state.me) window.HackQuestions.render($('duvidas-grid'));
     if (name === 'ia' && window.HackAI && state.me) window.HackAI.render($('ia-grid'));
   });
