@@ -1082,6 +1082,33 @@
   }
   $('add-org').addEventListener('click', () => orgDialog(null));
 
+  // ---------- relatórios (superadmin) ----------
+  // Texto livre por equipe; lido como está (quebras de linha preservadas).
+  async function loadReports() {
+    const r = await api('/hack/api/admin/reports');
+    const box = clear($('rel-list'));
+    if (!r.reports.length) { box.append(h('p.muted', 'Nenhuma equipe confirmada.')); return; }
+    for (const x of r.reports) {
+      const view = h('div.rel-text', x.text || 'Sem relatório ainda.');
+      const area = h('textarea.input.rel-edit', { rows: 18, hidden: true });
+      const save = h('button.btn.btn--sm', { type: 'button', hidden: true }, 'Salvar');
+      const edit = h('button.btn.btn--ghost.btn--sm', { type: 'button' }, 'Editar');
+      edit.addEventListener('click', () => { area.value = x.text; area.hidden = false; save.hidden = false; view.hidden = true; edit.hidden = true; area.focus(); });
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        try {
+          await api('/hack/api/admin/reports/' + x.teamId, { method: 'PUT', body: { text: area.value } });
+          toast('Relatório salvo.');
+          await loadReports();
+        } catch (e) { toast(e.message, true); save.disabled = false; }
+      });
+      box.append(h('article.card.rel-card',
+        h('div.row', h('h3.card__t', x.team), h('span.spacer'), h('span.muted.small', x.updatedAt ? 'Atualizado em ' + fmtWhen(x.updatedAt) : ''), edit, save),
+        view, area));
+    }
+  }
+  $('rel-reload').addEventListener('click', () => loadReports().catch((e) => toast(e.message, true)));
+
   // ---------- visão geral (superadmin) ----------
   const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
   // Número grande + rótulo; "alerta" quando o número pede ação.
@@ -1273,7 +1300,7 @@
   }
 
   // ---------- carga ----------
-  const loaders = { gravacao: loadRecording, visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, votacao: loadVote, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { gravacao: loadRecording, visao: loadOverview, relatorios: loadReports, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, votacao: loadVote, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });

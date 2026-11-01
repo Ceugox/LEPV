@@ -35,6 +35,7 @@
 <nav class="tabs" aria-label="Seções da organização">
   <div class="tabs__in" role="tablist">
     <button class="tab" type="button" role="tab" data-tab="visao" data-perm="superadmin" hidden>Visão geral</button>
+    <button class="tab" type="button" role="tab" data-tab="relatorios" data-perm="superadmin" hidden>Relatórios</button>
     <button class="tab" type="button" role="tab" data-tab="pessoas" data-perm="manage">Pessoas</button>
     <button class="tab" type="button" role="tab" data-tab="equipes" data-perm="manage">Equipes</button>
     <button class="tab" type="button" role="tab" data-tab="entregas" data-perm="manage">Entregas</button>
@@ -55,6 +56,12 @@
       <button class="btn btn--ghost btn--sm" type="button" id="ov-reload">Atualizar</button></div>
     <div class="grid grid--3" id="ov-stats"></div>
     <div class="grid grid--2" id="ov-lists" style="margin-top:18px"></div>
+  </section>
+
+  <section class="panel" data-panel="relatorios" aria-label="Relatórios" hidden>
+    <div class="row" style="margin-bottom:16px"><span class="muted small">Só o superadmin vê. Um relatório por equipe: resumo, notas das fases e o que indicar.</span><span class="spacer"></span>
+      <button class="btn btn--ghost btn--sm" type="button" id="rel-reload">Atualizar</button></div>
+    <div id="rel-list"></div>
   </section>
 
   <section class="panel" data-panel="gravacao" aria-label="Gravação" hidden>

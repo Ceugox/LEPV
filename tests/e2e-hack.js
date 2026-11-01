@@ -37,6 +37,7 @@ function setupVolume() {
       credentials: [
         { order: 1, passwordHash: bcrypt.hashSync(ADMIN_PASS, 8) },
         { order: 2, passwordHash: bcrypt.hashSync(MEMBER_PASS, 8) },
+        { order: 3, passwordHash: bcrypt.hashSync(MEMBER_PASS, 8) },
       ],
     })
   );
@@ -532,6 +533,7 @@ test("permissões: toda rota da organização recusa anônimo (401) e participan
     ["POST", "/hack/api/checkin/sync"], ["PUT", "/hack/api/admin/venues/2026-10-30"],
     ["PUT", "/hack/api/admin/submissions/x"], ["DELETE", "/hack/api/admin/submissions/x"],
     ["GET", "/hack/api/admin/config/ai-credit"], ["PUT", "/hack/api/admin/config/ai-credit"],
+    ["GET", "/hack/api/admin/reports"], ["PUT", "/hack/api/admin/reports/x"],
   ];
   const anon = client();
   const sofia = (await S.admin.get("/hack/api/admin/people")).data.people.find((p) => p.email === "sofia@ex.com");
@@ -845,6 +847,25 @@ test("equipes: montagem por afinidade é só da diretoria; a prévia não grava 
   eq((await S.admin.post("/hack/api/admin/teams/affinity", { teams: [{ name: "De Novo", memberIds: pair }] })).status, 409, "prévia velha: já estão numa equipe");
   eq((await S.admin.del("/hack/api/admin/teams/" + made.data.created[0].id)).status, 200);
   eq((await S.admin.get("/hack/api/admin/teams")).data.solo.length, before.solo.length, "estado da jornada restaurado");
+});
+
+test("relatórios: só o superadmin lê e grava; nunca sai na entrega nem para a banca", async () => {
+  const dir = client();
+  eq((await dir.post("/api/login", { order: 3, password: MEMBER_PASS })).status, 200);
+  eq((await dir.get("/hack/api/admin/teams")).status, 200, "diretor comum é diretoria");
+  eq((await dir.get("/hack/api/admin/reports")).status, 403, "diretor que não é superadmin não lê");
+  eq((await dir.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { text: "x" })).status, 403, "nem grava");
+  const segredo = "RELATORIO-SO-DO-SUPERADMIN";
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { text: "Resumo\nFase 1: 7,2\n" + segredo })).status, 200);
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/nao-existe", { text: "x" })).status, 404);
+  const r = (await S.admin.get("/hack/api/admin/reports")).data.reports.find((x) => x.teamId === S.alfa.id);
+  assert(r && r.text.endsWith(segredo) && r.text.includes("\n"), "texto com quebra de linha: " + JSON.stringify(r));
+  assert(r.updatedAt, "data da gravação");
+  assert(!JSON.stringify((await S.admin.get("/hack/api/admin/submissions")).data).includes(segredo), "fora da entrega");
+  assert(!JSON.stringify((await S.admin.get("/hack/api/admin/teams")).data).includes(segredo), "fora das equipes");
+  assert(!JSON.stringify((await S.people.julia.get("/hack/api/judge")).data).includes(segredo), "fora da banca");
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { text: "  " })).status, 200);
+  eq((await S.admin.get("/hack/api/admin/reports")).data.reports.find((x) => x.teamId === S.alfa.id).text, "", "texto vazio apaga");
 });
 
 test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {

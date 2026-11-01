@@ -207,3 +207,9 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.7); }
 .ia-scroll { overflow-x: auto; max-width: 100%; }
 .ia-table td.mono { overflow-wrap: anywhere; min-width: 92px; }
 .card--wide { grid-column: 1 / -1; }
+
+/* Relatórios do superadmin */
+.rel-card { margin-bottom: 16px; }
+.rel-card .row { gap: 8px; align-items: center; }
+.rel-text { white-space: pre-wrap; line-height: 1.55; margin-top: 8px; }
+.rel-edit { width: 100%; margin-top: 8px; font: inherit; }
