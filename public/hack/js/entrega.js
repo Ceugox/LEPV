@@ -86,6 +86,9 @@
     } else if (res && res.finalist) {
       out.unshift(h('article.card.card--red', h('p.card__k', 'Resultado da fase 1'), h('h3.card__title', 'Sua equipe está na final'), h('p.muted', 'Prepare o pitch.')));
     }
+    if (res && res.feedback) {
+      out.unshift(h('article.card.card--red', h('p.card__k', 'Retorno da organização'), h('div.rel-text', res.feedback)));
+    }
     clear(box).append(...out);
   }
 

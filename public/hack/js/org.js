@@ -1082,6 +1082,43 @@
   }
   $('add-org').addEventListener('click', () => orgDialog(null));
 
+  // ---------- relatórios (superadmin) ----------
+  // Por equipe: relatório interno e retorno que a equipe vê na aba Entrega.
+  // Texto lido como está (quebras de linha preservadas).
+  async function loadReports() {
+    const r = await api('/hack/api/admin/reports');
+    const box = clear($('rel-list'));
+    if (!r.reports.length) { box.append(h('p.muted', 'Nenhuma equipe confirmada.')); return; }
+    const block = (x, key, label, empty) => {
+      const view = h('div.rel-text', x[key] || empty);
+      const area = h('textarea.input.rel-edit', { rows: 14, hidden: true });
+      const save = h('button.btn.btn--sm', { type: 'button', hidden: true }, 'Salvar');
+      const edit = h('button.btn.btn--ghost.btn--sm', { type: 'button' }, 'Editar');
+      const editing = (on) => { area.hidden = !on; save.hidden = !on; view.hidden = on; edit.hidden = on; };
+      edit.addEventListener('click', () => { area.value = x[key]; editing(true); area.focus(); });
+      // Salvar atualiza só este bloco: rascunho aberto em outro campo não se perde.
+      save.addEventListener('click', async () => {
+        save.disabled = true;
+        try {
+          await api('/hack/api/admin/reports/' + x.teamId, { method: 'PUT', body: { [key]: area.value } });
+        } catch (e) { toast(e.message, true); save.disabled = false; return; }
+        x[key] = area.value.trim();
+        view.textContent = x[key] || empty;
+        editing(false);
+        save.disabled = false;
+        toast('Salvo.');
+      });
+      return [h('div.row.rel-head', h('p.card__k', label), h('span.spacer'), edit, save), view, area];
+    };
+    for (const x of r.reports) {
+      box.append(h('article.card.rel-card',
+        h('div.row', h('h3.card__t', x.team), h('span.spacer'), h('span.muted.small', x.updatedAt ? 'Atualizado em ' + fmtWhen(x.updatedAt) : '')),
+        block(x, 'text', 'Relatório interno', 'Sem relatório ainda.'),
+        block(x, 'feedback', 'Retorno para a equipe (aparece na aba Entrega)', 'Sem retorno ainda: a equipe não vê nada.')));
+    }
+  }
+  $('rel-reload').addEventListener('click', () => loadReports().catch((e) => toast(e.message, true)));
+
   // ---------- visão geral (superadmin) ----------
   const fmtWhen = (iso) => (iso ? new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
   // Número grande + rótulo; "alerta" quando o número pede ação.
@@ -1273,7 +1310,7 @@
   }
 
   // ---------- carga ----------
-  const loaders = { gravacao: loadRecording, visao: loadOverview, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, votacao: loadVote, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
+  const loaders = { gravacao: loadRecording, visao: loadOverview, relatorios: loadReports, duvidas: loadQuestions, pessoas: loadPeople, equipes: () => Promise.all([loadTeams(), loadTeamMail()]), entregas: loadSubs, avaliacao: loadEval, votacao: loadVote, parceiros: loadPartners, programacao: () => Promise.all([loadProgram(), loadAiCredit()]), avisos: () => { preview(); return loadAvisos(); }, whatsapp: loadWhats };
   const tabs = window.Hack.tabs((name) => {
     if (loaders[name]) loaders[name]().catch((e) => toast(e.message, true));
   });
