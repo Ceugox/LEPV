@@ -1083,28 +1083,33 @@
   $('add-org').addEventListener('click', () => orgDialog(null));
 
   // ---------- relatórios (superadmin) ----------
-  // Texto livre por equipe; lido como está (quebras de linha preservadas).
+  // Por equipe: relatório interno e retorno que a equipe vê na aba Entrega.
+  // Texto lido como está (quebras de linha preservadas).
   async function loadReports() {
     const r = await api('/hack/api/admin/reports');
     const box = clear($('rel-list'));
     if (!r.reports.length) { box.append(h('p.muted', 'Nenhuma equipe confirmada.')); return; }
-    for (const x of r.reports) {
-      const view = h('div.rel-text', x.text || 'Sem relatório ainda.');
-      const area = h('textarea.input.rel-edit', { rows: 18, hidden: true });
+    const block = (x, key, label, empty) => {
+      const view = h('div.rel-text', x[key] || empty);
+      const area = h('textarea.input.rel-edit', { rows: 14, hidden: true });
       const save = h('button.btn.btn--sm', { type: 'button', hidden: true }, 'Salvar');
       const edit = h('button.btn.btn--ghost.btn--sm', { type: 'button' }, 'Editar');
-      edit.addEventListener('click', () => { area.value = x.text; area.hidden = false; save.hidden = false; view.hidden = true; edit.hidden = true; area.focus(); });
+      edit.addEventListener('click', () => { area.value = x[key]; area.hidden = false; save.hidden = false; view.hidden = true; edit.hidden = true; area.focus(); });
       save.addEventListener('click', async () => {
         save.disabled = true;
         try {
-          await api('/hack/api/admin/reports/' + x.teamId, { method: 'PUT', body: { text: area.value } });
-          toast('Relatório salvo.');
+          await api('/hack/api/admin/reports/' + x.teamId, { method: 'PUT', body: { [key]: area.value } });
+          toast('Salvo.');
           await loadReports();
         } catch (e) { toast(e.message, true); save.disabled = false; }
       });
+      return [h('div.row.rel-head', h('p.card__k', label), h('span.spacer'), edit, save), view, area];
+    };
+    for (const x of r.reports) {
       box.append(h('article.card.rel-card',
-        h('div.row', h('h3.card__t', x.team), h('span.spacer'), h('span.muted.small', x.updatedAt ? 'Atualizado em ' + fmtWhen(x.updatedAt) : ''), edit, save),
-        view, area));
+        h('div.row', h('h3.card__t', x.team), h('span.spacer'), h('span.muted.small', x.updatedAt ? 'Atualizado em ' + fmtWhen(x.updatedAt) : '')),
+        block(x, 'text', 'Relatório interno', 'Sem relatório ainda.'),
+        block(x, 'feedback', 'Retorno para a equipe (aparece na aba Entrega)', 'Sem retorno ainda: a equipe não vê nada.')));
     }
   }
   $('rel-reload').addEventListener('click', () => loadReports().catch((e) => toast(e.message, true)));

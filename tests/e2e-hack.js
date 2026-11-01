@@ -864,8 +864,18 @@ test("relatórios: só o superadmin lê e grava; nunca sai na entrega nem para a
   assert(!JSON.stringify((await S.admin.get("/hack/api/admin/submissions")).data).includes(segredo), "fora da entrega");
   assert(!JSON.stringify((await S.admin.get("/hack/api/admin/teams")).data).includes(segredo), "fora das equipes");
   assert(!JSON.stringify((await S.people.julia.get("/hack/api/judge")).data).includes(segredo), "fora da banca");
-  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { text: "  " })).status, 200);
-  eq((await S.admin.get("/hack/api/admin/reports")).data.reports.find((x) => x.teamId === S.alfa.id).text, "", "texto vazio apaga");
+  eq((await S.c.ana.get("/hack/api/team/result")).data.feedback, null, "sem retorno, a equipe não vê nada");
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { feedback: "Parabéns pela entrega!" })).status, 200);
+  const res = (await S.c.ana.get("/hack/api/team/result")).data;
+  eq(res.feedback, "Parabéns pela entrega!", "a equipe vê o retorno");
+  assert(!JSON.stringify(res).includes(segredo), "a equipe nunca vê o relatório interno");
+  eq((await S.c.julia.get("/hack/api/team/result")).data.feedback, null, "quem não é da equipe não vê");
+  const both = (await S.admin.get("/hack/api/admin/reports")).data.reports.find((x) => x.teamId === S.alfa.id);
+  assert(both.text.endsWith(segredo) && both.feedback === "Parabéns pela entrega!", "gravar um campo não apaga o outro");
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { text: "  ", feedback: "" })).status, 200);
+  const gone = (await S.admin.get("/hack/api/admin/reports")).data.reports.find((x) => x.teamId === S.alfa.id);
+  eq(gone.text + gone.feedback, "", "vazio apaga");
+  eq((await S.c.ana.get("/hack/api/team/result")).data.feedback, null);
 });
 
 test("equipes: quem tem grupo indica colegas; o aceite forma a equipe", async () => {

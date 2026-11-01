@@ -213,3 +213,4 @@ dialog.dlg::backdrop { background: rgba(0,0,0,.7); }
 .rel-card .row { gap: 8px; align-items: center; }
 .rel-text { white-space: pre-wrap; line-height: 1.55; margin-top: 8px; }
 .rel-edit { width: 100%; margin-top: 8px; font: inherit; }
+.rel-head { margin-top: 14px; }
