@@ -1091,7 +1091,7 @@
     if (!r.reports.length) { box.append(h('p.muted', 'Nenhuma equipe confirmada.')); return; }
     const block = (x, key, label, empty) => {
       const view = h('div.rel-text', x[key] || empty);
-      const area = h('textarea.input.rel-edit', { rows: 14, maxlength: 20000, hidden: true });
+      const area = h('textarea.input.rel-edit', { rows: 14, hidden: true });
       const save = h('button.btn.btn--sm', { type: 'button', hidden: true }, 'Salvar');
       const edit = h('button.btn.btn--ghost.btn--sm', { type: 'button' }, 'Editar');
       const editing = (on) => { area.hidden = !on; save.hidden = !on; view.hidden = on; edit.hidden = on; };
