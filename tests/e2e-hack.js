@@ -870,6 +870,10 @@ test("relatórios: só o superadmin lê e grava; nunca sai na entrega nem para a
   eq(res.feedback, "Parabéns pela entrega!", "a equipe vê o retorno");
   assert(!JSON.stringify(res).includes(segredo), "a equipe nunca vê o relatório interno");
   eq((await S.c.julia.get("/hack/api/team/result")).data.feedback, null, "quem não é da equipe não vê");
+  eq((await S.c.davi.get("/hack/api/team/result")).data.feedback, null, "integrante de outra equipe não vê");
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { feedback: "x".repeat(20001) })).status, 400, "texto grande é recusado, não cortado");
+  eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { feedback: { a: 1 } })).status, 400, "só texto");
+  eq((await S.c.ana.get("/hack/api/team/result")).data.feedback, "Parabéns pela entrega!", "recusa não muda o que estava gravado");
   const both = (await S.admin.get("/hack/api/admin/reports")).data.reports.find((x) => x.teamId === S.alfa.id);
   assert(both.text.endsWith(segredo) && both.feedback === "Parabéns pela entrega!", "gravar um campo não apaga o outro");
   eq((await S.admin.raw("PUT", "/hack/api/admin/reports/" + S.alfa.id, { text: "  ", feedback: "" })).status, 200);

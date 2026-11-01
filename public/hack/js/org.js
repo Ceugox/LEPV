@@ -1091,17 +1091,22 @@
     if (!r.reports.length) { box.append(h('p.muted', 'Nenhuma equipe confirmada.')); return; }
     const block = (x, key, label, empty) => {
       const view = h('div.rel-text', x[key] || empty);
-      const area = h('textarea.input.rel-edit', { rows: 14, hidden: true });
+      const area = h('textarea.input.rel-edit', { rows: 14, maxlength: 20000, hidden: true });
       const save = h('button.btn.btn--sm', { type: 'button', hidden: true }, 'Salvar');
       const edit = h('button.btn.btn--ghost.btn--sm', { type: 'button' }, 'Editar');
-      edit.addEventListener('click', () => { area.value = x[key]; area.hidden = false; save.hidden = false; view.hidden = true; edit.hidden = true; area.focus(); });
+      const editing = (on) => { area.hidden = !on; save.hidden = !on; view.hidden = on; edit.hidden = on; };
+      edit.addEventListener('click', () => { area.value = x[key]; editing(true); area.focus(); });
+      // Salvar atualiza só este bloco: rascunho aberto em outro campo não se perde.
       save.addEventListener('click', async () => {
         save.disabled = true;
         try {
           await api('/hack/api/admin/reports/' + x.teamId, { method: 'PUT', body: { [key]: area.value } });
-          toast('Salvo.');
-          await loadReports();
-        } catch (e) { toast(e.message, true); save.disabled = false; }
+        } catch (e) { toast(e.message, true); save.disabled = false; return; }
+        x[key] = area.value.trim();
+        view.textContent = x[key] || empty;
+        editing(false);
+        save.disabled = false;
+        toast('Salvo.');
       });
       return [h('div.row.rel-head', h('p.card__k', label), h('span.spacer'), edit, save), view, area];
     };
